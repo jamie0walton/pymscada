@@ -1,0 +1,16 @@
+[Unit]
+    Description=pymscada - history
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=/home/mscada
+    ExecStart=/home/mscada/pymscada/.venv/bin/pymscada run history --config ./pymscada/docs/examples/history.yaml --tags ./pymscada/docs/examples/tags.yaml --verbose
+    Restart=always
+    RestartSec=5
+    User=mscada
+    Group=mscada
+    KillSignal=SIGINT
+
+[Install]
+    WantedBy=multi-user.target

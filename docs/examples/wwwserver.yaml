@@ -1,0 +1,80 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+ip: 0.0.0.0
+port: 8324
+get_path: angmscada/dist/angmscada
+paths:
+- pymscada/docs/examples
+- pymscada/docs/examples/pdf
+pages:
+- name: Default Main
+  parent:
+  items:
+  - {desc: Default tags, type: h1}
+  - {tagname: IntSet, type: setpoint}
+  - {tagname: IntVal, type: value}
+  - {tagname: FloatSet, type: setpoint}
+  - {tagname: FloatVal, type: value}
+  - {tagname: MultiSet, type: setpoint}
+  - {tagname: MultiVal, type: value}
+  - {tagname: StringSet, type: setpoint}
+  - {tagname: StringVal, type: value}
+  - {tagname: TimeSet, type: setpoint}
+  - {tagname: TimeVal, type: value}
+  - {tagname: DateSet, type: setpoint}
+  - {tagname: DateVal, type: value}
+  - {tagname: DateTimeSet, type: setpoint}
+  - {tagname: DateTimeVal, type: value}
+  - type: selectdict
+    tagname: MultiSelect
+    opts:
+      type: multi
+      multi:
+      - Zero
+      - One
+      - Two
+      - Three
+      - Four
+      - Five
+  - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
+- name: Trends
+  parent: Dropdown
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Sample Trend
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]  # 86400 172800 1209600
+    - scale: integers
+      range: [0.0, 100.0]
+      dp: 1
+    - scale: floats
+      range: [0.0, 100.0]
+      dp: 1
+      side: 1
+    # bands:  # TODO
+    # - series: [I_Transpower_Limit_Hi, I_Transpower_Limit_Lo]
+    #   fill: [red, 0.2]
+    #   dir: -1
+    series:
+    - tagname: IntVal
+      label: Int
+      scale: integers
+      color: red
+      width: 1.5
+      dp: 1
+    - tagname: FloatVal
+      label: Float
+      scale: floats
+      color: blue
+      width: 1
+      dp: 1
+- name: Files
+  parent: Dropdown
+  items:
+  - {tagname: __files__, type: files}

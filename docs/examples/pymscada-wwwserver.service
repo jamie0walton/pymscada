@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - wwwserver
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=/home/mscada
+    ExecStart=/home/mscada/pymscada/.venv/bin/pymscada run wwwserver --config ./pymscada/docs/examples/wwwserver.yaml --tags ./pymscada/docs/examples/tags.yaml --verbose
+    Restart=always
+    RestartSec=5
+    User=mscada
+    Group=mscada
+
+[Install]
+    WantedBy=multi-user.target

@@ -1,0 +1,89 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name":"bus",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": [
+                "run", "bus",
+                "--verbose"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"files",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": [
+                "run", "files",
+                "--verbose",
+                "--config", "./pymscada/docs/examples/files.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"wwwserver",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": [
+                "run", "wwwserver",
+                "--verbose",
+                "--config", "./pymscada/docs/examples/wwwserver.yaml",
+                "--tags", "./pymscada/docs/examples/tags.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"history",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": [
+                "run", "history",
+                "--verbose",
+                "--config", "pymscada/docs/examples/history.yaml",
+                "--tags", "pymscada/docs/examples/tags.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"simulate",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": [
+                "run", "simulate",
+                "--verbose",
+                "--config", "./pymscada/docs/examples/simulate.yaml",
+                "--tags", "./pymscada/docs/examples/tags.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name": "Python: Debug Tests",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

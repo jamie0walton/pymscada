@@ -1,0 +1,21 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+process:
+  one:
+    type: sine
+    offset: 50
+    amplitude: 40
+    frequency: 0.0005
+    sub:
+      offset: FloatSet
+    pub:
+      result: FloatVal
+  two:
+    type: sawtooth
+    offset: 10
+    amplitude: 80
+    frequency: 0.00005
+    sub:
+      offset: IntSet
+    pub:
+      result: IntVal

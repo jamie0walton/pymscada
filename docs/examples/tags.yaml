@@ -1,0 +1,111 @@
+__bus__:
+  desc: Bus Server Info
+  type: str
+__files__:
+  desc: File Server
+  type: dict
+__history__:
+  desc: History
+  type: bytes
+__opnotes__:
+  desc: Operator Notes
+  type: dict
+__alarms__:
+  desc: Alarms
+  type: dict
+IntSet:
+  desc: Integer Setpoint
+  type: int
+  min: -100
+  max: 100
+  init: 1
+IntVal:
+  desc: Integer Value
+  type: int
+  min: -100
+  max: 100
+  init: 1
+FloatSet:
+  desc: Float Setpoint
+  type: float
+  min: -1e100
+  max: 1e100
+  units: 'm'
+  dp: 1
+  init: 2
+FloatVal:
+  desc: Float Value
+  type: float
+  min: -1e100
+  max: 1e100
+  units: 'm'
+  dp: 1
+  init: 2
+MultiSet:
+  desc: Multi Setpoint
+  multi:
+   - zero
+   - one
+   - two
+   - three
+  init: 0
+MultiVal:
+  desc: Multi Value
+  multi:
+   - zero
+   - one
+   - two
+   - three
+  init: 0
+StringSet:
+  desc: String Setpoint
+  type: str
+  init: a string
+StringVal:
+  desc: String Value
+  type: str
+  init: a string
+TimeSet:
+  desc: Time Setpoint
+  type: int
+  init: 1234567890
+  format: time
+TimeVal:
+  desc: Time Value
+  type: int
+  init: 1234567890
+  format: time
+DateSet:
+  desc: Date Setpoint
+  type: int
+  init: 1234567890
+  format: date
+DateVal:
+  desc: Date Value
+  type: int
+  init: 1234567890
+  format: date
+DateTimeSet:
+  desc: Date Time Setpoint
+  type: int
+  init: 1234567890
+  format: datetime
+DateTimeVal:
+  desc: Date Time Value
+  type: int
+  init: 1234567890
+  format: datetime
+MultiSelect:
+  desc: Select Dict Multi
+  type: dict
+  init:
+    labels: [A, B, C, D, E, F, G, H]
+    values: [0, 1, 2, 3, 3, 4, 4, 3]
+    locks: [1, 0, 0, 0, 0, 0, 0, 1]
+FloatSelect:
+  desc: Select Dict Float
+  type: dict
+  init:
+    labels: [Floats, For, This, Tag]
+    values: [0.1, 0.1, 0.2, 0.3]
+    locks: [0, 1, 0, 0]

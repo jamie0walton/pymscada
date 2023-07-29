@@ -1,0 +1,2 @@
+graft src/pymscada/assets
+graft src/pymscada/html

@@ -1,0 +1,38 @@
+[project]
+name = "pymscada"
+version = "0.0.1"
+description = "Shared tag value SCADA with python backup and Angular UI"
+authors = [
+    {name = "Jamie Walton", email = "jamie@walton.net.nz"},
+]
+dependencies = [
+    "PyYAML>=6.0.1",
+    "aiohttp>=3.8.5",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: JavaScript",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Development Status :: 1 - Planning",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.dev-dependencies]
+test = [
+    "pytest>=7.4.2",
+    "flake8>=6.1.0",
+    "flake8-docstrings>=1.7.0",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+pymscada = "pymscada.__main__:cmd_line"
