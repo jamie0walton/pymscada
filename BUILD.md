@@ -17,5 +17,7 @@ pdm init
 # Author Name -- Jamie Walton
 # email -- jamie@walton.net.nz
 # python -- >=3.9  although I am setting up in 3.11. importlib choice
-pdm add -dG test pytest flake8 flake8-docstrings
+pdm add -dG test pytest pytest-asyncio flake8 flake8-docstrings
+pdm build
+pdm sync  # this installs in editable mode which allows pytest to work
 ```

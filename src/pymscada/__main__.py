@@ -1,5 +1,5 @@
 """Provides `python -m pymscada` and `pymscada.exe`."""
-from .main import run
+from pymscada.main import run
 
 
 if __name__ == '__main__':
