@@ -12,7 +12,8 @@ from pymscada.bus_client import BusClient
 server_port = None
 
 
-def test_bustag():
+@pytest.mark.asyncio
+async def test_bustag():
     """Basic BusTags and BusTag checks."""
     tag_0 = BusTag(b'tag_0')
     tag_1 = BusTag(b'tag_1')
@@ -24,17 +25,17 @@ def test_bustag():
     assert BusTags._tag_by_name[b'tag_1'].id == 1
     cb0 = None
 
-    def cb(tag: BusTag):
+    async def cb(tag: BusTag, bus_id):
         nonlocal cb0
         cb0 = tag.name + b' ' + str(tag.id).encode() + b' ' + tag.value
 
-    tag_0.add_callback(cb)
-    tag_0.update(b'new', 1000, 55)
+    tag_0.add_callback(cb, None)
+    await tag_0.update(b'new', 1000, 55)
     assert cb0 == b'tag_0 0 new'
-    tag_2.update(b'newer', 0, 22)
+    await tag_2.update(b'newer', 0, 22)
     assert cb0 == b'tag_0 0 newer'
-    tag_2.del_callback(cb)  # deletes callback on tag_0 as same tag
-    tag_0.update(b'new again', 1000, 55)
+    tag_2.del_callback(cb, None)  # deletes callback on tag_0 as same tag
+    await tag_0.update(b'new again', 1000, 55)
     assert cb0 == b'tag_0 0 newer'
 
 
@@ -51,9 +52,9 @@ def event_loop():
 async def bus_server():
     """Run a live server on an unused port."""
     global server_port
-    server = BusServer(port=0)
-    running = await server.start()
-    server_port = running.sockets[0].getsockname()[1]
+    busserver = BusServer(port=0)
+    server = await busserver.start()
+    server_port = server.sockets[0].getsockname()[1]
 
 
 PROTOCOL_TESTS = [
@@ -124,16 +125,18 @@ async def test_protocol_message(bus_server):
 
 
 @pytest.mark.asyncio
-async def test_client(bus_server):
+async def test_client_speed(capsys, bus_server):
     """Connect to the server and test the protocol."""
     global server_port
+    TEST_COUNT = 1000  # shorter troublesome in windows
     client = BusClient(port=server_port)
-    await client.start()
-    tag_3 = Tag('tag_3', int)
-    tag_4 = Tag('tag_4', str)
+    await client.connect()
+    tag_13 = Tag('tag_13', int)
+    tag_14 = Tag('tag_14', str)
     await asyncio.sleep(0.1)
-    assert tag_3.id is not None, 'Bus should have assigned ID'
-    assert tag_4.id is not None, 'Bus should have assigned ID'
+    assert tag_13.id is not None, 'Bus should have assigned ID'
+    assert tag_14.id is not None, 'Bus should have assigned ID'
+    assert tag_13.id != tag_14.id, 'Bus tags should have different IDs'
     queue = asyncio.Queue()
 
     def cb_int(tag: Tag):
@@ -144,30 +147,56 @@ async def test_client(bus_server):
         nonlocal queue
         queue.put_nowait(tag.value)
 
-    tag_3.add_callback(cb_int)
-    tag_4.add_callback(cb_str)
-    reader, writer = await asyncio.open_connection('127.0.0.1', server_port)
+    tag_13.add_callback(cb_int)
+    tag_14.add_callback(cb_str)
+    _, writer = await asyncio.open_connection('127.0.0.1', server_port)
     t0 = process_time_ns()
-    for test_value in range(1000):
-        msg = pack('>BBHHQBq', 1, pc.CMD_SET, tag_3.id, 9, 1234, pc.TYPE_INT,
+    for test_value in range(TEST_COUNT):
+        msg = pack('>BBHHQBq', 1, pc.CMD_SET, tag_13.id, 9, 1234, pc.TYPE_INT,
                    test_value)
         writer.write(msg)
         response = await queue.get()
         assert test_value == response
     t1 = process_time_ns()
-    ms_per_cycle = (t1 - t0) / 1000000000
+    ms_per_cycle = (t1 - t0) / 1000000 / TEST_COUNT
+    with capsys.disabled():
+        print(f'for {TEST_COUNT} writes, round trip is {ms_per_cycle}ms/write')
     assert ms_per_cycle < 10  # less than 10ms per count
-    value = b'\x03' + b'x' * 1000000
+    await client.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_client_big(capsys, bus_server):
+    """Connect to the server and test the protocol."""
+    global server_port
+    TEST_LENGTH = 1000000  # 1MB is 0s, 10MB is 0.2s, 100MB is 22s
+    client = BusClient(port=server_port)
+    await client.connect()
+    tag_14 = Tag('tag_14', str)
+    await asyncio.sleep(0.1)
+    queue = asyncio.Queue()
+
+    def cb_str(tag: Tag):
+        nonlocal queue
+        queue.put_nowait(tag.value)
+
+    tag_14.add_callback(cb_str)
+    _, writer = await asyncio.open_connection('127.0.0.1', server_port)
+    value = b'\x03' + b'x' * TEST_LENGTH
+    t0 = process_time_ns()
     for i in range(0, len(value) + 1, pc.MAX_LEN):
         snip = value[i:i+pc.MAX_LEN]
         size = len(snip)
-        msg = pack(f'>BBHHQ{size}s', 1, pc.CMD_SET, tag_4.id, size, 5678,
+        msg = pack(f'>BBHHQ{size}s', 1, pc.CMD_SET, tag_14.id, size, 5678,
                    snip)
         await writer.drain()
         writer.write(msg)
     writer.close()
     await writer.wait_closed()
-    await asyncio.sleep(1000)
     response = await queue.get()
-    assert len(response) == 1000000
-    # pass
+    t1 = process_time_ns()
+    ns_per_byte = (t1 - t0) / 1000000
+    with capsys.disabled():
+        print(f'for 1 big write, round trip is {ns_per_byte}ms')
+    assert len(response) == TEST_LENGTH
+    await client.shutdown()

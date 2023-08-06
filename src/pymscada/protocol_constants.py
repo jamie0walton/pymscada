@@ -35,7 +35,7 @@ command
 """
 
 # Tuning constants
-MAX_LEN = 20
+MAX_LEN = 65535  # sometimes negligibly faster at 65535 - 14
 
 # Network protocol commands
 CMD_ID = 1  # query / inform tag ID - data is tagname bytes string

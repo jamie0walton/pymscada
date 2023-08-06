@@ -4,7 +4,13 @@ import asyncio
 from pymscada import Tag
 
 
-def test_create_tags():
+@pytest.fixture(scope='module')
+def unlink_notify():
+    """If async tests have run, this needs to be unset."""
+    Tag.notify = None
+
+
+def test_create_tags(unlink_notify):
     """Check some very basics."""
     try:
         tag_0 = Tag('tag_0')
@@ -27,7 +33,7 @@ def test_create_tags():
     assert tag_2.value == 12345.  # tag_2 _is_ tag_1
 
 
-def test_list_dict_types():
+def test_list_dict_types(unlink_notify):
     """Lists and dictionaries."""
     tag_3 = Tag('tag_3', list)
     tag_4 = Tag('tag_4', dict)
@@ -45,7 +51,7 @@ def test_list_dict_types():
     tag_4.value = {'this': 'should work'}
 
 
-def test_multi():
+def test_multi(unlink_notify):
     """Special case for integer value."""
     tag_10 = Tag('tag_10', int)
     tag_10.multi = ['zero', 'one', 'two', 'three']
@@ -56,7 +62,7 @@ def test_multi():
     assert tag_10.value == 3  # list sets min/max values
 
 
-def test_value_limits():
+def test_value_limits(unlink_notify):
     """Hi."""
     tag_5 = Tag('tag_5', "float")
     tag_5.value_min = -5
@@ -67,7 +73,7 @@ def test_value_limits():
     assert tag_5.value == -5
 
 
-def test_int_with_float():
+def test_int_with_float(unlink_notify):
     """Hi."""
     tag_6 = Tag('tag_6', int)
     tag_6.value = 1.235
@@ -77,7 +83,7 @@ def test_int_with_float():
     assert type(tag_7.value) == float
 
 
-def test_dict_callback():
+def test_dict_callback(unlink_notify):
     """Dict test with callback."""
     r1 = None
 
@@ -107,7 +113,7 @@ def test_dict_callback():
     assert r1 == 55
 
 
-def test_watch_tags():
+def test_watch_tags(unlink_notify):
     """Hi."""
     new_tags = []
 
@@ -124,7 +130,7 @@ def test_watch_tags():
     assert new_tags == [v2, v3]
 
 
-def test_from_bus():
+def test_from_bus(unlink_notify):
     """Confirm we can set and see if the bus is the source of the tag value."""
     cbl = []
 
@@ -163,7 +169,7 @@ def event_loop():
 
 
 @pytest.mark.asyncio()
-async def test_callbacks():
+async def test_callbacks(unlink_notify):
     """
     Check callbacks.
 
@@ -188,7 +194,7 @@ async def test_callbacks():
     assert v2.value == 1.0
 
 
-def test_deadband():
+def test_deadband(unlink_notify):
     """Test deadband operation."""
     d1 = Tag('db1', float)
     d1.value = 10.0

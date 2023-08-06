@@ -18,7 +18,7 @@ def validate_tag(tag: dict):
         logging.error(f"{tag} missing desc")
     if 'multi' in tag:
         if 'type' in tag:
-            logging.warn(f"{tag} redundant type cast for multi")
+            logging.warning(f"{tag} redundant type cast for multi")
         tag['type'] = int
     else:
         if 'type' not in tag:
@@ -30,12 +30,12 @@ def validate_tag(tag: dict):
                 logging.error(f"{tag} invalid type {tag['type']}")
     if tag['type'] is int:
         if 'dp' in tag:
-            logging.warn(f"{tag} redundant dp for int")
+            logging.warning(f"{tag} redundant dp for int")
         tag['dp'] = 0
     elif tag['type'] is float and 'dp' not in tag:
         tag['dp'] = 2
     elif tag['type'] is str and 'dp' in tag:
-        logging.warn(f"{tag} str cannot use dp")
+        logging.warning(f"{tag} str cannot use dp")
         del tag['dp']
 
 
@@ -169,10 +169,10 @@ class Tag(metaclass=UniqueTag):
         if time_us == 0:
             return
         if type(value) is int and self.type is float:
-            # logging.warn(f"{self.name} coercing int to float")
+            # logging.warning(f"{self.name} coercing int to float")
             value = float(value)
         elif type(value) is float and self.type is int:
-            logging.warn(f"{self.name} coercing float to int")
+            logging.warning(f"{self.name} coercing float to int")
             value = int(value)
         # elif value is None and self.type is str:
         #     logging.info(f"{self.name} setting empty string")
@@ -215,7 +215,7 @@ class Tag(metaclass=UniqueTag):
     def time_us(self, time_us: int):
         """Make sure this is int, should _always_ be. TODO remove."""
         if type(time_us) is not int:
-            logging.warn(f"{self.name} was not an int, FIX.")
+            logging.warning(f"{self.name} was not an int, FIX.")
             self.__time_us = int(time_us)
         else:
             self.__time_us = time_us
