@@ -1,6 +1,7 @@
 """Bus protocol pack and unpack."""
 import asyncio
 from struct import pack, unpack
+import time
 import logging
 from . import protocol_constants as pc
 
@@ -49,14 +50,13 @@ class BusTag(metaclass=BusTags):
         if (callback, bus_id) in self.pub:
             self.pub.remove((callback, bus_id))
 
-    async def update(self, data: bytes, time_us: int, from_bus:
-                     'BusConnection'):
+    def update(self, data: bytes, time_us: int, from_bus: 'BusConnection'):
         """Assign value and update subscribers."""
         self.value = data
         self.time_us = time_us
         self.from_bus = from_bus
         for callback, bus_id in self.pub:
-            await callback(self, bus_id)
+            callback(self, bus_id)
 
 
 class BusConnection():
@@ -85,8 +85,8 @@ class BusConnection():
         del self.addr
         del self.pending
 
-    async def write(self, command: pc.COMMANDS, tag_id: int,
-                    time_us: int, data: bytes):
+    def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
+              data: bytes):
         """Write a message."""
         if data is None:
             data = b''
@@ -96,9 +96,7 @@ class BusConnection():
             msg = pack(f">BBHHQ{size}s", 1, command, tag_id, size, time_us,
                        snip)
             try:
-                # async with asyncio.Timeout(10):  asyncio.TimeoutError,
                 self.writer.write(msg)
-                await self.writer.drain()
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 self.read_task.cancel()
 
@@ -115,7 +113,7 @@ class BusConnection():
                 break
             # if the command packet indicates data, get that too
             if size == 0:
-                await self.read_callback((bus_id, cmd, tag_id, time_us, None))
+                self.read_callback((bus_id, cmd, tag_id, time_us, None))
                 continue
             try:
                 payload = await self.reader.readexactly(size)
@@ -134,9 +132,9 @@ class BusConnection():
             if tag_id in self.pending:
                 data = self.pending[tag_id] + data
                 del self.pending[tag_id]
-            await self.read_callback((bus_id, cmd, tag_id, time_us, data))
+            self.read_callback((bus_id, cmd, tag_id, time_us, data))
         # on broken connection
-        await self.read_callback((bus_id, None, 0, 0, None))
+        self.read_callback((bus_id, None, 0, 0, None))
 
 
 class BusServer:
@@ -155,89 +153,82 @@ class BusServer:
         self.port = port
         self.server = None
         self.connections: dict[int, BusConnection] = {}
+        bus_tag = BusTag(b'__bus__')
+        bus_tag.value = b'started'
+        bus_tag.time_us = int(time.time() * 1e6)
+        bus_tag.from_bus = 0
 
-    async def publish(self, tag: BusTag, bus_id):
+    def publish(self, tag: BusTag, bus_id):
         """Update subcribers with tag value change."""
         if tag.from_bus == bus_id or tag.value is None:
             return
         try:
-            await self.connections[bus_id].write(
-                pc.CMD_SET, tag.id, tag.time_us, tag.value
-            )
+            self.connections[bus_id].write(pc.CMD_SET, tag.id, tag.time_us,
+                                           tag.value)
         except KeyError:
             tag.del_callback(self.publish, bus_id)
 
-    async def process(self, bus_id, cmd, tag_id, time_us, data):
+    def process(self, bus_id, cmd, tag_id, time_us, data):
         """Process bus message, updating the local tag value."""
         if cmd == pc.CMD_SET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
-                await tag.update(data, time_us, bus_id)
+                tag.update(data, time_us, bus_id)
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"SET KeyError {tag_id}".encode()
-                )
+                    f"SET KeyError {tag_id}".encode())
         elif cmd == pc.CMD_RQS:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"RQS KeyError {tag_id}".encode()
-                )
+                    f"RQS KeyError {tag_id}".encode())
             """Reply comes from another BusClient, not the Server."""
             try:
                 tag.from_bus._message(cmd, tag_id, time_us, data)
             except Exception as e:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"RQS {tag_id} {e}".encode()
-                )
+                    f"RQS {tag_id} {e}".encode())
         elif cmd == pc.CMD_SUB:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"SUBscribe KeyError {tag_id}".encode()
-                )
+                    f"SUBscribe KeyError {tag_id}".encode())
             if tag.time_us != 0:
-                await self.connections[bus_id].write(
-                    pc.CMD_SET, tag_id, tag.time_us, tag.value
-                )
+                self.connections[bus_id].write(pc.CMD_SET, tag_id,
+                                               tag.time_us, tag.value)
             tag.add_callback(self.publish, bus_id)
         elif cmd == pc.CMD_ID:
             try:
                 tag = BusTags._tag_by_name[data]
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"ID {data} undefined".encode()
-                )
+                    f"ID {data} undefined".encode())
                 tag = BusTag(data)
-            await self.connections[bus_id].write(
-                pc.CMD_ID, tag.id, tag.time_us, tag.name
-            )
+            self.connections[bus_id].write(pc.CMD_ID, tag.id, tag.time_us,
+                                           tag.name)
         elif cmd == pc.CMD_GET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"GET KeyError for {tag_id}".encode()
-                )
-            await self.connections[bus_id].write(
-                pc.CMD_SET, tag.id, tag.time_us, tag.value
-            )
+                    f"GET KeyError for {tag_id}".encode())
+            self.connections[bus_id].write(pc.CMD_SET, tag.id, tag.time_us,
+                                           tag.value)
         elif cmd == pc.CMD_UNSUB:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
-                await self.connections[bus_id].write(
+                self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"UNSubscribe KeyError for {tag_id}".encode()
-                )
+                    f"UNSubscribe KeyError for {tag_id}".encode())
             tag.del_callback(self.publish, bus_id)
         elif cmd == pc.CMD_LIST:
             tagname_list = []
@@ -259,23 +250,22 @@ class BusServer:
                 for _, tag in BusTags._tag_by_id.items():
                     if data in tag.name:
                         tagname_list.append(tag.name)
-            await self.connections[bus_id].write(
-                pc.CMD_LIST, 0, time_us, b' '.join(tagname_list)
-            )
+            self.connections[bus_id].write(
+                pc.CMD_LIST, 0, time_us, b' '.join(tagname_list))
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 
-    async def read_callback(self, command):
+    def read_callback(self, command):
         """Process read messages, delete broken connections."""
         bus_id, cmd, tag_id, time_us, data = command
         if cmd is None:
             self.connections[bus_id].delete()
             del self.connections[bus_id]
             return
-        await self.process(bus_id, cmd, tag_id, time_us, data)
+        self.process(bus_id, cmd, tag_id, time_us, data)
 
-    async def new_connection(self, reader: asyncio.StreamReader,
-                             writer: asyncio.StreamWriter):
+    def new_connection(self, reader: asyncio.StreamReader,
+                       writer: asyncio.StreamWriter):
         """Accept new connections."""
         busconnection = BusConnection(self.read_callback, reader, writer)
         self.connections[id(busconnection)] = busconnection
@@ -285,6 +275,11 @@ class BusServer:
         self.server = await asyncio.start_server(self.new_connection,
                                                  self.address, self.port)
         addrs = [str(sock.getsockname()) for sock in self.server.sockets]
-        print(f'Serving on {", ".join(addrs)}')
+        logging.info(f'Serving on {", ".join(addrs)}')
         asyncio.create_task(self.server.serve_forever())
         return self.server
+
+    async def run_forever(self):
+        """Run forever."""
+        await self.start()
+        await asyncio.get_event_loop().create_future()

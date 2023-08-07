@@ -25,17 +25,17 @@ async def test_bustag():
     assert BusTags._tag_by_name[b'tag_1'].id == 1
     cb0 = None
 
-    async def cb(tag: BusTag, bus_id):
+    def cb(tag: BusTag, bus_id):
         nonlocal cb0
         cb0 = tag.name + b' ' + str(tag.id).encode() + b' ' + tag.value
 
     tag_0.add_callback(cb, None)
-    await tag_0.update(b'new', 1000, 55)
+    tag_0.update(b'new', 1000, 55)
     assert cb0 == b'tag_0 0 new'
-    await tag_2.update(b'newer', 0, 22)
+    tag_2.update(b'newer', 0, 22)
     assert cb0 == b'tag_0 0 newer'
     tag_2.del_callback(cb, None)  # deletes callback on tag_0 as same tag
-    await tag_0.update(b'new again', 1000, 55)
+    tag_0.update(b'new again', 1000, 55)
     assert cb0 == b'tag_0 0 newer'
 
 
@@ -139,11 +139,11 @@ async def test_client_speed(capsys, bus_server):
     assert tag_13.id != tag_14.id, 'Bus tags should have different IDs'
     queue = asyncio.Queue()
 
-    def cb_int(tag: Tag):
+    def cb_int(tag: Tag, _from_bus):
         nonlocal queue
         queue.put_nowait(tag.value)
 
-    def cb_str(tag: Tag):
+    def cb_str(tag: Tag, _from_bus):
         nonlocal queue
         queue.put_nowait(tag.value)
 
@@ -160,7 +160,7 @@ async def test_client_speed(capsys, bus_server):
     t1 = process_time_ns()
     ms_per_cycle = (t1 - t0) / 1000000 / TEST_COUNT
     with capsys.disabled():
-        print(f'for {TEST_COUNT} writes, round trip is {ms_per_cycle}ms/write')
+        print(f'\n{TEST_COUNT} writes, round trip {ms_per_cycle}ms/write')
     assert ms_per_cycle < 10  # less than 10ms per count
     await client.shutdown()
 
@@ -176,7 +176,7 @@ async def test_client_big(capsys, bus_server):
     await asyncio.sleep(0.1)
     queue = asyncio.Queue()
 
-    def cb_str(tag: Tag):
+    def cb_str(tag: Tag, _from_bus):
         nonlocal queue
         queue.put_nowait(tag.value)
 
@@ -197,6 +197,6 @@ async def test_client_big(capsys, bus_server):
     t1 = process_time_ns()
     ns_per_byte = (t1 - t0) / 1000000
     with capsys.disabled():
-        print(f'for 1 big write, round trip is {ns_per_byte}ms')
+        print(f'\n{TEST_LENGTH} write, time {ns_per_byte}ms')
     assert len(response) == TEST_LENGTH
     await client.shutdown()

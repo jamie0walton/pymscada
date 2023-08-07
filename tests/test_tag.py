@@ -87,7 +87,7 @@ def test_dict_callback(unlink_notify):
     """Dict test with callback."""
     r1 = None
 
-    def dict_cb(dtag):
+    def dict_cb(dtag, _from_bus):
         nonlocal r1
         r1 = dtag.value['a']
 
@@ -134,13 +134,13 @@ def test_from_bus(unlink_notify):
     """Confirm we can set and see if the bus is the source of the tag value."""
     cbl = []
 
-    def v1_cb(tag: Tag):
+    def v1_cb(tag: Tag, _from_bus):
         nonlocal cbl
         if tag.from_bus == 0:
             return
         cbl.append(f"v1 {tag.value}")
 
-    def v2_cb(tag: Tag):
+    def v2_cb(tag: Tag, _from_bus):
         nonlocal cbl
         if tag.from_bus == 1:
             return
@@ -179,7 +179,7 @@ async def test_callbacks(unlink_notify):
     v1 = Tag('tag_F', float)
     v1.value = 1.111
 
-    def callback(tag):
+    def callback(tag, _from_bus):
         nonlocal v1
         v1.value = v1.value * 3
         tag.value = tag.value * 3

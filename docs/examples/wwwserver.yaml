@@ -1,0 +1,17 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+client_ip: 0.0.0.0
+client_port: 8080
+tag_path:  # empty to use importlib.resources.files('assets')
+pages:
+- name: Default Main
+  items:
+  - {desc: Default tags, type: h1}
+  - {tag: __bus__, type: desc_value}
+  - {tag: __wwwserver__, type: desc_value}
+- name: Sub Page 1
+  parent: Dropdown
+  - {desc: Sub Page 1, type: h1}
+- name: Sub Page 2
+  parent: Dropdown
+  - {desc: Sub Page 2, type: h1}

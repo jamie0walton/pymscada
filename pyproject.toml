@@ -5,7 +5,9 @@ description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
 ]
-dependencies = []
+dependencies = [
+    "PyYAML>=6.0.1",
+]
 requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}

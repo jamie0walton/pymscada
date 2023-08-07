@@ -1,0 +1,43 @@
+Control:
+  desc: Control Tag
+  multi:
+   - "Off"
+   - Waiting
+   - Running
+   - Run Now
+  init: 0
+String:
+  desc: String Tag
+  type: str
+  init: 'a string tag'
+Multistate:
+  desc: A Multi-state indicator
+  multi:
+   - 'Off'
+   - Starting
+   - Running
+   - Stopping
+  init: 0
+Float:
+  desc: A real value
+  type: float
+  units: '%'
+  dp: 1
+  init: 12.34
+Time:
+  desc: A time value
+  type: int
+  init: 1234567890123
+Setpoint:
+  desc: A Setpoint
+  min: 0
+  max: 25
+  units: "m"
+  dp: 2
+  init: 10.1
+Deadband:
+  desc: A value with a deadband
+  type: float
+  units: mm
+  dp: 0
+  deadband: 1

@@ -1,4 +1,8 @@
-"""Shared value tags."""
+"""
+Shared value tags.
+
+Configured to NOT use asyncio.
+"""
 import time
 import array
 import logging
@@ -198,7 +202,7 @@ class Tag(metaclass=UniqueTag):
                     self.store()
                 # only publish for > deadband change
                 for self.__in_pub in self.__pub:  # noqa:B020
-                    self.__in_pub(self)  # callback with self(Tag)
+                    self.__in_pub(self, from_bus)  # callback with self(Tag)
                 self.__in_pub = None
         # elif value is None:
         #     logging.info(f"{self.name} got None from bus")

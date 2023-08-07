@@ -24,8 +24,26 @@ class BusClient:
         self.tags: dict[str, Tag] = {}
         self.tag_by_id: dict[int, Tag] = {}
 
-    async def write(self, command: pc.COMMANDS, tag_id: int,
-                    time_us: int, data: bytes):
+    def publish(self, tag: Tag, bus_id):
+        """Update bus server with tag value change."""
+        if tag.from_bus == bus_id or tag.value is None:
+            return
+        if tag.type is float:
+            data = pack('>sf', pc.TYPE_FLOAT, tag.value)
+        elif tag.type is int:
+            data = pack('>sq', pc.TYPE_INT, tag.value)
+        elif tag.type is str:
+            data = pack('>{size}s', pc.TYPE_STR, tag.value)
+        elif tag.type in [list, dict]:
+            jsonstr = json.dumps(tag.value)
+            data = pack('>{size}s', pc.TYPE_JSON, jsonstr)
+        else:
+            logging.warning(f'publish {tag.name} unhandled {tag.type}')
+            return
+        self.write(pc.CMD_SET, tag.id, tag.time_us, data)
+
+    def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
+              data: bytes):
         """Write a message."""
         if data is None:
             data = b''
@@ -35,23 +53,22 @@ class BusClient:
             msg = pack(f">BBHHQ{size}s", 1, command, tag_id, size, time_us,
                        data)
             try:
-                # async with asyncio.Timeout(1):  asyncio.TimeoutError,
                 self.writer.write(msg)
-                await self.writer.drain()
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 self.read_task.cancel()
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
         self.tags[tag.name] = tag
-        asyncio.create_task(self.write(pc.CMD_ID, 0, 0, tag.name.encode()))
+        self.write(pc.CMD_ID, 0, 0, tag.name.encode())
+        tag.add_callback(self.publish)
 
     async def read(self):
         """Read forever."""
         Tag.notify = self.add_tag
         for tag in Tag.get_all_tags().values():
             self.tags[tag.name] = tag
-            await self.write(pc.CMD_ID, 0, 0, tag.name.encode())
+            self.write(pc.CMD_ID, 0, 0, tag.name.encode())
         bus_id = id(self)
         while True:
             # start with the command packet, _always_ 14 bytes
@@ -63,7 +80,7 @@ class BusClient:
                 break
             # if the command packet indicates data, get that too
             if size == 0:
-                await self.read_callback((bus_id, cmd, tag_id, time_us, None))
+                self.read_callback((bus_id, cmd, tag_id, time_us, None))
                 continue
             try:
                 payload = await self.reader.readexactly(size)
@@ -82,29 +99,11 @@ class BusClient:
             if tag_id in self.pending:
                 data = self.pending[tag_id] + data
                 del self.pending[tag_id]
-            await self.read_callback((bus_id, cmd, tag_id, time_us, data))
+            self.read_callback((bus_id, cmd, tag_id, time_us, data))
         # on broken connection
-        await self.read_callback((bus_id, None, 0, 0, None))
+        self.read_callback((bus_id, None, 0, 0, None))
 
-    async def publish(self, tag: Tag, bus_id):
-        """Update bus server with tag value change."""
-        if tag.from_bus == bus_id or tag.value is None:
-            return
-        if tag.type is float:
-            data = pack('>sf', pc.TYPE_FLOAT, tag.value)
-        elif tag.type is int:
-            data = pack('>sq', pc.TYPE_INT, tag.value)
-        elif tag.type is str:
-            data = pack('>{size}s', pc.TYPE_STR, tag.value)
-        elif tag.type in [list, dict]:
-            jsonstr = json.dumps(tag.value)
-            data = pack('>{size}s', pc.TYPE_JSON, jsonstr)
-        else:
-            logging.warning(f'publish {tag.name} unhandled {tag.type}')
-            return
-        await self.write(pc.CMD_SET, tag.id, tag.time_us, data)
-
-    async def process(self, bus_id, cmd, tag_id, time_us, value):
+    def process(self, bus_id, cmd, tag_id, time_us, value):
         """Process bus message, updating the local tag value."""
         if cmd == pc.CMD_ERR:
             logging.warning(f'Bus server error {tag_id} {value}')
@@ -113,7 +112,7 @@ class BusClient:
             tag = self.tags[value.decode()]
             tag.id = tag_id
             self.tag_by_id[tag_id] = tag
-            await self.write(pc.CMD_SUB, tag.id, 0, b'')
+            self.write(pc.CMD_SUB, tag.id, 0, b'')
             return
         tag = self.tag_by_id[tag_id]
         if cmd == pc.CMD_SET:
@@ -135,13 +134,13 @@ class BusClient:
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 
-    async def read_callback(self, command):
+    def read_callback(self, command):
         """Process read messages."""
         bus_id, cmd, tag_id, time_us, data = command
         if cmd is None:
             logging.critical(f'lost connection to {self.addr}')
             return
-        await self.process(bus_id, cmd, tag_id, time_us, data)
+        self.process(bus_id, cmd, tag_id, time_us, data)
 
     async def connect(self):
         """Start bus read / write tasks and return."""
