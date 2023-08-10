@@ -147,9 +147,9 @@ class BusServer:
 
     __slots__ = ('address', 'port', 'server', 'connections')
 
-    def __init__(self, address: str = '127.0.0.1', port: int = 1324):
+    def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
         """Set binding address and port for BusServer."""
-        self.address = address
+        self.ip = ip
         self.port = port
         self.server = None
         self.connections: dict[int, BusConnection] = {}
@@ -273,7 +273,7 @@ class BusServer:
     async def start(self):
         """Provide a bus server."""
         self.server = await asyncio.start_server(self.new_connection,
-                                                 self.address, self.port)
+                                                 self.ip, self.port)
         addrs = [str(sock.getsockname()) for sock in self.server.sockets]
         logging.info(f'Serving on {", ".join(addrs)}')
         asyncio.create_task(self.server.serve_forever())

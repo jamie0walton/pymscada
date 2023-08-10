@@ -52,7 +52,7 @@ def event_loop():
 async def bus_server():
     """Run a live server on an unused port."""
     global server_port
-    busserver = BusServer(port=0)
+    busserver = BusServer(bus_port=0)
     server = await busserver.start()
     server_port = server.sockets[0].getsockname()[1]
 

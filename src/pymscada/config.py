@@ -20,7 +20,7 @@ class Config(dict):
 
     def __init__(self, filename: str):
         """Open."""
-        self._writeable = True
+        # self._writeable = True
         with open(filename, 'r') as fh:
             try:
                 for data in safe_load_all(fh):
@@ -28,11 +28,11 @@ class Config(dict):
                         self[x] = data[x]
             except YAMLError as e:
                 logging.error(f'failed to load {filename} {e}')
-        self._writeable = False
+        # self._writeable = False
 
-    def __setitem__(self, k, v) -> None:
-        """Allow the dictionary to be frozen."""
-        if self._writeable:
-            return super().__setitem__(k, v)
-        else:
-            raise RuntimeError(f"Writing Config['{k}'] not permitted")
+    # def __setitem__(self, k, v) -> None:
+    #     """Allow the dictionary to be frozen."""
+    #     if self._writeable:
+    #         return super().__setitem__(k, v)
+    #     else:
+    #         raise RuntimeError(f"Writing Config['{k}'] not permitted")

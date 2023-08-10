@@ -2,6 +2,8 @@
 import asyncio
 import argparse
 import logging
+from .config import Config
+from .www_server import WwwServer
 from .bus_server import BusServer
 
 
@@ -17,11 +19,12 @@ def args():
     parser.add_argument('action', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('component', type=str, nargs='?', choices=components,
-                        metavar='component',
-                        help='all if empty, otherwise: '
+                        metavar='component', help='all if empty, otherwise: '
                         f'{", ".join(components)}')
     parser.add_argument('-c', '--config', metavar='file',
-                        help='yaml file.')
+                        help='Config file, default is "[component].yaml".')
+    parser.add_argument('-t', '--tags', metavar='file',
+                        help='Tags file, default is "tags.yaml".')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Set level to logging.INFO.")
     return parser.parse_args()
@@ -29,12 +32,29 @@ def args():
 
 def run():
     """Run bus and wwwserver."""
-    opts = args()
-    if opts.verbose:
+    options = args()
+    if options.verbose:
         logging.basicConfig(level=logging.INFO)
-    action = (opts.action, opts.component)
+    config = {}
+    if options.config is None:
+        options.config = f'{options.component}.yaml'
+    if options.tags is None:
+        options.tags = 'tags.yaml'
+    try:
+        config = Config(options.config)
+    except FileNotFoundError:
+        logging.warning('Config file not found, using defaults.')
+    try:
+        if options.component != 'bus':
+            tags = Config(options.tags)
+    except FileNotFoundError:
+        logging.warning('Tag file not found, only OK for bus.')
+    action = (options.action, options.component)
     if action == ('run', 'bus'):
-        busserver = BusServer()
+        busserver = BusServer(**config)
         asyncio.run(busserver.run_forever())
+    elif action == ('run', 'wwwserver'):
+        wwwserver = WwwServer(tags=tags, **config)
+        asyncio.run(wwwserver.run_forever())
     else:
         logging.warning(f'no action {action}')

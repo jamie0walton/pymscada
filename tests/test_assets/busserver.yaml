@@ -1,2 +1,2 @@
-bus_ip: localhost
-bus_port: 12345
+ip: localhost
+port: 12345
