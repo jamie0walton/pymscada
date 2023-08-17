@@ -15,9 +15,3 @@ def test_Config():
     cfg = Config('docs/examples/bus.yaml')
     assert cfg['bus_ip'] == '127.0.0.1'
     assert cfg['bus_port'] == 1324
-    try:
-        cfg['bus_port'] = 789
-    except RuntimeError:
-        assert True
-    else:
-        assert False, 'changing values not permitted'

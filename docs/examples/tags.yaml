@@ -1,3 +1,6 @@
+__bus__:
+  desc: Bus Server Info
+  type: str
 Control:
   desc: Control Tag
   multi:
@@ -27,7 +30,7 @@ Float:
 Time:
   desc: A time value
   type: int
-  init: 1234567890123
+  init: 1234567890
 Setpoint:
   desc: A Setpoint
   min: 0

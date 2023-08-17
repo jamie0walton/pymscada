@@ -4,7 +4,7 @@ from aiohttp import web, WSMsgType
 from struct import pack
 from pathlib import Path
 import logging
-from .tag import Tag
+from .tag import Tag, TYPES
 from .config import get_file
 from .bus_client import BusClient
 
@@ -15,97 +15,118 @@ INT_ARRAY_TYPE = 4
 FLOAT_ARRAY_TYPE = 5
 
 
+def tag_for_web(tagname: str, tag: dict):
+    """Correct tag dictionary in place to be suitable for web client."""
+    tag['name'] = tagname
+    tag['id'] = None
+    if 'desc' not in tag:
+        tag['desc'] = tag.name
+    if 'multi' in tag:
+        tag['type'] = 'int'
+    else:
+        if 'type' not in tag:
+            tag['type'] = 'float'
+        else:
+            if tag['type'] not in TYPES:
+                tag['type'] = 'str'
+    if tag['type'] == 'int':
+        tag['dp'] = 0
+    elif tag['type'] == 'float' and 'dp' not in tag:
+        tag['dp'] = 2
+    elif tag['type'] == 'str' and 'dp' in tag:
+        del tag['dp']
 
 
-class WwwCommon:
-    """Single place for common connection requirements."""
-
-    def __init__(self, tags: dict, pages: dict) -> None:
-        self.tags = tags
-        self.pages = pages
-        self.tag_by_name: list[str, Tag] = {}
-        self.tag_by_id: list[int, Tag] = {}
-
-
-# a new instance is created for each connection
 class WSHandler():
     """
     Websocket handler pushes displays, tags and values to client.
 
     Maintains a client state insofar as tag updates are concerned.
+    This are transitory, lasting for a given web browser client.
     """
 
-    def __init__(self, ws: web.WebSocketResponse, common: WwwCommon):
+    def __init__(self, ws: web.WebSocketResponse, pages: dict,
+                 tag_info: dict[str, Tag]):
         """Create callbacks to monitor tag values."""
         self.ws = ws
-        self.common = common
+        self.pages = pages
+        self.tag_info = tag_info
+        self.tag_by_id: dict[int, Tag] = {}
+        self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
-
-    def _cleanup(self):
-        """Remove callbacks to avoid memory leak."""
-        pass
-        # for tag in self.app.tags.values():
-        #     tag.del_callback(self.publish)
 
     async def send_queue(self):
         """Run forever, write from queue."""
-        while True:
-            as_bytes, message = await self.queue.get()
-            try:
+        try:
+            while True:
+                as_bytes, message = await self.queue.get()
                 if as_bytes:
                     await self.ws.send_bytes(message)
                 else:
                     await self.ws.send_json(message)
-            except asyncio.CancelledError:
-                logging.warn(f"send queue error, close {self.ws.exception()}")
-                return
+        except asyncio.CancelledError:
+            logging.warn(f"send queue error, close {self.ws.exception()}")
+            return
 
     def publish(self, tag: Tag):
         """Prepare message for web client."""
         if tag.type == int:
-            self.queue.put_nowait(True, pack(
+            self.queue.put_nowait((True, pack(
                 '!HHIIi',            # Network big-endian
                 tag.id,               # Uint16
                 INT_TYPE,            # Uint16
                 tag.time_us // 1000000,  # Uint32
                 tag.time_us % 1000000,   # Uint32
                 tag.value                # Int32
-            ))
+            )))
         elif tag.type == float:
-            self.queue.put_nowait(True, pack(
+            self.queue.put_nowait((True, pack(
                 '!HHIIf',            # Network big-endian
                 tag.id,               # Uint16
                 FLOAT_TYPE,          # Uint16
                 tag.time_us // 1000000,  # Uint32
                 tag.time_us % 1000000,   # Uint32
                 tag.value                # Float32
-            ))
+            )))
         elif tag.type == str:
             asbytes = tag.value.encode()
-            self.queue.put_nowait(True, pack(
+            self.queue.put_nowait((True, pack(
                 f'!HHII{len(asbytes)}s',  # Network big-endian
                 tag.id,               # Uint16
                 STRING_TYPE,         # Uint16
                 tag.time_us // 1000000,  # Uint32
                 tag.time_us % 1000000,   # Uint32
                 asbytes              # Char as needed
-            ))
+            )))
         elif tag.type in [dict, list]:
-            self.queue.put_nowait(False, {
+            self.queue.put_nowait((False, {
                 'type': 'tag',
                 'payload': {
                     'tagid': tag.id,
                     'time_us': tag.time_us,
                     'value': tag.value
                 }
-            })
+            }))
+
+    def notify_id(self, tag: Tag):
+        """Must be done here."""
+        logging.info(f'send id to webclient for {tag.name}')
+        self.tag_info[tag.name]['id'] = tag.id
+        self.tag_by_id[tag.id] = tag
+        self.queue.put_nowait(
+            (False, {'type': 'tag_info', 'payload': self.tag_info[tag.name]}))
+        tag.add_callback(self.publish)
+        tag.del_callback_id(self.notify_id)
+        pass
 
     async def connection_active(self):
         """Run while the connection is active and don't return."""
-        asyncio.create_task(self.send_queue())
+        send_queue = asyncio.create_task(self.send_queue())
+        self.queue.put_nowait(
+            (False, {'type': 'pages', 'payload': self.pages}))
         async for msg in self.ws:
             if msg.type == WSMsgType.TEXT:
-                logging.info(f"{msg.json()}")
+                logging.info(f"websocket recv {msg.json()}")
                 command = msg.json()
                 if command['type'] == 'set':  # pc.CMD_SET
                     pass
@@ -114,18 +135,31 @@ class WSHandler():
                 elif command['type'] == 'get':  # pc.CMD_GET
                     pass
                 elif command['type'] == 'sub':  # pc.CMD_SUB
-                    self.queue.put_nowait(self.publish(command['tag_id']))
+                    tagname = command['tagname']
+                    try:
+                        tag = self.tag_by_name[tagname]
+                    except KeyError:
+                        if command['tagname'] not in self.tag_info:
+                            logging.warning(f'no {tagname} in tag_info')
+                            return
+                        tag = Tag(tagname,
+                                  TYPES[self.tag_info[tagname]['type']])
+                    if tag.id is None:
+                        tag.add_callback_id(self.notify_id)
+                    else:
+                        self.notify_id(tag)
+                        if tag.value is not None:
+                            self.publish(tag)
                 elif command['type'] == 'unsub':  # pc.CMD_UNSUB
                     pass
-                elif command['type'] == 'init':
-                    self.queue.put_nowait((
-                        False, {'type': 'pages', 'payload': self.common.pages}
-                    ))
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')
             elif msg.type == WSMsgType.ERROR:
                 logging.warn(f"ws closing error {self.ws.exception()}")
-        self._cleanup()
+        send_queue.cancel()
+        for tag in self.tag_by_id.values():
+            tag.del_callback_id(self.notify_id)
+            tag.del_callback(self.publish)
 
 
 class WwwServer:
@@ -133,13 +167,16 @@ class WwwServer:
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
-                 tags: dict = {}, pages: dict = {}) -> None:
+                 tag_info: dict = {}, pages: dict = {}) -> None:
         """WWW Server."""
         self.busclient = BusClient(bus_ip, bus_port)
         self.ip = ip
         self.port = port
         self.get_path = get_path
-        self.common = WwwCommon(tags, pages)
+        for tagname, tag in tag_info.items():
+            tag_for_web(tagname, tag)
+        self.tag_info = tag_info
+        self.pages = pages
 
     async def redirect_handler(self, _request: web.Request):
         """Point an empty request to the index."""
@@ -163,7 +200,7 @@ class WwwServer:
         logging.info(f"WS from {peer}")
         ws = web.WebSocketResponse(max_msg_size=0)  # disables max message size
         await ws.prepare(request)
-        await WSHandler(ws, self.common).connection_active()
+        await WSHandler(ws, self.pages, self.tag_info).connection_active()
         await ws.close()
         logging.info(f"WS closed {peer}")
         return ws
@@ -178,6 +215,7 @@ class WwwServer:
 
     async def start(self):
         """Provide a web server."""
+        await self.busclient.connect()
         self.webapp = web.Application()
         routes = [web.get('/', self.redirect_handler),
                   web.get('/ws', self.websocket_handler),

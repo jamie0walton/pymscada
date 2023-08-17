@@ -4,6 +4,7 @@ import argparse
 import logging
 from .config import Config
 from .www_server import WwwServer
+from .console import Console
 from .bus_server import BusServer
 
 
@@ -15,7 +16,7 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['run']
-    components = ['bus', 'wwwserver']
+    components = ['bus', 'console', 'wwwserver']
     parser.add_argument('action', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('component', type=str, nargs='?', choices=components,
@@ -46,15 +47,18 @@ def run():
         logging.warning('Config file not found, using defaults.')
     try:
         if options.component != 'bus':
-            tags = Config(options.tags)
+            tag_info = dict(Config(options.tags))
     except FileNotFoundError:
         logging.warning('Tag file not found, only OK for bus.')
     action = (options.action, options.component)
     if action == ('run', 'bus'):
         busserver = BusServer(**config)
         asyncio.run(busserver.run_forever())
+    elif action == ('run', 'console'):
+        console = Console()
+        asyncio.run(console.run_forever())
     elif action == ('run', 'wwwserver'):
-        wwwserver = WwwServer(tags=tags, **config)
+        wwwserver = WwwServer(tag_info=tag_info, **config)
         asyncio.run(wwwserver.run_forever())
     else:
         logging.warning(f'no action {action}')

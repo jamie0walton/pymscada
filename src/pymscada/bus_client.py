@@ -15,28 +15,30 @@ class BusClient:
     fails, die.
     """
 
-    def __init__(self, address: str = '127.0.0.1', port: int = 1324):
+    def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
         """Create bus server."""
-        self.address = address
+        self.ip = ip
         self.port = port
+        self.tag_by_id: dict[int, Tag] = {}
+        self.tag_by_name: dict[str, Tag] = {}
         self.addr = None
         self.pending = {}
-        self.tags: dict[str, Tag] = {}
-        self.tag_by_id: dict[int, Tag] = {}
 
     def publish(self, tag: Tag, bus_id):
         """Update bus server with tag value change."""
         if tag.from_bus == bus_id or tag.value is None:
             return
         if tag.type is float:
-            data = pack('>sf', pc.TYPE_FLOAT, tag.value)
+            data = pack('>Bf', pc.TYPE_FLOAT, tag.value)
         elif tag.type is int:
-            data = pack('>sq', pc.TYPE_INT, tag.value)
+            data = pack('>Bq', pc.TYPE_INT, tag.value)
         elif tag.type is str:
-            data = pack('>{size}s', pc.TYPE_STR, tag.value)
+            size = len(tag.value)
+            data = pack(f'>B{size}s', pc.TYPE_STR, tag.value.encode())
         elif tag.type in [list, dict]:
             jsonstr = json.dumps(tag.value)
-            data = pack('>{size}s', pc.TYPE_JSON, jsonstr)
+            size = len(jsonstr)
+            data = pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
         else:
             logging.warning(f'publish {tag.name} unhandled {tag.type}')
             return
@@ -59,16 +61,11 @@ class BusClient:
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
-        self.tags[tag.name] = tag
+        self.tag_by_name[tag.name] = tag
         self.write(pc.CMD_ID, 0, 0, tag.name.encode())
-        tag.add_callback(self.publish)
 
     async def read(self):
         """Read forever."""
-        Tag.notify = self.add_tag
-        for tag in Tag.get_all_tags().values():
-            self.tags[tag.name] = tag
-            self.write(pc.CMD_ID, 0, 0, tag.name.encode())
         bus_id = id(self)
         while True:
             # start with the command packet, _always_ 14 bytes
@@ -80,7 +77,7 @@ class BusClient:
                 break
             # if the command packet indicates data, get that too
             if size == 0:
-                self.read_callback((bus_id, cmd, tag_id, time_us, None))
+                self.process(bus_id, cmd, tag_id, time_us, None)
                 continue
             try:
                 payload = await self.reader.readexactly(size)
@@ -99,23 +96,31 @@ class BusClient:
             if tag_id in self.pending:
                 data = self.pending[tag_id] + data
                 del self.pending[tag_id]
-            self.read_callback((bus_id, cmd, tag_id, time_us, data))
+            self.process(bus_id, cmd, tag_id, time_us, data)
         # on broken connection
-        self.read_callback((bus_id, None, 0, 0, None))
+        self.process(bus_id, None, 0, 0, None)
 
     def process(self, bus_id, cmd, tag_id, time_us, value):
         """Process bus message, updating the local tag value."""
+        if cmd is None:
+            logging.critical(f'lost connection to {self.addr}')
+            return
         if cmd == pc.CMD_ERR:
             logging.warning(f'Bus server error {tag_id} {value}')
             return
         if cmd == pc.CMD_ID:
-            tag = self.tags[value.decode()]
+            tag = self.tag_by_name[value.decode()]
             tag.id = tag_id
             self.tag_by_id[tag_id] = tag
             self.write(pc.CMD_SUB, tag.id, 0, b'')
+            if tag.name in self.tag_by_name:
+                self.tag_by_id[tag.id] = tag
+                del self.tag_by_name[tag.name]
             return
         tag = self.tag_by_id[tag_id]
         if cmd == pc.CMD_SET:
+            if value is None:
+                return
             data_type = unpack_from('>B', value, offset=0)[0]
             if data_type == pc.TYPE_FLOAT:
                 data = unpack_from('>f', value, offset=1)[0]
@@ -134,20 +139,16 @@ class BusClient:
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 
-    def read_callback(self, command):
-        """Process read messages."""
-        bus_id, cmd, tag_id, time_us, data = command
-        if cmd is None:
-            logging.critical(f'lost connection to {self.addr}')
-            return
-        self.process(bus_id, cmd, tag_id, time_us, data)
-
     async def connect(self):
         """Start bus read / write tasks and return."""
         self.reader, self.writer = await asyncio.open_connection(
-            self.address, self.port)
+            self.ip, self.port)
         self.addr = self.writer.get_extra_info('sockname')
-        print(f'connected {self.addr}')
+        logging.info(f'connected {self.addr}')
+        Tag.set_notify(self.add_tag)
+        for tag in Tag.get_all_tags().values():
+            self.tag_by_name[tag.name] = tag
+            self.write(pc.CMD_ID, 0, 0, tag.name.encode())
         self.read_task = asyncio.create_task(self.read())
 
     async def shutdown(self):

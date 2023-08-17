@@ -24,7 +24,7 @@ command
 - GET size == 0x00 data is empty
 - RQS size <= 0xff data is request to tag creator
 - SUB size == 0x00 data is empty
-  - reply: SET with tag_id and value
+  - reply: SET with tag_id and value, value may be None
 - LIST intended for interactive shell
   - size == 0x00 tags with values newer than time_us
   - size > 0x00
@@ -46,6 +46,17 @@ CMD_SUB = 5  # subscribe to a tag
 CMD_UNSUB = 6  # unsubscribe from a tag
 CMD_LIST = 7  # bus list tags
 CMD_ERR = 8  # action failed
+
+CMD_TEXT = {
+    1: 'CMD_ID',
+    2: 'CMD_SET',
+    3: 'CMD_GET',
+    4: 'CMD_RQS',
+    5: 'CMD_SUB',
+    6: 'CMD_UNSUB',
+    7: 'CMD_LIST',
+    8: 'CMD_ERR'
+}
 
 COMMANDS = [CMD_ID, CMD_SET, CMD_GET, CMD_RQS, CMD_SUB, CMD_UNSUB, CMD_LIST,
             CMD_ERR]

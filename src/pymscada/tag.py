@@ -74,6 +74,10 @@ class UniqueTag(type):
         """Return all tags of class Tag."""
         return cls.__cache.values()
 
+    def set_notify(cls, callback):
+        """Set ONE routine to notify when new tags are added."""
+        cls.notify = callback
+
     def get_all_tags(cls) -> dict[str, 'Tag']:
         """Return all current tags as list[Tag]."""
         return cls.__cache
@@ -82,14 +86,14 @@ class UniqueTag(type):
 class Tag(metaclass=UniqueTag):
     """Tag provides consistent bus access, filtering and shard history."""
 
-    __slots__ = ('id', 'name', 'type', '__value', '__time_us', '__multi',
+    __slots__ = ('__id', 'name', 'type', '__value', '__time_us', '__multi',
                  '__min', '__max', '__deadband', 'from_bus', '__age_us',
-                 'times_us', 'values', '__pub', '__in_pub', 'desc',
-                 'units', 'dp')
+                 'times_us', 'values', 'pub', 'in_pub', 'pub_id', 'in_pub_id',
+                 'desc', 'units', 'dp')
 
     def __init__(self, tagname: str, tagtype) -> None:
         """Initialise with a unique name and the data type."""
-        self.id = None
+        self.__id = None
         self.name = tagname
         if type(tagtype) is type:
             self.type = tagtype
@@ -105,8 +109,10 @@ class Tag(metaclass=UniqueTag):
         self.__age_us = None
         self.times_us = None
         self.values = None
-        self.__pub = []
-        self.__in_pub = None
+        self.pub = []
+        self.in_pub = None
+        self.pub_id = []
+        self.in_pub_id = None
         self.desc = ''
         self.units = None
         self.dp = None
@@ -115,22 +121,25 @@ class Tag(metaclass=UniqueTag):
         """Add a callback to update the value when a change is seen."""
         if not callable(callback):
             raise TypeError(f"{callback} must be callable.")
-        if callback not in self.__pub:
-            self.__pub.append(callback)
+        if callback not in self.pub:
+            self.pub.append(callback)
 
     def del_callback(self, callback):
-        """Remove the callback, keep close with add_callback."""
-        if callback in self.__pub:
-            self.__pub.remove(callback)
+        """Remove the callback."""
+        if callback in self.pub:
+            self.pub.remove(callback)
 
-    def del_all_callbacks(self):
-        """TODO fix this use by businit."""
-        self.__pub = []
+    def add_callback_id(self, callback):
+        """Add a callback for when a process needs to know the id is live."""
+        if not callable(callback):
+            raise TypeError(f"{callback} must be callable.")
+        if callback not in self.pub_id:
+            self.pub_id.append(callback)
 
-    @property
-    def value(self):
-        """Get current value."""
-        return self.__value
+    def del_callback_id(self, callback):
+        """Remove the callback."""
+        if callback in self.pub_id:
+            self.pub_id.remove(callback)
 
     def store(self):
         """Store history in an array.array."""
@@ -154,10 +163,15 @@ class Tag(metaclass=UniqueTag):
                 return self.values[i]
         return self.values[0]
 
+    @property
+    def value(self):
+        """Get current value."""
+        return self.__value
+
     @value.setter
     def value(self, value) -> None:
         """Set value, filter and store history. Won't force type."""
-        if self.__in_pub is not None:
+        if self.in_pub is not None:
             logging.critical(f"{self.name} attempt to set while __in_pub")
             return
         # handle value if tuple with time_us and maybe from_bus
@@ -173,15 +187,10 @@ class Tag(metaclass=UniqueTag):
         if time_us == 0:
             return
         if type(value) is int and self.type is float:
-            # logging.warning(f"{self.name} coercing int to float")
             value = float(value)
         elif type(value) is float and self.type is int:
             logging.warning(f"{self.name} coercing float to int")
             value = int(value)
-        # elif value is None and self.type is str:
-        #     logging.info(f"{self.name} setting empty string")
-        #     value = ''
-        # value, time_us and from_bus are now all scalars
         if type(value) is self.type:
             deadband = self.__deadband
             if self.__min is not None and value <= self.__min:
@@ -201,14 +210,33 @@ class Tag(metaclass=UniqueTag):
                 if self.__age_us is not None:
                     self.store()
                 # only publish for > deadband change
-                for self.__in_pub in self.__pub:  # noqa:B020
-                    self.__in_pub(self, from_bus)  # callback with self(Tag)
-                self.__in_pub = None
-        # elif value is None:
-        #     logging.info(f"{self.name} got None from bus")
+                for self.in_pub in self.pub:
+                    self.in_pub(self)  # callback with Tag as argument
+                self.in_pub = None
         else:
             raise TypeError(f"{self.name} won't force {type(value)} "
                             f"to {self.type}")
+
+    @property
+    def id(self):
+        """Get current id."""
+        return self.__id
+
+    @id.setter
+    def id(self, id) -> None:
+        """Set id and callback if registered."""
+        if self.in_pub_id is not None:
+            logging.critical(f"{self.name} attempt to set id in a callback")
+            return
+        self.__id = id
+        for self.in_pub_id in self.pub_id:
+            self.in_pub_id(self)
+        self.in_pub_id = None
+
+    def notify_all(self):
+        """Ignoring from bus, notify all of tag value update."""
+        for self.in_pub in self.pub:  # noqa:B020
+            self.in_pub(self, None)  # callback with self(Tag)
 
     @property
     def time_us(self) -> int:

@@ -13,14 +13,15 @@
             "justMyCode": true
         },
         {
-            "name":"Python: Main",
+            "name":"wwwserver",
             "type":"python",
             "request":"launch",
             "program":"src/pymscada/__main__.py",
             "args": [
                 "run", "wwwserver",
-                "-c", ".\\docs\\examples\\wwwserver.yaml",
-                "-t", ".\\docs\\examples\\tags.yaml"
+                "--verbose",
+                "--config", ".\\docs\\examples\\wwwserver.yaml",
+                "--tags", ".\\docs\\examples\\tags.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true},

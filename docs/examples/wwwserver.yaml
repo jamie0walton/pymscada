@@ -5,10 +5,17 @@ port: 8324
 get_path: ../angmscada/dist/angmscada
 pages:
 - name: Default Main
+  parent:
   items:
   - {desc: Default tags, type: h1}
-  - {tag: __bus__, type: desc_value}
-  - {tag: __wwwserver__, type: desc_value}
+  - {tagname: __bus__, type: desc_string}
+  - {tagname: Control, type: multi_setpoint}
+  - {tagname: String, type: desc_string}
+  - {tagname: Multistate, type: multi}
+  - {tagname: Float, type: desc_value}
+  - {tagname: Time, type: desc_time}
+  - {tagname: Setpoint, type: setpoint}
+  - {tagname: Deadband, type: desc_value}
 - name: Sub Page 1
   parent: Dropdown
   items:

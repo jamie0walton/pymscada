@@ -90,6 +90,7 @@ class BusConnection():
         """Write a message."""
         if data is None:
             data = b''
+        logging.info(f'write {pc.CMD_TEXT[command]} {tag_id}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
@@ -145,7 +146,7 @@ class BusServer:
     restart.
     """
 
-    __slots__ = ('address', 'port', 'server', 'connections')
+    __slots__ = ('ip', 'port', 'server', 'connections')
 
     def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
         """Set binding address and port for BusServer."""
@@ -154,13 +155,13 @@ class BusServer:
         self.server = None
         self.connections: dict[int, BusConnection] = {}
         bus_tag = BusTag(b'__bus__')
-        bus_tag.value = b'started'
+        bus_tag.value = b'\x07started'
         bus_tag.time_us = int(time.time() * 1e6)
         bus_tag.from_bus = 0
 
     def publish(self, tag: BusTag, bus_id):
         """Update subcribers with tag value change."""
-        if tag.from_bus == bus_id or tag.value is None:
+        if tag.from_bus == bus_id:
             return
         try:
             self.connections[bus_id].write(pc.CMD_SET, tag.id, tag.time_us,
@@ -199,9 +200,8 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
                     f"SUBscribe KeyError {tag_id}".encode())
-            if tag.time_us != 0:
-                self.connections[bus_id].write(pc.CMD_SET, tag_id,
-                                               tag.time_us, tag.value)
+            self.connections[bus_id].write(pc.CMD_SET, tag_id, tag.time_us,
+                                           tag.value)
             tag.add_callback(self.publish, bus_id)
         elif cmd == pc.CMD_ID:
             try:
