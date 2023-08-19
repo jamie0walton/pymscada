@@ -113,6 +113,7 @@ class WSHandler():
         logging.info(f'send id to webclient for {tag.name}')
         self.tag_info[tag.name]['id'] = tag.id
         self.tag_by_id[tag.id] = tag
+        self.tag_by_name[tag.name] = tag
         self.queue.put_nowait(
             (False, {'type': 'tag_info', 'payload': self.tag_info[tag.name]}))
         tag.add_callback(self.publish)
@@ -128,14 +129,16 @@ class WSHandler():
             if msg.type == WSMsgType.TEXT:
                 logging.info(f"websocket recv {msg.json()}")
                 command = msg.json()
-                if command['type'] == 'set':  # pc.CMD_SET
+                action = command['type']
+                tagname = command['tagname']
+                value = command['value']
+                if action == 'set':  # pc.CMD_SET
+                    self.tag_by_name[tagname].value = value
+                elif action == 'rqs':  # pc.CMD_RQS
                     pass
-                elif command['type'] == 'rqs':  # pc.CMD_RQS
+                elif action == 'get':  # pc.CMD_GET
                     pass
-                elif command['type'] == 'get':  # pc.CMD_GET
-                    pass
-                elif command['type'] == 'sub':  # pc.CMD_SUB
-                    tagname = command['tagname']
+                elif action == 'sub':  # pc.CMD_SUB
                     try:
                         tag = self.tag_by_name[tagname]
                     except KeyError:
@@ -150,7 +153,7 @@ class WSHandler():
                         self.notify_id(tag)
                         if tag.value is not None:
                             self.publish(tag)
-                elif command['type'] == 'unsub':  # pc.CMD_UNSUB
+                elif action == 'unsub':  # pc.CMD_UNSUB
                     pass
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')

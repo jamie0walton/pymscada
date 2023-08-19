@@ -31,6 +31,7 @@ Time:
   desc: A time value
   type: int
   init: 1234567890
+  format: time
 Setpoint:
   desc: A Setpoint
   min: 0
