@@ -94,7 +94,7 @@ class BusConnection():
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
-            msg = pack(f">BBHHQ{size}s", 1, command, tag_id, size, time_us,
+            msg = pack(f"!BBHHQ{size}s", 1, command, tag_id, size, time_us,
                        snip)
             try:
                 self.writer.write(msg)
@@ -108,7 +108,7 @@ class BusConnection():
             # start with the command packet, _always_ 14 bytes
             try:
                 head = await self.reader.readexactly(14)
-                _, cmd, tag_id, size, time_us = unpack('>BBHHQ', head)
+                _, cmd, tag_id, size, time_us = unpack('!BBHHQ', head)
             except (ConnectionResetError, asyncio.IncompleteReadError,
                     asyncio.CancelledError):
                 break
@@ -118,7 +118,7 @@ class BusConnection():
                 continue
             try:
                 payload = await self.reader.readexactly(size)
-                data = unpack(f'>{size}s', payload)[0]
+                data = unpack(f'!{size}s', payload)[0]
             except (ConnectionResetError, asyncio.IncompleteReadError,
                     asyncio.CancelledError):
                 break
@@ -186,6 +186,11 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
                     f"RQS KeyError {tag_id}".encode())
+            try:
+                self.connections[tag.from_bus].write(
+                    pc.CMD_RQS, tag_id, tag.time_us, data)
+            except KeyError:
+                logging.warning(f'likely busclient for {tag.name} is gone')
             """Reply comes from another BusClient, not the Server."""
             try:
                 tag.from_bus._message(cmd, tag_id, time_us, data)

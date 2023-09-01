@@ -87,7 +87,7 @@ def test_dict_callback(unlink_notify):
     """Dict test with callback."""
     r1 = None
 
-    def dict_cb(dtag, _from_bus):
+    def dict_cb(dtag):
         nonlocal r1
         r1 = dtag.value['a']
 
@@ -96,7 +96,7 @@ def test_dict_callback(unlink_notify):
     v1 = Tag('note1', dict)
     v1.value = t1
     assert v1.value['a'] == 1
-    v1.add_callback(dict_cb)
+    v1.add_callback(dict_cb, 1)  # a non-zero bus_id required
     v1.value = t2
     assert r1 is not None
     assert r1 == 3
@@ -132,31 +132,35 @@ def test_watch_tags(unlink_notify):
 
 def test_from_bus(unlink_notify):
     """Confirm we can set and see if the bus is the source of the tag value."""
-    cbl = []
+    b1_res = None
+    b2_res = None
 
-    def v1_cb(tag: Tag, _from_bus):
-        nonlocal cbl
-        if tag.from_bus == 0:
-            return
-        cbl.append(f"v1 {tag.value}")
+    def b1_cb(tag: Tag):
+        nonlocal b1_res
+        b1_res = f'b1 {tag.name} {tag.value} bus{tag.from_bus}'
 
-    def v2_cb(tag: Tag, _from_bus):
-        nonlocal cbl
-        if tag.from_bus == 1:
-            return
-        cbl.append(f"v2 {tag.value}")
+    def b2_cb(tag: Tag):
+        nonlocal b2_res
+        b2_res = f'b2 {tag.name} {tag.value} bus{tag.from_bus}'
 
-    v1 = Tag('wb1', str)
-    v2 = Tag('wb1', str)
-    v1.add_callback(v1_cb)
-    v2.add_callback(v2_cb)
+    t1 = Tag('tag', str)
+    t2 = Tag('tag', str)
+    t1.add_callback(b1_cb, 1)
+    t2.add_callback(b2_cb, 2)
 
-    v1.value = ("1", 2)
-    assert cbl == ['v2 1']
-    v2.value = ("2", 3, 1)  # tag set as from bus 1
-    assert cbl == ['v2 1', 'v1 2']
-    v1.value = ("3", 4, 0)  # tag set as from bus 2
-    assert cbl == ['v2 1', 'v1 2', 'v2 3']
+    t1.value = ("val_0", 2)  # from bus 0
+    assert b1_res == 'b1 tag val_0 bus0'
+    assert b2_res == 'b2 tag val_0 bus0'
+    b1_res = None
+    b2_res = None
+    t1.value = ("val_1", 3, 1)  # from bus 1
+    assert b1_res is None
+    assert b2_res == 'b2 tag val_1 bus1'
+    b1_res = None
+    b2_res = None
+    t1.value = ("val_2", 4, 2)  # from bus 2
+    assert b1_res == 'b1 tag val_2 bus2'
+    assert b2_res is None
 
 
 @pytest.fixture(scope='module')
@@ -168,28 +172,24 @@ def event_loop():
     loop.close()
 
 
-@pytest.mark.asyncio()
-async def test_callbacks(unlink_notify):
+def test_callbacks(unlink_notify):
     """
     Check callbacks.
 
-    v1 should work because the callback is not recursive
-    v2 should report a RuntimeError because recursion will be infinite
+    v1 updates because v1 is not publishing to the callback
+    v2 does not because v2 is publishing to the callback
     """
     v1 = Tag('tag_F', float)
     v1.value = 1.111
 
-    def callback(tag, _from_bus):
+    def callback(tag):
         nonlocal v1
         v1.value = v1.value * 3
         tag.value = tag.value * 3
 
     v2 = Tag('tag_G', float)
-    v2.add_callback(callback)
-    try:
-        v2.value = 1.0
-    except SystemExit:
-        pass
+    v2.add_callback(callback, 1)
+    v2.value = 1.0
     assert v1.value == 3.333
     assert v2.value == 1.0
 

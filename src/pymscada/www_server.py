@@ -69,34 +69,42 @@ class WSHandler():
             return
 
     def publish(self, tag: Tag):
-        """Prepare message for web client."""
+        """
+        Prepare message for web client.
+
+        javascript number is IEEE754 64-bit float.
+        52-bits fraction where leading 1 is implicit. 2**53 - 1
+        This is also the integer, so +/- 9,007,199,254,740,991
+        mscada uses microsec, today is   1,692,472,361,000,000
+        Today is 20 Aug 2023, 07:12:46.
+
+        Use q, Q and d for time, int and float.
+        i.e. Uint64, Int64, Float64.
+        """
         if tag.type == int:
             self.queue.put_nowait((True, pack(
-                '!HHIIi',            # Network big-endian
-                tag.id,               # Uint16
-                INT_TYPE,            # Uint16
-                tag.time_us // 1000000,  # Uint32
-                tag.time_us % 1000000,   # Uint32
-                tag.value                # Int32
+                '!HHQq',            # Network big-endian
+                tag.id,             # Uint16
+                INT_TYPE,           # Uint16
+                tag.time_us,        # Uint64
+                tag.value           # Int64
             )))
         elif tag.type == float:
             self.queue.put_nowait((True, pack(
-                '!HHIIf',            # Network big-endian
-                tag.id,               # Uint16
-                FLOAT_TYPE,          # Uint16
-                tag.time_us // 1000000,  # Uint32
-                tag.time_us % 1000000,   # Uint32
-                tag.value                # Float32
+                '!HHQd',            # Network big-endian
+                tag.id,             # Uint16
+                FLOAT_TYPE,         # Uint16
+                tag.time_us,        # Uint64
+                tag.value           # Float64
             )))
         elif tag.type == str:
             asbytes = tag.value.encode()
             self.queue.put_nowait((True, pack(
-                f'!HHII{len(asbytes)}s',  # Network big-endian
-                tag.id,               # Uint16
-                STRING_TYPE,         # Uint16
-                tag.time_us // 1000000,  # Uint32
-                tag.time_us % 1000000,   # Uint32
-                asbytes              # Char as needed
+                f'!HHQ{len(asbytes)}s',  # Network big-endian
+                tag.id,             # Uint16
+                STRING_TYPE,        # Uint16
+                tag.time_us,        # Uint64
+                asbytes             # Char as needed
             )))
         elif tag.type in [dict, list]:
             self.queue.put_nowait((False, {
@@ -118,7 +126,26 @@ class WSHandler():
             (False, {'type': 'tag_info', 'payload': self.tag_info[tag.name]}))
         tag.add_callback(self.publish)
         tag.del_callback_id(self.notify_id)
+
+    def do_rqs(self):
+        """Request a setting change in tag value."""
         pass
+
+    def do_sub(self, tagname: str):
+        """Subscribe to tag value."""
+        try:
+            tag = self.tag_by_name[tagname]
+        except KeyError:
+            if tagname not in self.tag_info:
+                logging.warning(f'no {tagname} in tag_info')
+                return
+            tag = Tag(tagname, TYPES[self.tag_info[tagname]['type']])
+        if tag.id is None:
+            tag.add_callback_id(self.notify_id)
+        else:
+            self.notify_id(tag)
+            if tag.value is not None:
+                self.publish(tag)
 
     async def connection_active(self):
         """Run while the connection is active and don't return."""
@@ -135,26 +162,13 @@ class WSHandler():
                 if action == 'set':  # pc.CMD_SET
                     self.tag_by_name[tagname].value = value
                 elif action == 'rqs':  # pc.CMD_RQS
-                    pass
-                elif action == 'get':  # pc.CMD_GET
-                    pass
+                    self.do_rqs(tagname, value)
                 elif action == 'sub':  # pc.CMD_SUB
-                    try:
-                        tag = self.tag_by_name[tagname]
-                    except KeyError:
-                        if command['tagname'] not in self.tag_info:
-                            logging.warning(f'no {tagname} in tag_info')
-                            return
-                        tag = Tag(tagname,
-                                  TYPES[self.tag_info[tagname]['type']])
-                    if tag.id is None:
-                        tag.add_callback_id(self.notify_id)
-                    else:
-                        self.notify_id(tag)
-                        if tag.value is not None:
-                            self.publish(tag)
+                    self.do_sub(tagname)
+                elif action == 'get':  # pc.CMD_GET
+                    logging.warning('CMD_GET not implemented.')
                 elif action == 'unsub':  # pc.CMD_UNSUB
-                    pass
+                    logging.warning('CMD_UNSUB not implemented.')
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')
             elif msg.type == WSMsgType.ERROR:

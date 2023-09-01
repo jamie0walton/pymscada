@@ -2,6 +2,7 @@
 import asyncio
 from struct import pack, unpack, unpack_from
 import json
+import time
 import logging
 from .tag import Tag
 from . import protocol_constants as pc
@@ -19,14 +20,22 @@ class BusClient:
         """Create bus server."""
         self.ip = ip
         self.port = port
+        self.read_task = asyncio.create_task(self.read())
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
-        self.addr = None
+        self.to_publish: dict[str, Tag] = {}
         self.pending = {}
 
-    def publish(self, tag: Tag, bus_id):
-        """Update bus server with tag value change."""
-        if tag.from_bus == bus_id or tag.value is None:
+    def publish(self, tag: Tag):
+        """
+        Update bus server with tag value change.
+
+        A tag is given bus_id id(self) when set from bus. Don't publish to
+        source.
+        """
+        if tag.id is None:
+            logging.warning(f'queued {tag.name} {tag.value}')
+            self.to_publish[tag.name] = tag
             return
         if tag.type is float:
             data = pack('>Bf', pc.TYPE_FLOAT, tag.value)
@@ -36,13 +45,21 @@ class BusClient:
             size = len(tag.value)
             data = pack(f'>B{size}s', pc.TYPE_STR, tag.value.encode())
         elif tag.type in [list, dict]:
-            jsonstr = json.dumps(tag.value)
+            jsonstr = json.dumps(tag.value).encode()
             size = len(jsonstr)
             data = pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
         else:
             logging.warning(f'publish {tag.name} unhandled {tag.type}')
             return
         self.write(pc.CMD_SET, tag.id, tag.time_us, data)
+
+    def publish_rqs(self, tag: Tag, request: dict):
+        """Send a Request Set message."""
+        time_us = int(time.time() * 1e6)
+        jsonstr = json.dumps(request).encode()
+        size = len(jsonstr)
+        data = pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
+        self.write(pc.CMD_RQS, tag.id, time_us, data)
 
     def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
               data: bytes):
@@ -53,7 +70,7 @@ class BusClient:
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
             msg = pack(f">BBHHQ{size}s", 1, command, tag_id, size, time_us,
-                       data)
+                       snip)
             try:
                 self.writer.write(msg)
             except (asyncio.IncompleteReadError, ConnectionResetError):
@@ -61,29 +78,47 @@ class BusClient:
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
+        tag.add_callback(self.publish, id(self))
         self.tag_by_name[tag.name] = tag
+        if tag.value is not None:
+            self.to_publish[tag.name] = tag
         self.write(pc.CMD_ID, 0, 0, tag.name.encode())
+
+    async def open_connection(self):
+        """Establish connection and callbacks."""
+        self.reader, self.writer = await asyncio.open_connection(
+            self.ip, self.port)
+        self.addr = self.writer.get_extra_info('sockname')
+        logging.info(f'connected {self.addr}')
+        for tag in Tag.get_all_tags().values():
+            self.add_tag(tag)
+        Tag.set_notify(self.add_tag)
+
+    async def close_connection(self):
+        """Close connection and remove callbacks."""
+        logging.warning(f'closed/ing connection {self.addr}')
+        Tag.del_notify()
+        for tag in self.tag_by_name.values():
+            tag.del_callback(self.publish)
+        self.writer.close()  # writer owns the socket
+        await self.writer.wait_closed()
 
     async def read(self):
         """Read forever."""
-        bus_id = id(self)
+        await self.open_connection()
         while True:
-            # start with the command packet, _always_ 14 bytes
             try:
                 head = await self.reader.readexactly(14)
                 _, cmd, tag_id, size, time_us = unpack('>BBHHQ', head)
-            except (ConnectionResetError, asyncio.IncompleteReadError,
-                    asyncio.CancelledError):
+            except (ConnectionResetError, asyncio.IncompleteReadError):
                 break
-            # if the command packet indicates data, get that too
             if size == 0:
-                self.process(bus_id, cmd, tag_id, time_us, None)
+                self.process(cmd, tag_id, time_us, None)
                 continue
             try:
                 payload = await self.reader.readexactly(size)
                 data = unpack(f'>{size}s', payload)[0]
-            except (ConnectionResetError, asyncio.IncompleteReadError,
-                    asyncio.CancelledError):
+            except (ConnectionResetError, asyncio.IncompleteReadError):
                 break
             # if MAX_LEN then a continuation packet is required
             if size == pc.MAX_LEN:
@@ -96,15 +131,11 @@ class BusClient:
             if tag_id in self.pending:
                 data = self.pending[tag_id] + data
                 del self.pending[tag_id]
-            self.process(bus_id, cmd, tag_id, time_us, data)
-        # on broken connection
-        self.process(bus_id, None, 0, 0, None)
+            self.process(cmd, tag_id, time_us, data)
+        await self.close_connection()
 
-    def process(self, bus_id, cmd, tag_id, time_us, value):
+    def process(self, cmd, tag_id, time_us, value):
         """Process bus message, updating the local tag value."""
-        if cmd is None:
-            logging.critical(f'lost connection to {self.addr}')
-            return
         if cmd == pc.CMD_ERR:
             logging.warning(f'Bus server error {tag_id} {value}')
             return
@@ -115,7 +146,9 @@ class BusClient:
             self.write(pc.CMD_SUB, tag.id, 0, b'')
             if tag.name in self.tag_by_name:
                 self.tag_by_id[tag.id] = tag
-                del self.tag_by_name[tag.name]
+            if tag.name in self.to_publish:
+                self.publish(tag)
+                del self.to_publish[tag.name]
             return
         tag = self.tag_by_id[tag_id]
         if cmd == pc.CMD_SET:
@@ -133,24 +166,21 @@ class BusClient:
                     pass
                 elif data_type == pc.TYPE_JSON:
                     data = json.loads(data)
-            tag.value = data, time_us, bus_id
+            tag.value = data, time_us, id(self)
         elif cmd == pc.CMD_RQS:
-            logging.warning('TODO')
-        else:  # consider disconnecting
-            logging.warn(f'invalid message {cmd}')
-
-    async def connect(self):
-        """Start bus read / write tasks and return."""
-        self.reader, self.writer = await asyncio.open_connection(
-            self.ip, self.port)
-        self.addr = self.writer.get_extra_info('sockname')
-        logging.info(f'connected {self.addr}')
-        Tag.set_notify(self.add_tag)
-        for tag in Tag.get_all_tags().values():
-            self.tag_by_name[tag.name] = tag
-            self.write(pc.CMD_ID, 0, 0, tag.name.encode())
-        self.read_task = asyncio.create_task(self.read())
+            if tag.rqs is not None:
+                data = unpack_from(f'>{len(value) - 1}s', value, offset=1
+                                   )[0].decode()
+                data = json.loads(data)
+                tag.rqs(tag.name, data)
+        else:
+            raise SystemExit(f'Invalid message {cmd}')
 
     async def shutdown(self):
-        """Shutdown read task."""
-        self.read_task.cancel()
+        """Shutdown starts with closing the writer."""
+        self.writer.close()
+        await self.writer.wait_closed()
+
+    async def run_forever(self):
+        """Run forever."""
+        await asyncio.get_event_loop().create_future()

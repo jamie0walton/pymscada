@@ -5,6 +5,7 @@ import logging
 from .config import Config
 from .www_server import WwwServer
 from .console import Console
+from .history import History
 from .bus_server import BusServer
 
 
@@ -16,18 +17,20 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['run']
-    components = ['bus', 'console', 'wwwserver']
+    components = ['bus', 'console', 'wwwserver', 'history']
     parser.add_argument('action', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('component', type=str, nargs='?', choices=components,
                         metavar='component', help='all if empty, otherwise: '
                         f'{", ".join(components)}')
-    parser.add_argument('-c', '--config', metavar='file',
+    parser.add_argument('--config', metavar='file',
                         help='Config file, default is "[component].yaml".')
-    parser.add_argument('-t', '--tags', metavar='file',
+    parser.add_argument('--tags', metavar='file',
                         help='Tags file, default is "tags.yaml".')
-    parser.add_argument('-v', '--verbose', action='store_true',
+    parser.add_argument('--verbose', action='store_true',
                         help="Set level to logging.INFO.")
+    parser.add_argument('--path', metavar='folder',
+                        help="Working folder, used for history.")
     return parser.parse_args()
 
 
@@ -60,5 +63,8 @@ def run():
     elif action == ('run', 'wwwserver'):
         wwwserver = WwwServer(tag_info=tag_info, **config)
         asyncio.run(wwwserver.run_forever())
+    elif action == ('run', 'history'):
+        history = History(tag_info=tag_info, **config)
+        asyncio.run(history.run_forever())
     else:
         logging.warning(f'no action {action}')

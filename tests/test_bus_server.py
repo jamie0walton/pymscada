@@ -3,6 +3,10 @@ import pytest
 import pytest_asyncio
 from time import process_time_ns
 import asyncio
+import subprocess
+import sys
+import gc
+import weakref
 from struct import pack, unpack_from
 from pymscada import protocol_constants as pc
 from pymscada.bus_server import BusTags, BusTag, BusServer
@@ -10,6 +14,8 @@ from pymscada.tag import Tag
 from pymscada.bus_client import BusClient
 
 server_port = None
+queue = asyncio.Queue()
+qhist = []
 
 
 @pytest.mark.asyncio
@@ -37,6 +43,7 @@ async def test_bustag():
     tag_2.del_callback(cb, None)  # deletes callback on tag_0 as same tag
     tag_0.update(b'new again', 1000, 55)
     assert cb0 == b'tag_0 0 newer'
+    tag_0.del_callback(cb, None)
 
 
 @pytest.fixture(scope='module')
@@ -55,6 +62,17 @@ async def bus_server():
     busserver = BusServer(port=0)
     server = await busserver.start()
     server_port = server.sockets[0].getsockname()[1]
+
+
+@pytest.mark.asyncio
+@pytest_asyncio.fixture(scope='module')
+async def bus_echo(bus_server):
+    """Run and echo client for testing."""
+    proc = subprocess.Popen([sys.executable, "tests/bus_echo.py",
+                             str(server_port)])
+    yield
+    proc.terminate()
+    proc.wait()
 
 
 PROTOCOL_TESTS = [
@@ -92,7 +110,7 @@ async def test_protocol_message(bus_server):
         if s_tag_id == 'ID':
             s_tag_id = t_id
         size = len(s_value)
-        msg = pack(f">BBHHQ{size}s", 1, s_cmd, s_tag_id, size, s_time_us,
+        msg = pack(f'!BBHHQ{size}s', 1, s_cmd, s_tag_id, size, s_time_us,
                    s_value)
         writer.write(msg)
         for reply in test['recv']:
@@ -110,93 +128,150 @@ async def test_protocol_message(bus_server):
                 assert False, test['desc']
             r_cmd, r_tag_id, r_time_us, r_value = reply
             _v, cmd, tag_id, size, time_us = unpack_from(
-                '>BBHHQ', data, offset=0)
+                '!BBHHQ', data, offset=0)
             data = data[14:]
             if cmd == pc.CMD_ID:
                 t_id = tag_id
             if r_tag_id == 'ID':
                 r_tag_id = t_id
-            value = unpack_from(f'>{size}s', data, offset=0)[0]
+            value = unpack_from(f'!{size}s', data, offset=0)[0]
             data = data[size:]
             assert r_cmd == cmd, test['desc']
             assert r_tag_id is None or r_tag_id == tag_id, test['desc']
             assert r_time_us is None or r_time_us == time_us, test['desc']
             assert r_value is None or value.startswith(r_value), test['desc']
+    writer.close()
+    await writer.wait_closed()
+
+
+def tag_callback(tag: Tag):
+    """Pipe all tag updates through here."""
+    global queue
+    global qhist
+    qhist.append((tag.name, tag.value))
+    queue.put_nowait(tag)
+
+
+def msg_callback(msg: str):
+    """Pipe all tag updates through here."""
+    global queue
+    global qhist
+    qhist.append(msg)
+    queue.put_nowait(msg)
 
 
 @pytest.mark.asyncio
-async def test_client_speed(capsys, bus_server):
-    """Connect to the server and test the protocol."""
+async def test_client_init(bus_server):
+    """Check a busclient cleans up on deletion."""
     global server_port
+    global queue
+    # Hack the tag value straight into the bus
+    mybustag = BusTag(b'myinit')
+    mybustag.value = pack('!B4s', pc.TYPE_STR, b'init')
+    # standard bus client tag setup
+    mytag = Tag('myinit', str)
+    # callback to see when the tag updates
+    mytag.add_callback(tag_callback)  # earliest sign mytag has a value
+    # create the client, that's all that's needed.
+    client = BusClient(port=server_port)
+    # make sure the busclient cleans up afterwards
+    weakref.finalize(client, msg_callback, 'finalized')
+    # we should see the tag value arrive without any effort at all.
+    assert mytag == await queue.get()
+    # it should have the value hacked into the bus tag
+    assert mytag.value == 'init'
+    # now clean up, shutdown to clean up the varying connections
+    # then delete the client and then do a manual gc.collect.
+    await client.shutdown()
+    del client
+    gc.collect()
+    # ... and we should see client tidied up.
+    assert await queue.get() == 'finalized'
+    # For all that, normally, one client should be open for the life of the
+    # program.
+    # Remove the tag from callback otherwise other clients will notice.
+    mytag.del_callback(tag_callback)
+
+
+@pytest.mark.asyncio
+async def test_client_speed(capsys, bus_echo):
+    """Test for round-trip speed of small packets."""
+    global server_port
+    global queue
     TEST_COUNT = 1000  # shorter troublesome in windows
     client = BusClient(port=server_port)
-    await client.connect()
-    tag_13 = Tag('tag_13', int)
-    tag_14 = Tag('tag_14', str)
+    tagpi = Tag('pipein', int)
+    tagpo = Tag('pipeout', int)
+    tagpi.add_callback(tag_callback)
     await asyncio.sleep(0.1)
-    assert tag_13.id is not None, 'Bus should have assigned ID'
-    assert tag_14.id is not None, 'Bus should have assigned ID'
-    assert tag_13.id != tag_14.id, 'Bus tags should have different IDs'
-    queue = asyncio.Queue()
-
-    def cb_int(tag: Tag, _from_bus):
-        nonlocal queue
-        queue.put_nowait(tag.value)
-
-    def cb_str(tag: Tag, _from_bus):
-        nonlocal queue
-        queue.put_nowait(tag.value)
-
-    tag_13.add_callback(cb_int)
-    tag_14.add_callback(cb_str)
-    _, writer = await asyncio.open_connection('127.0.0.1', server_port)
+    assert tagpi.id is not None, 'Bus should have assigned ID'
+    assert tagpo.id is not None, 'Bus should have assigned ID'
+    assert tagpi.id != tagpo.id, 'Bus tags should have different IDs'
     t0 = process_time_ns()
     for test_value in range(TEST_COUNT):
-        msg = pack('>BBHHQBq', 1, pc.CMD_SET, tag_13.id, 9, 1234, pc.TYPE_INT,
-                   test_value)
-        writer.write(msg)
+        tagpo.value = test_value
         response = await queue.get()
-        assert test_value == response
+        assert test_value == response.value
     t1 = process_time_ns()
+    await client.shutdown()
+    del client
     ms_per_cycle = (t1 - t0) / 1000000 / TEST_COUNT
     with capsys.disabled():
         print(f'\n{TEST_COUNT} writes, round trip {ms_per_cycle}ms/write')
     assert ms_per_cycle < 10  # less than 10ms per count
-    await client.shutdown()
+    tagpi.del_callback(tag_callback)
 
 
 @pytest.mark.asyncio
-async def test_client_big(capsys, bus_server):
-    """Connect to the server and test the protocol."""
+async def test_client_big(capsys, bus_echo):
+    """Test a message that needs multiple packets."""
     global server_port
-    TEST_LENGTH = 1000000  # 1MB is 0s, 10MB is 0.2s, 100MB is 22s
+    global queue
+    TEST_LENGTH = 100000  # 1MB is 0s, 10MB is 0.2s, 100MB is 22s
+    tagspi = Tag('spipein', str)
+    tagspo = Tag('spipeout', str)
+    tagspi.add_callback(tag_callback)
     client = BusClient(port=server_port)
-    await client.connect()
-    tag_14 = Tag('tag_14', str)
-    await asyncio.sleep(0.1)
-    queue = asyncio.Queue()
-
-    def cb_str(tag: Tag, _from_bus):
-        nonlocal queue
-        queue.put_nowait(tag.value)
-
-    tag_14.add_callback(cb_str)
-    _, writer = await asyncio.open_connection('127.0.0.1', server_port)
-    value = b'\x03' + b'x' * TEST_LENGTH
+    value = '0123456789' * TEST_LENGTH
     t0 = process_time_ns()
-    for i in range(0, len(value) + 1, pc.MAX_LEN):
-        snip = value[i:i+pc.MAX_LEN]
-        size = len(snip)
-        msg = pack(f'>BBHHQ{size}s', 1, pc.CMD_SET, tag_14.id, size, 5678,
-                   snip)
-        await writer.drain()
-        writer.write(msg)
-    writer.close()
-    await writer.wait_closed()
+    tagspo.value = value
     response = await queue.get()
+    assert value == response.value
     t1 = process_time_ns()
-    ns_per_byte = (t1 - t0) / 1000000
-    with capsys.disabled():
-        print(f'\n{TEST_LENGTH} write, time {ns_per_byte}ms')
-    assert len(response) == TEST_LENGTH
     await client.shutdown()
+    del client
+    ns_per_byte = (t1 - t0) / 10 / TEST_LENGTH
+    with capsys.disabled():
+        print(f'\n{10 * TEST_LENGTH} write, time {ns_per_byte}ms/byte')
+    assert len(response.value) == 10 * TEST_LENGTH
+    tagspi.del_callback(tag_callback)
+
+
+@pytest.mark.asyncio
+async def test_client_echo(capsys, bus_echo):
+    """Test echo from a separate process."""
+    global server_port
+    global queue
+    client = BusClient(port=server_port)
+    # __bus_echo__ is a bus_echo.py written tag.
+    tag_echo = Tag('__bus_echo__', str)
+    tag_echo.add_callback(tag_callback)
+    ready = await queue.get()
+    assert ready.value == 'started'
+    tag_send_str = Tag('one', str)
+    tag_send_int = Tag('three', int)
+    tag_recv_str = Tag('two', str)
+    tag_recv_int = Tag('four', int)
+    tag_recv_int.add_callback(tag_callback)
+    for i in range(100):
+        tag_send_str.value = f'count {i}'
+        tag_send_int.value = i
+        ready = await queue.get()
+        assert ready.value == i
+        assert tag_recv_str.value == tag_send_str.value
+        assert tag_recv_int.value == tag_send_int.value
+    client.publish_rqs(tag_echo, {'type': 'ping'})
+    ready = await queue.get()
+    assert ready.value == 'pong'
+    tag_echo.del_callback(tag_callback)
+    tag_recv_int.del_callback(tag_callback)

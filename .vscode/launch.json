@@ -24,6 +24,30 @@
                 "--tags", ".\\docs\\examples\\tags.yaml"
             ],
             "console":"integratedTerminal",
-            "justMyCode":true},
+            "justMyCode":true
+        },
+        {
+            "name":"history",
+            "type":"python",
+            "request":"launch",
+            "program":"src/pymscada/__main__.py",
+            "args": [
+                "run", "history",
+                "--verbose",
+                "--config", ".\\docs\\examples\\history.yaml",
+                "--tags", ".\\docs\\examples\\tags.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name": "Python: Debug Tests",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
     ]
 }

@@ -2,6 +2,7 @@
 Shared value tags.
 
 Configured to NOT use asyncio.
+bus_id is python id(), 0 is null pointer in c, 0 is local bus.
 """
 import time
 import array
@@ -47,7 +48,7 @@ class UniqueTag(type):
     """Super Tag class only create unique tags for unique tag names."""
 
     __cache = {}
-    notify = None
+    __notify = None
 
     def __call__(cls, tagname: str, tagtype: type = None):
         """Each time a new tag is created, check if it is really new."""
@@ -62,8 +63,8 @@ class UniqueTag(type):
             tag.__init__(tagname, tagtype)
             tag.id = None
             cls.__cache[tagname] = tag
-            if cls.notify is not None:
-                cls.notify(tag)
+            if cls.__notify is not None:
+                cls.__notify(tag)
         return tag
 
     def tagnames(cls) -> list[str]:
@@ -76,7 +77,11 @@ class UniqueTag(type):
 
     def set_notify(cls, callback):
         """Set ONE routine to notify when new tags are added."""
-        cls.notify = callback
+        cls.__notify = callback
+
+    def del_notify(cls):
+        """Set ONE routine to notify when new tags are added."""
+        cls.__notify = None
 
     def get_all_tags(cls) -> dict[str, 'Tag']:
         """Return all current tags as list[Tag]."""
@@ -89,7 +94,7 @@ class Tag(metaclass=UniqueTag):
     __slots__ = ('__id', 'name', 'type', '__value', '__time_us', '__multi',
                  '__min', '__max', '__deadband', 'from_bus', '__age_us',
                  'times_us', 'values', 'pub', 'in_pub', 'pub_id', 'in_pub_id',
-                 'desc', 'units', 'dp')
+                 'rqs', 'desc', 'units', 'dp')
 
     def __init__(self, tagname: str, tagtype) -> None:
         """Initialise with a unique name and the data type."""
@@ -109,25 +114,24 @@ class Tag(metaclass=UniqueTag):
         self.__age_us = None
         self.times_us = None
         self.values = None
-        self.pub = []
+        self.pub = {}
         self.in_pub = None
         self.pub_id = []
         self.in_pub_id = None
+        self.rqs = None
         self.desc = ''
         self.units = None
         self.dp = None
 
-    def add_callback(self, callback):
+    def add_callback(self, callback, bus_id: int = 0):
         """Add a callback to update the value when a change is seen."""
         if not callable(callback):
             raise TypeError(f"{callback} must be callable.")
-        if callback not in self.pub:
-            self.pub.append(callback)
+        self.pub[callback] = bus_id
 
     def del_callback(self, callback):
         """Remove the callback."""
-        if callback in self.pub:
-            self.pub.remove(callback)
+        del self.pub[callback]
 
     def add_callback_id(self, callback):
         """Add a callback for when a process needs to know the id is live."""
@@ -140,6 +144,14 @@ class Tag(metaclass=UniqueTag):
         """Remove the callback."""
         if callback in self.pub_id:
             self.pub_id.remove(callback)
+
+    def add_rqs(self, rqs_handler):
+        """Request set handler. Only one permitted."""
+        if not callable(rqs_handler):
+            raise TypeError(f"{rqs_handler} must be callable.")
+        if self.rqs is not None:
+            raise TypeError(f"{self.name} rqs already set.")
+        self.rqs = rqs_handler
 
     def store(self):
         """Store history in an array.array."""
@@ -184,8 +196,6 @@ class Tag(metaclass=UniqueTag):
         else:
             time_us = int(time.time() * 1e6)
             from_bus = 0
-        if time_us == 0:
-            return
         if type(value) is int and self.type is float:
             value = float(value)
         elif type(value) is float and self.type is int:
@@ -210,8 +220,9 @@ class Tag(metaclass=UniqueTag):
                 if self.__age_us is not None:
                     self.store()
                 # only publish for > deadband change
-                for self.in_pub in self.pub:
-                    self.in_pub(self)  # callback with Tag as argument
+                for self.in_pub, bus_id in self.pub.items():
+                    if from_bus != bus_id:
+                        self.in_pub(self)
                 self.in_pub = None
         else:
             raise TypeError(f"{self.name} won't force {type(value)} "
@@ -232,11 +243,6 @@ class Tag(metaclass=UniqueTag):
         for self.in_pub_id in self.pub_id:
             self.in_pub_id(self)
         self.in_pub_id = None
-
-    def notify_all(self):
-        """Ignoring from bus, notify all of tag value update."""
-        for self.in_pub in self.pub:  # noqa:B020
-            self.in_pub(self, None)  # callback with self(Tag)
 
     @property
     def time_us(self) -> int:
@@ -310,10 +316,10 @@ class Tag(metaclass=UniqueTag):
         """Set age for history, clobbers old history when set."""
         if self.type in [int, float]:
             self.__age_us = age_us
-            self.times_us = array.array('L')
+            self.times_us = array.array('Q')
             if self.type is int:
-                self.values = array.array('i')
+                self.values = array.array('q')
             elif self.type is float:
-                self.values = array.array('f')
+                self.values = array.array('d')
         else:
             raise TypeError(f"shard invalid {self.name} not int, float")

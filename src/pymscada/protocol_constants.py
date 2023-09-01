@@ -6,36 +6,38 @@ Bus holds a tag forever, assigns a tag id forever, holds a tag value with len
 start of your program; use RQS as an update messenger, share whole structures
 rarely.
 
-- version 16-bit int == 0x01
-- command 16-bit int
-- tag_id 16-bit int
-- size 16-bit unsigned int
+- version 16-bit unsigned int == 0x01
+- command 16-bit unsigned int
+- tag_id 32-bit unsigned int
+- size 32-bit unsigned int
   - if size == 0xff  continuation mandatory
   - size 0x00 completes an empty continuation
-- time_us 64-bit unsigned int, UTC microseconds
-- data size of 16-bit words
+- time_us 128-bit unsigned int, UTC microseconds
+- data size of 8-bit char
 
 command
-- ID size < 0x0f data is tagname
-  - reply: ID with tag_id and data as tagname
-- SET size <= 0xff data is typed or json packed
-- UNSUB size == 0x00
+- CMD_ID data is tagname
+  - reply: CMD_ID with tag_id and data as tagname
+- CMD_SET id, data is typed or json packed
   - no reply
-- GET size == 0x00 data is empty
-- RQS size <= 0xff data is request to tag creator
-- SUB size == 0x00 data is empty
-  - reply: SET with tag_id and value, value may be None
-- LIST intended for interactive shell
-  - size == 0x00 tags with values newer than time_us
+- CMD_UNSUB id
+  - no reply
+- CMD_GET id
+- CMD_RQS id, data is request to tag creator
+- CMD_SUB id
+  - reply: SET id and value, value may be None
+- CMD_LIST
+  - size == 0x00
+    - tags with values newer than time_us
   - size > 0x00
     - ^text matches start of tagname
     - text$ matches start of tagname
     - text matches anywhere in tagname
-- reply: LIST with tag_id of 0
+  - reply: LIST data as space separated tagnames
 """
 
 # Tuning constants
-MAX_LEN = 65535  # sometimes negligibly faster at 65535 - 14
+MAX_LEN = 65535 - 14  # TODO fix server(?) when 3
 
 # Network protocol commands
 CMD_ID = 1  # query / inform tag ID - data is tagname bytes string
