@@ -9,13 +9,20 @@ pages:
   items:
   - {desc: Default tags, type: h1}
   - {tagname: __bus__, type: value}
-  - {tagname: Control, type: setpoint}
-  - {tagname: String, type: value}
-  - {tagname: Multistate, type: value}
-  - {tagname: Float, type: value}
-  - {tagname: Time, type: value}
-  - {tagname: Setpoint, type: setpoint}
-  - {tagname: Deadband, type: value}
+  - {tagname: IntSet, type: setpoint}
+  - {tagname: IntVal, type: value}
+  - {tagname: FloatSet, type: setpoint}
+  - {tagname: FloatVal, type: value}
+  - {tagname: MultiSet, type: setpoint}
+  - {tagname: MultiVal, type: value}
+  - {tagname: StringSet, type: setpoint}
+  - {tagname: StringVal, type: value}
+  - {tagname: TimeSet, type: setpoint}
+  - {tagname: TimeVal, type: value}
+  - {tagname: DateSet, type: setpoint}
+  - {tagname: DateVal, type: value}
+  - {tagname: DateTimeSet, type: setpoint}
+  - {tagname: DateTimeVal, type: value}
 - name: Sub Page 1
   parent: Dropdown
   items:

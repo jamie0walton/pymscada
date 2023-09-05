@@ -3,6 +3,7 @@ import asyncio
 from aiohttp import web, WSMsgType
 from struct import pack
 from pathlib import Path
+import time
 import logging
 from .tag import Tag, TYPES
 from .config import get_file
@@ -159,8 +160,10 @@ class WSHandler():
                 action = command['type']
                 tagname = command['tagname']
                 value = command['value']
+                time_us = int(time.time() * 1e6)
+                bus = None
                 if action == 'set':  # pc.CMD_SET
-                    self.tag_by_name[tagname].value = value
+                    self.tag_by_name[tagname].value = value, time_us, bus
                 elif action == 'rqs':  # pc.CMD_RQS
                     self.do_rqs(tagname, value)
                 elif action == 'sub':  # pc.CMD_SUB
@@ -180,12 +183,20 @@ class WSHandler():
 
 
 class WwwServer:
-    """WWW Server."""
+    """Connect to bus on bus_ip:bus_port, serve on ip:port for webclient."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
                  tag_info: dict = {}, pages: dict = {}) -> None:
-        """WWW Server."""
+        """
+        Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
+
+        Serves the webclient files at /, as a relative path. The webclient uses
+        a websocket connection to request and set tag values and subscribe to
+        changes.
+
+        Event loop must be running.
+        """
         self.busclient = BusClient(bus_ip, bus_port)
         self.ip = ip
         self.port = port
@@ -232,7 +243,7 @@ class WwwServer:
 
     async def start(self):
         """Provide a web server."""
-        await self.busclient.connect()
+        await self.busclient.start()
         self.webapp = web.Application()
         routes = [web.get('/', self.redirect_handler),
                   web.get('/ws', self.websocket_handler),
@@ -243,8 +254,3 @@ class WwwServer:
         await self.runner.setup()
         self.site = web.TCPSite(self.runner, self.ip, self.port)
         await self.site.start()
-
-    async def run_forever(self):
-        """Run forever."""
-        await self.start()
-        await asyncio.get_event_loop().create_future()

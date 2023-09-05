@@ -139,17 +139,20 @@ class BusConnection():
 
 
 class BusServer:
-    """
-    Create a Bus Server that will handle changing connections.
-
-    Creates tags on ID message. If process stops pymscada must completely
-    restart.
-    """
+    """Serve Tags on ip:port, echoing changes to any subscribers."""
 
     __slots__ = ('ip', 'port', 'server', 'connections')
 
     def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
-        """Set binding address and port for BusServer."""
+        """
+        Serve Tags on ip:port, echoing changes to any subscribers.
+
+        Each connection can publish and subscribe to tags. Any tag set is
+        broadcast to any listeners excepting the connection that sets the
+        tag value.
+
+        Event loop must be running.
+        """
         self.ip = ip
         self.port = port
         self.server = None
@@ -171,6 +174,7 @@ class BusServer:
 
     def process(self, bus_id, cmd, tag_id, time_us, data):
         """Process bus message, updating the local tag value."""
+        logging.info(f'write {pc.CMD_TEXT[cmd]} {tag_id} {data}')
         if cmd == pc.CMD_SET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
@@ -283,8 +287,3 @@ class BusServer:
         logging.info(f'Serving on {", ".join(addrs)}')
         asyncio.create_task(self.server.serve_forever())
         return self.server
-
-    async def run_forever(self):
-        """Run forever."""
-        await self.start()
-        await asyncio.get_event_loop().create_future()

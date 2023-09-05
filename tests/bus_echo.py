@@ -40,8 +40,9 @@ async def main(port):
     tagspo = Tag('spipeout', str)
     tagspi = Tag('spipein', str)
     tagspo.add_callback(partial(callback, tagspi))
-    busclient = BusClient(port=port)
-    await busclient.run_forever()
+    client = BusClient(port=port)
+    await client.start()
+    await asyncio.get_event_loop().create_future()
 
 
 if __name__ == '__main__':

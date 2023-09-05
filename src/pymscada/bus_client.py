@@ -20,7 +20,7 @@ class BusClient:
         """Create bus server."""
         self.ip = ip
         self.port = port
-        self.read_task = asyncio.create_task(self.read())
+        self.read_task = None
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
@@ -38,16 +38,16 @@ class BusClient:
             self.to_publish[tag.name] = tag
             return
         if tag.type is float:
-            data = pack('>Bf', pc.TYPE_FLOAT, tag.value)
+            data = pack('!Bd', pc.TYPE_FLOAT, tag.value)
         elif tag.type is int:
-            data = pack('>Bq', pc.TYPE_INT, tag.value)
+            data = pack('!Bq', pc.TYPE_INT, tag.value)
         elif tag.type is str:
             size = len(tag.value)
-            data = pack(f'>B{size}s', pc.TYPE_STR, tag.value.encode())
+            data = pack(f'!B{size}s', pc.TYPE_STR, tag.value.encode())
         elif tag.type in [list, dict]:
             jsonstr = json.dumps(tag.value).encode()
             size = len(jsonstr)
-            data = pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
+            data = pack(f'!B{size}s', pc.TYPE_JSON, jsonstr)
         else:
             logging.warning(f'publish {tag.name} unhandled {tag.type}')
             return
@@ -154,13 +154,13 @@ class BusClient:
         if cmd == pc.CMD_SET:
             if value is None:
                 return
-            data_type = unpack_from('>B', value, offset=0)[0]
+            data_type = unpack_from('!B', value, offset=0)[0]
             if data_type == pc.TYPE_FLOAT:
-                data = unpack_from('>f', value, offset=1)[0]
+                data = unpack_from('!d', value, offset=1)[0]
             elif data_type == pc.TYPE_INT:
-                data = unpack_from('>q', value, offset=1)[0]
+                data = unpack_from('!q', value, offset=1)[0]
             else:
-                data = unpack_from(f'>{len(value) - 1}s', value, offset=1
+                data = unpack_from(f'!{len(value) - 1}s', value, offset=1
                                    )[0].decode()
                 if data_type is pc.TYPE_STR:
                     pass
@@ -169,7 +169,7 @@ class BusClient:
             tag.value = data, time_us, id(self)
         elif cmd == pc.CMD_RQS:
             if tag.rqs is not None:
-                data = unpack_from(f'>{len(value) - 1}s', value, offset=1
+                data = unpack_from(f'!{len(value) - 1}s', value, offset=1
                                    )[0].decode()
                 data = json.loads(data)
                 tag.rqs(tag.name, data)
@@ -181,6 +181,6 @@ class BusClient:
         self.writer.close()
         await self.writer.wait_closed()
 
-    async def run_forever(self):
-        """Run forever."""
-        await asyncio.get_event_loop().create_future()
+    async def start(self):
+        """Start async."""
+        self.read_task = asyncio.create_task(self.read())

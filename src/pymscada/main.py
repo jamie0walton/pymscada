@@ -17,7 +17,7 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['run']
-    components = ['bus', 'console', 'wwwserver', 'history']
+    components = ['bus', 'console', 'wwwserver', 'history', 'simulate']
     parser.add_argument('action', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('component', type=str, nargs='?', choices=components,
@@ -34,7 +34,7 @@ def args():
     return parser.parse_args()
 
 
-def run():
+async def run():
     """Run bus and wwwserver."""
     options = args()
     if options.verbose:
@@ -53,18 +53,21 @@ def run():
             tag_info = dict(Config(options.tags))
     except FileNotFoundError:
         logging.warning('Tag file not found, only OK for bus.')
-    action = (options.action, options.component)
-    if action == ('run', 'bus'):
-        busserver = BusServer(**config)
-        asyncio.run(busserver.run_forever())
-    elif action == ('run', 'console'):
-        console = Console()
-        asyncio.run(console.run_forever())
-    elif action == ('run', 'wwwserver'):
-        wwwserver = WwwServer(tag_info=tag_info, **config)
-        asyncio.run(wwwserver.run_forever())
-    elif action == ('run', 'history'):
-        history = History(tag_info=tag_info, **config)
-        asyncio.run(history.run_forever())
+    if options.action == 'run':
+        if options.component == 'bus':
+            bus = BusServer(**config)
+            await bus.start()
+        elif options.component == 'console':
+            console = Console()
+            await console.start()
+        elif options.component == 'wwwserver':
+            www = WwwServer(tag_info=tag_info, **config)
+            await www.start()
+        elif options.component == 'history':
+            history = History(tag_info=tag_info, **config)
+            await history.start()
+        else:
+            logging.warning(f'no run {options.component}')
     else:
-        logging.warning(f'no action {action}')
+        logging.warning(f'no {options.action}')
+    await asyncio.get_event_loop().create_future()

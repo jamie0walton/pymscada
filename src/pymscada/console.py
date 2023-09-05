@@ -5,11 +5,16 @@ from .bus_client import BusClient
 
 
 class Console:
-    """Console."""
+    """Provide a text console to interact with a Bus."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324
-                 ) -> None:
-        """Console."""
+    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324):
+        """
+        Connect to bus_ip:bus_port and provide console interaction with a Bus.
+
+        TO DO.
+
+        Event loop must be running.
+        """
         self.busclient = BusClient(bus_ip, bus_port)
 
     async def interact(self):
@@ -24,10 +29,5 @@ class Console:
 
     async def start(self):
         """Provide a console server."""
-        await self.busclient.connect()
+        await self.busclient.start()
         await self.interact()
-
-    async def run_forever(self):
-        """Run forever."""
-        await self.start()
-        await asyncio.get_event_loop().create_future()

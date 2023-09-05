@@ -34,4 +34,4 @@ test = [
 ]
 
 [project.scripts]
-pymscada = "pymscada.__main__:run"
+pymscada = "pymscada.__main__:cmd_line"

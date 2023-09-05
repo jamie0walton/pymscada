@@ -174,6 +174,7 @@ async def test_client_init(bus_server):
     mytag.add_callback(tag_callback)  # earliest sign mytag has a value
     # create the client, that's all that's needed.
     client = BusClient(port=server_port)
+    await client.start()
     # make sure the busclient cleans up afterwards
     weakref.finalize(client, msg_callback, 'finalized')
     # we should see the tag value arrive without any effort at all.
@@ -182,9 +183,9 @@ async def test_client_init(bus_server):
     assert mytag.value == 'init'
     # now clean up, shutdown to clean up the varying connections
     # then delete the client and then do a manual gc.collect.
-    await client.shutdown()
+    await client.shutdown()  # normally necessary and sufficient
     del client
-    gc.collect()
+    gc.collect()  # required for the finalizer to be called
     # ... and we should see client tidied up.
     assert await queue.get() == 'finalized'
     # For all that, normally, one client should be open for the life of the
@@ -200,6 +201,7 @@ async def test_client_speed(capsys, bus_echo):
     global queue
     TEST_COUNT = 1000  # shorter troublesome in windows
     client = BusClient(port=server_port)
+    await client.start()
     tagpi = Tag('pipein', int)
     tagpo = Tag('pipeout', int)
     tagpi.add_callback(tag_callback)
@@ -214,7 +216,6 @@ async def test_client_speed(capsys, bus_echo):
         assert test_value == response.value
     t1 = process_time_ns()
     await client.shutdown()
-    del client
     ms_per_cycle = (t1 - t0) / 1000000 / TEST_COUNT
     with capsys.disabled():
         print(f'\n{TEST_COUNT} writes, round trip {ms_per_cycle}ms/write')
@@ -232,6 +233,7 @@ async def test_client_big(capsys, bus_echo):
     tagspo = Tag('spipeout', str)
     tagspi.add_callback(tag_callback)
     client = BusClient(port=server_port)
+    await client.start()
     value = '0123456789' * TEST_LENGTH
     t0 = process_time_ns()
     tagspo.value = value
@@ -239,7 +241,6 @@ async def test_client_big(capsys, bus_echo):
     assert value == response.value
     t1 = process_time_ns()
     await client.shutdown()
-    del client
     ns_per_byte = (t1 - t0) / 10 / TEST_LENGTH
     with capsys.disabled():
         print(f'\n{10 * TEST_LENGTH} write, time {ns_per_byte}ms/byte')
@@ -253,6 +254,7 @@ async def test_client_echo(capsys, bus_echo):
     global server_port
     global queue
     client = BusClient(port=server_port)
+    await client.start()
     # __bus_echo__ is a bus_echo.py written tag.
     tag_echo = Tag('__bus_echo__', str)
     tag_echo.add_callback(tag_callback)
@@ -273,5 +275,6 @@ async def test_client_echo(capsys, bus_echo):
     client.publish_rqs(tag_echo, {'type': 'ping'})
     ready = await queue.get()
     assert ready.value == 'pong'
+    await client.shutdown()
     tag_echo.del_callback(tag_callback)
     tag_recv_int.del_callback(tag_callback)

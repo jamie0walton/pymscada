@@ -1,16 +1,15 @@
-"""Check the bus tags."""
+"""
+Check the bus tags.
+
+Note, having a BusClient in another test that has not been properly closed
+will cause these tests to fail.
+"""
 import pytest
 import asyncio
 from pymscada import Tag
 
 
-@pytest.fixture(scope='module')
-def unlink_notify():
-    """If async tests have run, this needs to be unset."""
-    Tag.notify = None
-
-
-def test_create_tags(unlink_notify):
+def test_create_tags():
     """Check some very basics."""
     try:
         tag_0 = Tag('tag_0')
@@ -33,7 +32,7 @@ def test_create_tags(unlink_notify):
     assert tag_2.value == 12345.  # tag_2 _is_ tag_1
 
 
-def test_list_dict_types(unlink_notify):
+def test_list_dict_types():
     """Lists and dictionaries."""
     tag_3 = Tag('tag_3', list)
     tag_4 = Tag('tag_4', dict)
@@ -51,7 +50,7 @@ def test_list_dict_types(unlink_notify):
     tag_4.value = {'this': 'should work'}
 
 
-def test_multi(unlink_notify):
+def test_multi():
     """Special case for integer value."""
     tag_10 = Tag('tag_10', int)
     tag_10.multi = ['zero', 'one', 'two', 'three']
@@ -62,7 +61,7 @@ def test_multi(unlink_notify):
     assert tag_10.value == 3  # list sets min/max values
 
 
-def test_value_limits(unlink_notify):
+def test_value_limits():
     """Hi."""
     tag_5 = Tag('tag_5', "float")
     tag_5.value_min = -5
@@ -73,7 +72,7 @@ def test_value_limits(unlink_notify):
     assert tag_5.value == -5
 
 
-def test_int_with_float(unlink_notify):
+def test_int_with_float():
     """Hi."""
     tag_6 = Tag('tag_6', int)
     tag_6.value = 1.235
@@ -83,7 +82,7 @@ def test_int_with_float(unlink_notify):
     assert type(tag_7.value) == float
 
 
-def test_dict_callback(unlink_notify):
+def test_dict_callback():
     """Dict test with callback."""
     r1 = None
 
@@ -113,14 +112,14 @@ def test_dict_callback(unlink_notify):
     assert r1 == 55
 
 
-def test_watch_tags(unlink_notify):
+def test_watch_tags():
     """Hi."""
     new_tags = []
 
     def callback(tag: Tag):
         new_tags.append(tag)
 
-    Tag.notify = callback
+    Tag.set_notify(callback)
     v1 = Tag('n1', str)
     v2 = Tag('n1', str)
     v3 = Tag('n2', str)
@@ -128,9 +127,10 @@ def test_watch_tags(unlink_notify):
     v3.value = 'B'
     assert v2.value == 'A'
     assert new_tags == [v2, v3]
+    Tag.del_notify()
 
 
-def test_from_bus(unlink_notify):
+def test_from_bus():
     """Confirm we can set and see if the bus is the source of the tag value."""
     b1_res = None
     b2_res = None
@@ -172,7 +172,7 @@ def event_loop():
     loop.close()
 
 
-def test_callbacks(unlink_notify):
+def test_callbacks():
     """
     Check callbacks.
 
@@ -194,7 +194,7 @@ def test_callbacks(unlink_notify):
     assert v2.value == 1.0
 
 
-def test_deadband(unlink_notify):
+def test_deadband():
     """Test deadband operation."""
     d1 = Tag('db1', float)
     d1.value = 10.0

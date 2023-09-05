@@ -1,5 +1,4 @@
 """Store and provide history."""
-import asyncio
 from struct import pack_into, unpack_from, error
 from pathlib import Path
 import logging
@@ -199,12 +198,20 @@ class TagHistory():
 
 
 class History():
-    """Store and retrieve history."""
+    """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  path: str = 'history', rqs: str = '__history__',
                  tag_info: dict = {}) -> None:
-        """WWW Server."""
+        """
+        Connect to bus_ip:bus_port, store and provide a value history.
+
+        History files are binary files named <tagname>_<time_us>.dat. On
+        receipt of a request via RQS message, History will send the data
+        via __history__.value which you can watch with a tag.add_callback.
+
+        Event loop must be running.
+        """
         self.busclient = BusClient(bus_ip, bus_port)
         self.path = path
         self.tags: dict[str, TagHistory] = {}
@@ -223,9 +230,9 @@ class History():
         """Respond to bus requests for data to publish on rqs."""
         pass
 
-    async def run_forever(self):
-        """Run forever."""
-        await asyncio.get_event_loop().create_future()
+    async def start(self):
+        """Async startup."""
+        await self.busclient.start()
 
 
 @atexit.register

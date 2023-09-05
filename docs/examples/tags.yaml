@@ -1,47 +1,85 @@
 __bus__:
   desc: Bus Server Info
   type: str
-Control:
-  desc: Control Tag
-  multi:
-   - "Off"
-   - Waiting
-   - Running
-   - Run Now
-  init: 0
-String:
-  desc: String Tag
-  type: str
-  init: 'a string tag'
-Multistate:
-  desc: A Multi-state indicator
-  multi:
-   - 'Off'
-   - Starting
-   - Running
-   - Stopping
-  init: 0
-Float:
-  desc: A real value
+IntSet:
+  desc: Integer Setpoint
+  type: int
+  min: -100
+  max: 100
+  init: 1
+IntVal:
+  desc: Integer Value
+  type: int
+  min: -100
+  max: 100
+  init: 1
+FloatSet:
+  desc: Float Setpoint
   type: float
-  units: '%'
+  min: -1e100
+  max: 1e100
+  units: 'm'
   dp: 1
-  init: 12.34
-Time:
-  desc: A time value
+  init: 2
+FloatVal:
+  desc: Float Value
+  type: float
+  min: -1e100
+  max: 1e100
+  units: 'm'
+  dp: 1
+  init: 2
+MultiSet:
+  desc: Multi Setpoint
+  multi:
+   - zero
+   - one
+   - two
+   - three
+  init: 0
+MultiVal:
+  desc: Multi Value
+  multi:
+   - zero
+   - one
+   - two
+   - three
+  init: 0
+StringSet:
+  desc: String Setpoint
+  type: str
+  init: a string
+StringVal:
+  desc: String Value
+  type: str
+  init: a string
+TimeSet:
+  desc: Time Setpoint
   type: int
   init: 1234567890
   format: time
-Setpoint:
-  desc: A Setpoint
-  min: 0
-  max: 25
-  units: "m"
-  dp: 2
-  init: 10.1
-Deadband:
-  desc: A value with a deadband
-  type: float
-  units: mm
-  dp: 0
-  deadband: 1
+TimeVal:
+  desc: Time Value
+  type: int
+  init: 1234567890
+  format: time
+DateSet:
+  desc: Date Setpoint
+  type: int
+  init: 1234567890
+  format: date
+DateVal:
+  desc: Date Value
+  type: int
+  init: 1234567890
+  format: date
+DateTimeSet:
+  desc: Date Time Setpoint
+  type: int
+  init: 1234567890
+  format: datetime
+DateTimeVal:
+  desc: Date Time Value
+  type: int
+  init: 1234567890
+  format: datetime
