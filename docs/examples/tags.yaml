@@ -83,3 +83,17 @@ DateTimeVal:
   type: int
   init: 1234567890
   format: datetime
+MultiSelect:
+  desc: Select Dict Multi
+  type: dict
+  init:
+    labels: [A, B, C, D, E, F, G, H]
+    values: [0, 1, 2, 3, 3, 4, 4, 3]
+    locks: [1, 0, 0, 0, 0, 0, 0, 1]
+FloatSelect:
+  desc: Select Dict Float
+  type: dict
+  init:
+    labels: [Floats, For, This, Tag]
+    values: [0.1, 0.1, 0.2, 0.3]
+    locks: [0, 1, 0, 0]

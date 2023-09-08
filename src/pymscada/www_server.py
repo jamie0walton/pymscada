@@ -197,7 +197,7 @@ class WwwServer:
 
         Event loop must be running.
         """
-        self.busclient = BusClient(bus_ip, bus_port)
+        self.busclient = BusClient(bus_ip, bus_port, tag_info)
         self.ip = ip
         self.port = port
         self.get_path = get_path

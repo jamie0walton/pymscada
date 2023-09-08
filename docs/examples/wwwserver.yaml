@@ -23,11 +23,23 @@ pages:
   - {tagname: DateVal, type: value}
   - {tagname: DateTimeSet, type: setpoint}
   - {tagname: DateTimeVal, type: value}
-- name: Sub Page 1
+  - type: selectdict
+    tagname: MultiSelect
+    opts:
+      type: multi
+      multi:
+      - Zero
+      - One
+      - Two
+      - Three
+      - Four
+      - Five
+  - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
+- name: Trends
   parent: Dropdown
   items:
-  - {desc: Sub Page 1, type: h1}
-- name: Sub Page 2
+  - {desc: Trends, type: h1}
+- name: Files
   parent: Dropdown
   items:
-  - {desc: Sub Page 2, type: h1}
+  - {desc: Files, type: h1}

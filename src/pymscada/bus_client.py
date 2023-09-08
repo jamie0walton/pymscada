@@ -16,11 +16,12 @@ class BusClient:
     fails, die.
     """
 
-    def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
+    def __init__(self, ip: str = '127.0.0.1', port: int = 1324, tag_info=None):
         """Create bus server."""
         self.ip = ip
         self.port = port
         self.read_task = None
+        self.tag_info = tag_info
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
@@ -153,6 +154,14 @@ class BusClient:
         tag = self.tag_by_id[tag_id]
         if cmd == pc.CMD_SET:
             if value is None:
+                try:
+                    data = self.tag_info[tag.name]['init']
+                    time_us = int(time.time() * 1e6)
+                    bus_id = None  # needed to pub to connected webclients
+                    tag.value = data, time_us, bus_id
+                    logging.warning(f'{tag.name} init value {data}')
+                except KeyError:
+                    pass
                 return
             data_type = unpack_from('!B', value, offset=0)[0]
             if data_type == pc.TYPE_FLOAT:
