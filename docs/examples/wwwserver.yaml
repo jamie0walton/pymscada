@@ -3,6 +3,9 @@ bus_port: 1324
 ip: 0.0.0.0
 port: 8324
 get_path: ../angmscada/dist/angmscada
+paths:
+- docs/examples
+- docs/examples/pdf
 pages:
 - name: Default Main
   parent:
@@ -42,4 +45,4 @@ pages:
 - name: Files
   parent: Dropdown
   items:
-  - {desc: Files, type: h1}
+  - {tagname: __files__, type: files}

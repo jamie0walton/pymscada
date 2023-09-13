@@ -1,6 +1,9 @@
 __bus__:
   desc: Bus Server Info
   type: str
+__files__:
+  desc: File Server
+  type: dict
 IntSet:
   desc: Integer Setpoint
   type: int

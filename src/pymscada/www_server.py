@@ -187,7 +187,8 @@ class WwwServer:
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
-                 tag_info: dict = {}, pages: dict = {}) -> None:
+                 tag_info: dict = {}, pages: dict = {}, paths: list[str] = []
+                 ) -> None:
         """
         Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
 
@@ -205,6 +206,7 @@ class WwwServer:
             tag_for_web(tagname, tag)
         self.tag_info = tag_info
         self.pages = pages
+        self.paths = paths
 
     async def redirect_handler(self, _request: web.Request):
         """Point an empty request to the index."""
@@ -216,11 +218,25 @@ class WwwServer:
 
     async def web_handler(self, request: web.Request):
         """Point an empty request to the index."""
+        logging.info(f"read {request.match_info['file']}")
         if self.get_path is None:
             file = get_file(request.match_info['file'])
         else:
             file = Path(self.get_path, request.match_info['file'])
         return web.FileResponse(file)
+
+    async def path_handler(self, request: web.Request):
+        """Plain files."""
+        logging.info(f"path {request.match_info['path']}")
+        path = Path(request.match_info['path'])
+        if path.is_dir():
+            return web.HTTPForbidden(reason='folder not permitted')    
+        if '/'.join(path.parts[:-1]) in self.paths:
+            if not path.exists():
+                return web.HTTPNotFound(reason='no such file in path')
+            return web.FileResponse(path)
+        logging.warning(f"path not configured {request.match_info['path']}")
+        return web.HTTPForbidden(reason='path not permitted')
 
     async def websocket_handler(self, request: web.Request):
         """Wait for connections. Create a new one each time."""
@@ -247,7 +263,8 @@ class WwwServer:
         self.webapp = web.Application()
         routes = [web.get('/', self.redirect_handler),
                   web.get('/ws', self.websocket_handler),
-                  web.get('/{file}', self.web_handler)]
+                  web.get('/{file}', self.web_handler),
+                  web.get('/{path:.*}', self.path_handler)]
         self.webapp.add_routes(routes)
         self.webapp.on_response_prepare.append(self.on_prepare)
         self.runner = web.AppRunner(self.webapp, access_log=None)

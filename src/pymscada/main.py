@@ -6,6 +6,7 @@ from .config import Config
 from .www_server import WwwServer
 from .console import Console
 from .history import History
+from .files import Files
 from .bus_server import BusServer
 
 
@@ -17,7 +18,8 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['run']
-    components = ['bus', 'console', 'wwwserver', 'history', 'simulate']
+    components = ['bus', 'console', 'wwwserver', 'history', 'files',
+                  'simulate']
     parser.add_argument('action', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('component', type=str, nargs='?', choices=components,
@@ -49,10 +51,10 @@ async def run():
     except FileNotFoundError:
         logging.warning('Config file not found, using defaults.')
     try:
-        if options.component != 'bus':
+        if options.component not in ['bus', 'files']:
             tag_info = dict(Config(options.tags))
     except FileNotFoundError:
-        logging.warning('Tag file not found, only OK for bus.')
+        logging.warning('Tag file not found, OK for bus and files.')
     if options.action == 'run':
         if options.component == 'bus':
             bus = BusServer(**config)
@@ -66,6 +68,9 @@ async def run():
         elif options.component == 'history':
             history = History(tag_info=tag_info, **config)
             await history.start()
+        elif options.component == 'files':
+            files = Files(**config)
+            await files.start()
         else:
             logging.warning(f'no run {options.component}')
     else:

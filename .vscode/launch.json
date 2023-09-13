@@ -17,6 +17,19 @@
             "justMyCode":true
         },
         {
+            "name":"files",
+            "type":"python",
+            "request":"launch",
+            "program":"src/pymscada/__main__.py",
+            "args": [
+                "run", "files",
+                "--verbose",
+                "--config", ".\\docs\\examples\\files.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wwwserver",
             "type":"python",
             "request":"launch",

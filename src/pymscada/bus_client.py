@@ -155,6 +155,8 @@ class BusClient:
         if cmd == pc.CMD_SET:
             if value is None:
                 try:
+                    if self.tag_info is None:
+                        return
                     data = self.tag_info[tag.name]['init']
                     time_us = int(time.time() * 1e6)
                     bus_id = None  # needed to pub to connected webclients

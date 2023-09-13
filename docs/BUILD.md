@@ -21,3 +21,9 @@ pdm add -dG test pytest pytest-asyncio flake8 flake8-docstrings
 pdm build
 pdm sync  # this installs in editable mode which allows pytest to work
 ```
+
+Dev
+```
+pymscada run bus --verbose
+pymscada run wwwserver --config .\docs\examples\wwwserver.yaml --tags .\docs\examples\tags.yaml 
+```
