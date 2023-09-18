@@ -128,8 +128,9 @@ class WSHandler():
         tag.add_callback(self.publish)
         tag.del_callback_id(self.notify_id)
 
-    def do_rqs(self):
+    def do_rqs(self, tagname: str, value):
         """Request a setting change in tag value."""
+        logging.info(f'{tagname} {value}')
         pass
 
     def do_sub(self, tagname: str):
