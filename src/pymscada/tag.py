@@ -295,6 +295,17 @@ class Tag(metaclass=UniqueTag):
         self.__max = len(multi) - 1
 
     @property
+    def rqs_value(self):
+        """Request to Set is transient, don't save."""
+        return None
+
+    @rqs_value.setter
+    def rqs_value(self, rqs_value):
+        """Pass the Request to Set directly through to self.rqs()."""
+        if callable(self.rqs):
+            self.rqs(rqs_value)
+
+    @property
     def deadband(self):
         """Return deadband."""
         return self.__deadband

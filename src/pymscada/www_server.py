@@ -131,6 +131,7 @@ class WSHandler():
     def do_rqs(self, tagname: str, value):
         """Request a setting change in tag value."""
         logging.info(f'{tagname} {value}')
+        self.tag_by_name[tagname].rqs = value
         pass
 
     def do_sub(self, tagname: str):
@@ -166,6 +167,9 @@ class WSHandler():
                 if action == 'set':  # pc.CMD_SET
                     self.tag_by_name[tagname].value = value, time_us, bus
                 elif action == 'rqs':  # pc.CMD_RQS
+                    if 'File' in value:
+                        file = await anext(self.ws)
+                        value['_file_data'] = file.data
                     self.do_rqs(tagname, value)
                 elif action == 'sub':  # pc.CMD_SUB
                     self.do_sub(tagname)
