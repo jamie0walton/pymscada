@@ -1,8 +1,8 @@
 """Serve files through an RQS tag."""
 from pathlib import Path
 import logging
-from .bus_client import BusClient
-from .tag import Tag
+from pymscada.bus_client import BusClient
+from pymscada.tag import Tag
 
 
 class Files():

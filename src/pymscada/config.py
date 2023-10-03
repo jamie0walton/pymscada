@@ -3,7 +3,7 @@ import importlib.resources
 from importlib.abc import Traversable
 from yaml import safe_load_all, YAMLError
 import logging
-from . import assets
+from pymscada import assets
 
 
 def get_file(filename: str) -> Traversable:

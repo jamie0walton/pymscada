@@ -1,13 +1,14 @@
 """Main server entry point."""
-import asyncio
 import argparse
+import asyncio
 import logging
-from .config import Config
-from .www_server import WwwServer
-from .console import Console
-from .history import History
-from .files import Files
-from .bus_server import BusServer
+from pymscada.bus_server import BusServer
+from pymscada.config import Config
+from pymscada.console import Console
+from pymscada.files import Files
+from pymscada.history import History
+from pymscada.simulate import Simulate
+from pymscada.www_server import WwwServer
 
 
 def args():
@@ -71,6 +72,9 @@ async def run():
         elif options.component == 'files':
             files = Files(**config)
             await files.start()
+        elif options.component == 'simulate':
+            sim = Simulate(tag_info=tag_info, **config)
+            await sim.start()
         else:
             logging.warning(f'no run {options.component}')
     else:

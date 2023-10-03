@@ -4,6 +4,9 @@ __bus__:
 __files__:
   desc: File Server
   type: dict
+history_rqs:
+  desc: default history pipe
+  type: bytes
 IntSet:
   desc: Integer Setpoint
   type: int

@@ -1,7 +1,7 @@
 """Interactive console."""
 import asyncio
 import sys
-from .bus_client import BusClient
+from pymscada.bus_client import BusClient
 
 
 class Console:

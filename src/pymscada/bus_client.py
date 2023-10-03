@@ -1,11 +1,11 @@
 """Bus client."""
 import asyncio
-from struct import pack, unpack, unpack_from
+import struct
 import json
 import time
 import logging
-from .tag import Tag
-from . import protocol_constants as pc
+from pymscada.tag import Tag
+import pymscada.protocol_constants as pc
 
 
 class BusClient:
@@ -25,6 +25,7 @@ class BusClient:
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
+        self.rqs_handlers: dict[str, object] = {}
         self.pending = {}
 
     def publish(self, tag: Tag):
@@ -39,28 +40,41 @@ class BusClient:
             self.to_publish[tag.name] = tag
             return
         if tag.type is float:
-            data = pack('!Bd', pc.TYPE_FLOAT, tag.value)
+            data = struct.pack('!Bd', pc.TYPE_FLOAT, tag.value)
         elif tag.type is int:
-            data = pack('!Bq', pc.TYPE_INT, tag.value)
+            data = struct.pack('!Bq', pc.TYPE_INT, tag.value)
+        elif tag.type is bytes:
+            size = len(tag.value)
+            try:
+                data = struct.pack(f'!B{size}s', pc.TYPE_BYTES, tag.value)
+            except struct.error as e:
+                logging.error(f'bus_client {tag.name} {e}')
         elif tag.type is str:
             size = len(tag.value)
-            data = pack(f'!B{size}s', pc.TYPE_STR, tag.value.encode())
+            data = struct.pack(f'!B{size}s', pc.TYPE_STR, tag.value.encode())
         elif tag.type in [list, dict]:
             jsonstr = json.dumps(tag.value).encode()
             size = len(jsonstr)
-            data = pack(f'!B{size}s', pc.TYPE_JSON, jsonstr)
+            data = struct.pack(f'!B{size}s', pc.TYPE_JSON, jsonstr)
         else:
             logging.warning(f'publish {tag.name} unhandled {tag.type}')
             return
         self.write(pc.CMD_SET, tag.id, tag.time_us, data)
 
-    def publish_rqs(self, tag: Tag, request: dict):
+    def add_callback_rqs(self, tagname, handler):
+        """Collect callback handlers."""
+        if callable(handler):
+            self.rqs_handlers[tagname] = handler
+        else:
+            logging.error(f'invalid RQS handler for {tagname}')
+
+    def rqs(self, tagname: str, request: dict):
         """Send a Request Set message."""
         time_us = int(time.time() * 1e6)
         jsonstr = json.dumps(request).encode()
         size = len(jsonstr)
-        data = pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
-        self.write(pc.CMD_RQS, tag.id, time_us, data)
+        data = struct.pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
+        self.write(pc.CMD_RQS, self.tag_by_name[tagname].id, time_us, data)
 
     def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
               data: bytes):
@@ -70,12 +84,14 @@ class BusClient:
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
-            msg = pack(f">BBHHQ{size}s", 1, command, tag_id, size, time_us,
-                       snip)
+            msg = struct.pack(f">BBHHQ{size}s", 1, command, tag_id, size,
+                              time_us, snip)
             try:
                 self.writer.write(msg)
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 self.read_task.cancel()
+            except AttributeError:
+                logging.warning('Attribute Error, TO DO, fix in test')
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
@@ -110,7 +126,7 @@ class BusClient:
         while True:
             try:
                 head = await self.reader.readexactly(14)
-                _, cmd, tag_id, size, time_us = unpack('>BBHHQ', head)
+                _, cmd, tag_id, size, time_us = struct.unpack('>BBHHQ', head)
             except (ConnectionResetError, asyncio.IncompleteReadError):
                 break
             if size == 0:
@@ -118,7 +134,7 @@ class BusClient:
                 continue
             try:
                 payload = await self.reader.readexactly(size)
-                data = unpack(f'>{size}s', payload)[0]
+                data = struct.unpack(f'>{size}s', payload)[0]
             except (ConnectionResetError, asyncio.IncompleteReadError):
                 break
             # if MAX_LEN then a continuation packet is required
@@ -165,25 +181,33 @@ class BusClient:
                 except KeyError:
                     pass
                 return
-            data_type = unpack_from('!B', value, offset=0)[0]
+            data_type = struct.unpack_from('!B', value, offset=0)[0]
             if data_type == pc.TYPE_FLOAT:
-                data = unpack_from('!d', value, offset=1)[0]
+                data = struct.unpack_from('!d', value, offset=1)[0]
             elif data_type == pc.TYPE_INT:
-                data = unpack_from('!q', value, offset=1)[0]
+                data = struct.unpack_from('!q', value, offset=1)[0]
+            elif data_type == pc.TYPE_BYTES:
+                data = struct.unpack_from(f'!{len(value) - 1}s', value,
+                                          offset=1)[0]
+            elif data_type == pc.TYPE_STR:
+                data = struct.unpack_from(f'!{len(value) - 1}s', value,
+                                          offset=1)[0].decode()
+            elif data_type == pc.TYPE_JSON:
+                data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
+                                                     value, offset=1
+                                                     )[0].decode())
             else:
-                data = unpack_from(f'!{len(value) - 1}s', value, offset=1
-                                   )[0].decode()
-                if data_type is pc.TYPE_STR:
-                    pass
-                elif data_type == pc.TYPE_JSON:
-                    data = json.loads(data)
+                logging.warning(f'process error {tag.name} {tag.type} {value}')
+                return
             tag.value = data, time_us, id(self)
         elif cmd == pc.CMD_RQS:
-            if tag.rqs is not None:
-                data = unpack_from(f'!{len(value) - 1}s', value, offset=1
-                                   )[0].decode()
-                data = json.loads(data)
-                tag.rqs(tag.name, data)
+            data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
+                                      )[0].decode()
+            data = json.loads(data)
+            try:
+                self.rqs_handlers[tag.name](data)
+            except KeyError:
+                logging.warning(f'unhandled RQS for {tag.name} {data}')
         else:
             raise SystemExit(f'Invalid message {cmd}')
 

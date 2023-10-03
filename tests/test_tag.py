@@ -61,6 +61,13 @@ def test_multi():
     assert tag_10.value == 3  # list sets min/max values
 
 
+def test_bytes_type():
+    """Raw type."""
+    tag_11 = Tag('tag_11', bytes)
+    tag_11.value = b'1234567890'
+    assert tag_11.value == b'1234567890'
+
+
 def test_value_limits():
     """Hi."""
     tag_5 = Tag('tag_5', "float")

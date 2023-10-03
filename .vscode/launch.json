@@ -58,6 +58,20 @@
             "justMyCode":true
         },
         {
+            "name":"simulate",
+            "type":"python",
+            "request":"launch",
+            "program":"src/pymscada/__main__.py",
+            "args": [
+                "run", "simulate",
+                "--verbose",
+                "--config", ".\\docs\\examples\\simulate.yaml",
+                "--tags", ".\\docs\\examples\\tags.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name": "Python: Debug Tests",
             "type": "python",
             "request": "launch",

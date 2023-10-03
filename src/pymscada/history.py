@@ -1,10 +1,11 @@
 """Store and provide history."""
-from struct import pack_into, unpack_from, error
-from pathlib import Path
-import logging
 import atexit
-from .bus_client import BusClient
-from .tag import Tag, TYPES
+import logging
+from pathlib import Path
+from pymscada.bus_client import BusClient
+from pymscada.tag import Tag, TYPES
+from struct import pack, pack_into, unpack_from, error
+import time
 
 
 ITEM_SIZE = 16  # Q + q, Q or d
@@ -196,12 +197,16 @@ class TagHistory():
         if self.chunks == 0 and self.chunk_idx == ITEM_SIZE:
             self.file = self.path.joinpath(f'{self.name}_{time_us}.dat')
 
+    def callback(self, tag: Tag):
+        """Append directly from Tag."""
+        self.append(tag.time_us, tag.value)
+
 
 class History():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = 'history', rqs: str = '__history__',
+                 path: str = 'history', rqs_tagname: str = '__history__',
                  tag_info: dict = {}) -> None:
         """
         Connect to bus_ip:bus_port, store and provide a value history.
@@ -214,21 +219,32 @@ class History():
         """
         self.busclient = BusClient(bus_ip, bus_port)
         self.path = path
-        self.tags: dict[str, TagHistory] = {}
+        self.tags: dict[str, Tag] = {}
+        self.hist_tags: dict[str, TagHistory] = {}
         for tagname, tag in tag_info.items():
             tag_for_history(tagname, tag)
             if tag['type'] not in [float, int]:
                 continue
-            self.tags[tagname] = TagHistory(tagname, tag['type'], path,
-                                            min=tag['min'], max=tag['max'],
-                                            deadband=tag['deadband'])
-        self.rqs = Tag(rqs, dict)
-        self.rqs.add_rqs(self.rqs_cb)
-        self.rqs.value = {'type': 'OK', 'dat': None}
+            self.hist_tags[tagname] = TagHistory(
+                tagname, tag['type'], path, min=tag['min'], max=tag['max'],
+                deadband=tag['deadband'])
+            self.tags[tagname] = Tag(tagname, tag['type'])
+            self.tags[tagname].add_callback(self.hist_tags[tagname].callback)
+        self.rqs = Tag(rqs_tagname, bytes)
+        self.rqs.value = b'\x00\x00'
+        self.busclient.add_callback_rqs(rqs_tagname, self.rqs_cb)
 
-    def rqs_cb(self, tag):
+    def rqs_cb(self, request):
         """Respond to bus requests for data to publish on rqs."""
-        pass
+        logging.info(f'history got {request}')
+        try:
+            start_us = int(time.time() * 1e6 - request['range'] * 1e6)
+            data = self.hist_tags[request['tagname']].read_bytes(start_us)
+            tagid = self.tags[request['tagname']].id
+            self.rqs.value = pack('>H', tagid) + data
+            self.rqs.value = b'\x00\x00'  # TODO clear value another way
+        except Exception as e:
+            logging.error(f'history rqs_cb {e}')
 
     async def start(self):
         """Async startup."""

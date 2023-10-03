@@ -13,7 +13,8 @@ TYPES = {
     'str': str,
     'float': float,
     'list': list,
-    'dict': dict
+    'dict': dict,
+    'bytes': bytes
 }
 
 
@@ -39,8 +40,8 @@ def validate_tag(tag: dict):
         tag['dp'] = 0
     elif tag['type'] is float and 'dp' not in tag:
         tag['dp'] = 2
-    elif tag['type'] is str and 'dp' in tag:
-        logging.warning(f"{tag} str cannot use dp")
+    elif tag['type'] in [str, bytes] and 'dp' in tag:
+        logging.warning(f"{tag} str/bytes cannot use dp")
         del tag['dp']
 
 
@@ -94,7 +95,7 @@ class Tag(metaclass=UniqueTag):
     __slots__ = ('__id', 'name', 'type', '__value', '__time_us', '__multi',
                  '__min', '__max', '__deadband', 'from_bus', '__age_us',
                  'times_us', 'values', 'pub', 'in_pub', 'pub_id', 'in_pub_id',
-                 'rqs', 'desc', 'units', 'dp')
+                 'desc', 'units', 'dp')
 
     def __init__(self, tagname: str, tagtype) -> None:
         """Initialise with a unique name and the data type."""
@@ -118,7 +119,6 @@ class Tag(metaclass=UniqueTag):
         self.in_pub = None
         self.pub_id = []
         self.in_pub_id = None
-        self.rqs = None
         self.desc = ''
         self.units = None
         self.dp = None
@@ -144,14 +144,6 @@ class Tag(metaclass=UniqueTag):
         """Remove the callback."""
         if callback in self.pub_id:
             self.pub_id.remove(callback)
-
-    def add_rqs(self, rqs_handler):
-        """Request set handler. Only one permitted."""
-        if not callable(rqs_handler):
-            raise TypeError(f"{rqs_handler} must be callable.")
-        if self.rqs is not None:
-            raise TypeError(f"{self.name} rqs already set.")
-        self.rqs = rqs_handler
 
     def store(self):
         """Store history in an array.array."""
@@ -293,17 +285,6 @@ class Tag(metaclass=UniqueTag):
         self.__multi = multi
         self.__min = 0
         self.__max = len(multi) - 1
-
-    @property
-    def rqs_value(self):
-        """Request to Set is transient, don't save."""
-        return None
-
-    @rqs_value.setter
-    def rqs_value(self, rqs_value):
-        """Pass the Request to Set directly through to self.rqs()."""
-        if callable(self.rqs):
-            self.rqs(rqs_value)
 
     @property
     def deadband(self):

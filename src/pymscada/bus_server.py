@@ -3,7 +3,7 @@ import asyncio
 from struct import pack, unpack
 import time
 import logging
-from . import protocol_constants as pc
+import pymscada.protocol_constants as pc
 
 
 class BusTags(type):
@@ -11,7 +11,7 @@ class BusTags(type):
 
     _tag_by_name: dict[bytes, 'BusTag'] = {}
     _tag_by_id: dict[int, 'BusTag'] = {}
-    _next_id = 0
+    _next_id = 1  # start at 1 so 0 is not a valid ID
 
     def __call__(cls, tagname: bytes):
         """Return existing tag if tagname already exists."""
@@ -158,7 +158,7 @@ class BusServer:
         self.server = None
         self.connections: dict[int, BusConnection] = {}
         bus_tag = BusTag(b'__bus__')
-        bus_tag.value = b'\x07started'
+        bus_tag.value = b'\x03started'  # \x03 is string type
         bus_tag.time_us = int(time.time() * 1e6)
         bus_tag.from_bus = 0
 
@@ -174,7 +174,8 @@ class BusServer:
 
     def process(self, bus_id, cmd, tag_id, time_us, data):
         """Process bus message, updating the local tag value."""
-        logging.info(f'write {pc.CMD_TEXT[cmd]} {tag_id} {data}')
+        logging.info(f'write {pc.CMD_TEXT[cmd]} {tag_id} '
+                     f'{"None" if data is None else data[:20]}')
         if cmd == pc.CMD_SET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
@@ -195,13 +196,11 @@ class BusServer:
                     pc.CMD_RQS, tag_id, tag.time_us, data)
             except KeyError:
                 logging.warning(f'likely busclient for {tag.name} is gone')
-            """Reply comes from another BusClient, not the Server."""
-            try:
-                tag.from_bus._message(cmd, tag_id, time_us, data)
             except Exception as e:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
                     f"RQS {tag_id} {e}".encode())
+            """Reply comes from another BusClient, not the Server."""
         elif cmd == pc.CMD_SUB:
             try:
                 tag = BusTags._tag_by_id[tag_id]

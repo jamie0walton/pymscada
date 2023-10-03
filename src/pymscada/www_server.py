@@ -5,15 +5,10 @@ from struct import pack
 from pathlib import Path
 import time
 import logging
-from .tag import Tag, TYPES
-from .config import get_file
-from .bus_client import BusClient
-
-INT_TYPE = 1
-FLOAT_TYPE = 2
-STRING_TYPE = 3
-INT_ARRAY_TYPE = 4
-FLOAT_ARRAY_TYPE = 5
+from pymscada.tag import Tag, TYPES
+from pymscada.config import get_file
+from pymscada.bus_client import BusClient
+import pymscada.protocol_constants as pc
 
 
 def tag_for_web(tagname: str, tag: dict):
@@ -47,7 +42,7 @@ class WSHandler():
     """
 
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
-                 tag_info: dict[str, Tag]):
+                 tag_info: dict[str, Tag], do_rqs):
         """Create callbacks to monitor tag values."""
         self.ws = ws
         self.pages = pages
@@ -55,6 +50,7 @@ class WSHandler():
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
+        self.do_rqs = do_rqs
 
     async def send_queue(self):
         """Run forever, write from queue."""
@@ -86,7 +82,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQq',            # Network big-endian
                 tag.id,             # Uint16
-                INT_TYPE,           # Uint16
+                pc.TYPE_INT,           # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Int64
             )))
@@ -94,7 +90,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQd',            # Network big-endian
                 tag.id,             # Uint16
-                FLOAT_TYPE,         # Uint16
+                pc.TYPE_FLOAT,         # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Float64
             )))
@@ -103,9 +99,17 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 f'!HHQ{len(asbytes)}s',  # Network big-endian
                 tag.id,             # Uint16
-                STRING_TYPE,        # Uint16
+                pc.TYPE_STR,        # Uint16
                 tag.time_us,        # Uint64
                 asbytes             # Char as needed
+            )))
+        elif tag.type == bytes:
+            self.queue.put_nowait((True, pack(
+                f'!HHQ{len(tag.value)}s',  # Network big-endian
+                tag.id,             # Uint16
+                pc.TYPE_BYTES,        # Uint16
+                tag.time_us,        # Uint64
+                tag.value           # Char as needed
             )))
         elif tag.type in [dict, list]:
             self.queue.put_nowait((False, {
@@ -127,12 +131,6 @@ class WSHandler():
             (False, {'type': 'tag_info', 'payload': self.tag_info[tag.name]}))
         tag.add_callback(self.publish)
         tag.del_callback_id(self.notify_id)
-
-    def do_rqs(self, tagname: str, value):
-        """Request a setting change in tag value."""
-        logging.info(f'{tagname} {value}')
-        self.tag_by_name[tagname].rqs = value
-        pass
 
     def do_sub(self, tagname: str):
         """Subscribe to tag value."""
@@ -235,7 +233,7 @@ class WwwServer:
         logging.info(f"path {request.match_info['path']}")
         path = Path(request.match_info['path'])
         if path.is_dir():
-            return web.HTTPForbidden(reason='folder not permitted')    
+            return web.HTTPForbidden(reason='folder not permitted')
         if '/'.join(path.parts[:-1]) in self.paths:
             if not path.exists():
                 return web.HTTPNotFound(reason='no such file in path')
@@ -249,7 +247,8 @@ class WwwServer:
         logging.info(f"WS from {peer}")
         ws = web.WebSocketResponse(max_msg_size=0)  # disables max message size
         await ws.prepare(request)
-        await WSHandler(ws, self.pages, self.tag_info).connection_active()
+        await WSHandler(ws, self.pages, self.tag_info, self.busclient.rqs
+                        ).connection_active()
         await ws.close()
         logging.info(f"WS closed {peer}")
         return ws

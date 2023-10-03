@@ -1,5 +1,5 @@
 """SCADA library."""
-from .tag import Tag
+from pymscada.tag import Tag
 
 __all__ = [
     'Tag',

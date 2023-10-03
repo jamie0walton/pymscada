@@ -64,9 +64,10 @@ COMMANDS = [CMD_ID, CMD_SET, CMD_GET, CMD_RQS, CMD_SUB, CMD_UNSUB, CMD_LIST,
             CMD_ERR]
 
 # data types
-TYPE_FLOAT = 1  # 64 bit IEEE float
-TYPE_INT = 2  # 64 bit signed integer
+TYPE_INT = 1  # 64 bit signed integer
+TYPE_FLOAT = 2  # 64 bit IEEE float
 TYPE_STR = 3  # string
-TYPE_JSON = 4  # json encoded list or dict
+TYPE_BYTES = 4
+TYPE_JSON = 5
 
-TYPES = [TYPE_FLOAT, TYPE_INT, TYPE_STR, TYPE_JSON]
+TYPES = [TYPE_INT, TYPE_FLOAT, TYPE_STR, TYPE_BYTES, TYPE_JSON]

@@ -40,6 +40,7 @@ async def test_bustag():
     assert cb0 == b'tag_0 0 new'
     tag_2.update(b'newer', 0, 22)
     assert cb0 == b'tag_0 0 newer'
+    """TODO the following is wrong."""
     tag_2.del_callback(cb, None)  # deletes callback on tag_0 as same tag
     tag_0.update(b'new again', 1000, 55)
     assert cb0 == b'tag_0 0 newer'
@@ -67,7 +68,7 @@ async def bus_server():
 @pytest.mark.asyncio
 @pytest_asyncio.fixture(scope='module')
 async def bus_echo(bus_server):
-    """Run and echo client for testing."""
+    """Run an echo client for testing."""
     proc = subprocess.Popen([sys.executable, "tests/bus_echo.py",
                              str(server_port)])
     yield
@@ -142,6 +143,14 @@ async def test_protocol_message(bus_server):
             assert r_value is None or value.startswith(r_value), test['desc']
     writer.close()
     await writer.wait_closed()
+
+
+"""
+Group all responses from the bus through a queue as every message should be
+expected and in a pre-determined sequence. This is nearly independent of the
+test order, the exception being the first creation of the tag in the bus
+where the ID is assigned.
+"""
 
 
 def tag_callback(tag: Tag):
@@ -255,11 +264,6 @@ async def test_client_echo(capsys, bus_echo):
     global queue
     client = BusClient(port=server_port)
     await client.start()
-    # __bus_echo__ is a bus_echo.py written tag.
-    tag_echo = Tag('__bus_echo__', str)
-    tag_echo.add_callback(tag_callback)
-    ready = await queue.get()
-    assert ready.value == 'started'
     tag_send_str = Tag('one', str)
     tag_send_int = Tag('three', int)
     tag_recv_str = Tag('two', str)
@@ -272,9 +276,22 @@ async def test_client_echo(capsys, bus_echo):
         assert ready.value == i
         assert tag_recv_str.value == tag_send_str.value
         assert tag_recv_int.value == tag_send_int.value
-    client.publish_rqs(tag_echo, {'type': 'ping'})
-    ready = await queue.get()
-    assert ready.value == 'pong'
     await client.shutdown()
-    tag_echo.del_callback(tag_callback)
     tag_recv_int.del_callback(tag_callback)
+
+
+@pytest.mark.asyncio
+async def test_client_rqs(bus_echo):
+    """Test request set (RQS) command with __bus_echo__."""
+    global server_port
+    global queue
+    client = BusClient(port=server_port)
+    await client.start()
+    be = Tag('__bus_echo__', str)
+    be.add_callback(tag_callback)
+    r = await queue.get()
+    assert r.value == 'started'
+    for _ in range(10):
+        client.rqs(be.name, 'ping')
+        r = await queue.get()
+        assert r.value == 'pong'
