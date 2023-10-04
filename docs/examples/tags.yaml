@@ -4,9 +4,15 @@ __bus__:
 __files__:
   desc: File Server
   type: dict
-history_rqs:
-  desc: default history pipe
+__history__:
+  desc: History
   type: bytes
+__opnotes__:
+  desc: Operator Notes
+  type: dict
+__alarms__:
+  desc: Alarms
+  type: dict
 IntSet:
   desc: Integer Setpoint
   type: int

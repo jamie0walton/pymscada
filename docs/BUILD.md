@@ -25,8 +25,8 @@ pdm sync  # this installs in editable mode which allows pytest to work
 Dev
 ```
 pymscada run bus --verbose
-pymscada run wwwserver --config .\docs\examples\wwwserver.yaml --tags .\docs\examples\tags.yaml
-pymscada run simulate --config .\docs\examples\simulate.yaml --tags .\docs\examples\tags.yaml
-pymscada run files --config .\docs\examples\files.yaml
-pymscada run history --config .\docs\examples\history.yaml --tags .\docs\examples\tags.yaml
+pymscada run wwwserver --config .\docs\examples\wwwserver.yaml --tags .\docs\examples\tags.yaml --verbose
+pymscada run simulate --config .\docs\examples\simulate.yaml --tags .\docs\examples\tags.yaml --verbose
+pymscada run files --config .\docs\examples\files.yaml --verbose
+pymscada run history --config .\docs\examples\history.yaml --tags .\docs\examples\tags.yaml --verbose
 ```

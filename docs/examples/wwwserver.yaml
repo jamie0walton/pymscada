@@ -11,7 +11,6 @@ pages:
   parent:
   items:
   - {desc: Default tags, type: h1}
-  - {tagname: __bus__, type: value}
   - {tagname: IntSet, type: setpoint}
   - {tagname: IntVal, type: value}
   - {tagname: FloatSet, type: setpoint}
@@ -48,7 +47,6 @@ pages:
       legend_pos: left
       time_pos: left
       time_res: m
-      tagname: history_rqs
     axes:
     - scale: x
       range: [-86400, 0]  # 86400 172800 1209600

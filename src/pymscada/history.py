@@ -206,8 +206,7 @@ class History():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = 'history', rqs_tagname: str = '__history__',
-                 tag_info: dict = {}) -> None:
+                 path: str = 'history', tag_info: dict = {}) -> None:
         """
         Connect to bus_ip:bus_port, store and provide a value history.
 
@@ -230,9 +229,9 @@ class History():
                 deadband=tag['deadband'])
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].add_callback(self.hist_tags[tagname].callback)
-        self.rqs = Tag(rqs_tagname, bytes)
-        self.rqs.value = b'\x00\x00'
-        self.busclient.add_callback_rqs(rqs_tagname, self.rqs_cb)
+        self.rqs = Tag('__history__', bytes)
+        self.rqs.value = b'\x00\x00\x00\x00'
+        self.busclient.add_callback_rqs('__history__', self.rqs_cb)
 
     def rqs_cb(self, request):
         """Respond to bus requests for data to publish on rqs."""
@@ -241,8 +240,14 @@ class History():
             start_us = int(time.time() * 1e6 - request['range'] * 1e6)
             data = self.hist_tags[request['tagname']].read_bytes(start_us)
             tagid = self.tags[request['tagname']].id
-            self.rqs.value = pack('>H', tagid) + data
-            self.rqs.value = b'\x00\x00'  # TODO clear value another way
+            tagtype = self.tags[request['tagname']].type
+            packtype = 0
+            if tagtype == int:
+                packtype = 1
+            elif tagtype == float:
+                packtype = 2
+            self.rqs.value = pack('>HH', tagid, packtype) + data
+            self.rqs.value = b'\x00\x00\x00\x00'
         except Exception as e:
             logging.error(f'history rqs_cb {e}')
 
