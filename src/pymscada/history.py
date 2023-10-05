@@ -237,8 +237,8 @@ class History():
         """Respond to bus requests for data to publish on rqs."""
         logging.info(f'history got {request}')
         try:
-            start_us = int(time.time() * 1e6 - request['range'] * 1e6)
-            data = self.hist_tags[request['tagname']].read_bytes(start_us)
+            data = self.hist_tags[request['tagname']].read_bytes(
+                request['start_ms'] * 1000, request['end_ms'] * 1000)
             tagid = self.tags[request['tagname']].id
             tagtype = self.tags[request['tagname']].type
             packtype = 0
