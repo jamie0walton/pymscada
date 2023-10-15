@@ -40,7 +40,7 @@ pages:
 - name: Trends
   parent: Dropdown
   items:
-  - type: uplot
+  - type: uplot  # Do all times in seconds, which uplot uses.
     ms:
       desc: Sample Trend
       age: 172800

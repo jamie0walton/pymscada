@@ -5,7 +5,7 @@ process:
     type: sine
     offset: 50
     amplitude: 40
-    frequency: 0.005
+    frequency: 0.0005
     sub:
       offset: FloatSet
     pub:
@@ -14,7 +14,7 @@ process:
     type: sawtooth
     offset: 10
     amplitude: 80
-    frequency: 0.001
+    frequency: 0.00005
     sub:
       offset: IntSet
     pub:
