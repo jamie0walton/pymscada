@@ -1,6 +1,5 @@
 """Serve files through an RQS tag."""
 from pathlib import Path
-import logging
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag
 
@@ -9,8 +8,7 @@ class Files():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 folders: list = None, files: list = None,
-                 rqs: str = '__files__') -> None:
+                 folders: list = None, files: list = None) -> None:
         """
         Connect to bus_ip:bus_port, serve and update files.
 
@@ -27,8 +25,8 @@ class Files():
         self.busclient = BusClient(bus_ip, bus_port)
         self.folders = folders
         self.files = files
-        self.rqs = Tag(rqs, dict)
-        self.rqs.add_rqs(self.rqs_cb)
+        self.rqs = Tag('__files__', dict)
+        self.busclient.add_callback_rqs('__files__', self.rqs_cb)
         self.integrity()
         pass
 
