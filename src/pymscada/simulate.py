@@ -49,7 +49,7 @@ class Simulate():
     async def periodic(self):
         """Run simulation step every 5 seconds."""
         while True:
-            self.next_run += 5.0
+            self.next_run += 1.0
             self.step()
             self.last_ran = monotonic()
             sleep_time = self.next_run - self.last_ran

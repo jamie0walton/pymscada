@@ -1,6 +1,5 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
-rqs: __files__
 folders:
 - path: docs/examples
   handler: file
