@@ -1,0 +1,52 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+rtus:
+  mb1:
+    ip: 0.0.0.0
+    port: 1502
+    protocol: tcp
+    unit: 1
+    zero_based: False
+    rate: 0.001
+    failcount: 10
+    reads:
+    - {name: 4x, start: 1, end: 101}
+    writes:
+    - {name: 4x, start: 1, end: 101}
+tags:
+  IntSet:
+    type: int16
+    address: mb1:4x:1
+  IntVal:
+    type: int16
+    addr: mb1:4x:2
+  FloatSet:
+    type: float32
+    addr: mb1:4x:3
+  FloatVal:
+    type: float32
+    addr: mb1:4x:5
+  MultiSet:
+    type: int16
+    addr: mb1:4x:7
+  MultiVal:
+    type: int16
+    addr: mb1:4x:8
+  TimeSet:
+    type: int32
+    addr: mb1:4x:9
+  TimeVal:
+    type: int32
+    addr: mb1:4x:11
+  DateSet:
+    type: int32
+    addr: mb1:4x:13
+  DateVal:
+    type: int32
+    addr: mb1:4x:15
+  DateTimeSet:
+    type: int32
+    addr: mb1:4x:17
+  DateTimeVal:
+    type: int32
+    addr: mb1:4x:19

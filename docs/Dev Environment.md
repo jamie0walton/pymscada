@@ -1,14 +1,9 @@
-# Development Environment
+# Development Environment - Debian
 
-This project initially started in Debian, when I started the open source version
-I did the initial work up to this point in Windows. At a certain point the lack
-of systemd become a compelling factor and I switched back.
-
-# Debian
 ## Setup
 
-In development PC, assuming Debian, and once you have the network roughly right. I normally
-install headless (no x-windows), with ssh and apache the only options I really add. Then:
+Debian 12, once ipv4 is working. Set up to run headless (no x-windows), with ssh and apache. Remote
+development with VS code over ssh, and with Apache for web facing services. Then:
 
 ```bash
 su -
@@ -22,13 +17,14 @@ cd pymscada
 pdm install
 ```
 
-I use VSCode and remote ssh development. Many of the extensions self-detect
-and prompt for install if you open a python file. For my system these include
-python, flake8, vscode noticing the .venv folder and probably some other
+VSCode extensions typically auto-detect and prompt for install if you open a python file. For my
+system these include python, flake8, vscode noticing the .venv folder and probably some other
 things as well.
 
 Avoid using pip. pdm avoids it, and as of Debian 12, the OS version of python
 doesn't like it either (see PEP 668).
+
+## Check pymscada Runs
 
 You should be able to run pymscada ...
 ```bash
@@ -38,37 +34,58 @@ pymscada: error: the following arguments are required: action
 (.venv) mscada@deb12dev:~/pymscada$ 
 ```
 
-## Running the Example
+## Setting up the Services
 
-You can just ```pymscada run bus``` as above for windows, however use ```systemd```.
+The simplest dev setup is to use VS Code to ssh to a Debian install, have the services you are not
+editing run by systemd, and run the service you are debugging with the python debugger in VS code.
+Best to set all the services up to run, and stop the one you are going to run in debug.
+
+```bash
+cd /home/mscada
+pymscada checkout
+```
+
+Before installing the services, have a look at the ```.service``` files in ```config```. If you want
+to edit ```.yaml``` files, change out the comment lines. ```pymscada checkout``` copies the files
+out with directory name replacement so they are essentially identical.
+
+Once you have finalised your ```.service``` files:
 
 ```bash
 su -
-cp /home/mscada/pymscada/docs/examples/pymscada-*.service /lib/systemd/system/
-for f in pymscada-bus.service pymscada-wwwserver.service pymscada-simulate.service pymscada-files.service pymscada-history.service
+cd /home/mscada
+for f in config/*.service
 do
-echo "Processing $f"
-systemctl enable $f
-systemctl start $f
+cp $f /lib/systemd/system/
+systemctl enable `basename $f`
+systemctl start `basename $f`
 done
 ```
 
-To monitor the status, one of these.
+## Checking its Running
+
+All going well all the services will be running.
+
+```bash
+systemctl status pymscada-*
+```
+
+Or checking on each individually:
+
 ```bash
 systemctl status pymscada-bus.service
 journalctl -fu pymscada-bus.service
 ```
 
-Repeat for:
- - pymscada-wwwserver.service
- - pymscada-simulate.service
- - pymscada-files.service
- - pymscada-history.service
+Of course browsing to <host ip>:8324 is also good.
 
+## Useful bits
+
+Handy to run modbusclient against port 502 with Schneider's
+[test program](https://www.se.com/nz/en/faqs/FA180037/)
+that only connects to port 502.
 ```bash
-su -
-cp /home/mscada/pymscada/docs/examples/pymscada-*.service /lib/systemd/system/
-
+setcap CAP_NET_BIND_SERVICE=+eip /usr/bin/python3.11
 ```
 
 # Windows
@@ -76,14 +93,5 @@ cp /home/mscada/pymscada/docs/examples/pymscada-*.service /lib/systemd/system/
 Mostly works the same, just install the latest CPython, ```pip install pdm``` then
 checkout the repos and run ```pdm install``` as for Debian.
 
-What does not work is ```systemd``` so instead just open as many terminals as you
-need and manually run the services. 
-
-```shell
-pymscada run bus --verbose
-pymscada run wwwserver --config .\docs\examples\wwwserver.yaml --tags .\docs\examples\tags.yaml
-pymscada run simulate --config .\docs\examples\simulate.yaml --tags .\docs\examples\tags.yaml
-pymscada run files --config .\docs\examples\files.yaml
-pymscada run history --config .\docs\examples\history.yaml --tags .\docs\examples\tags.yaml
-http://localhost:8324
-```
+There is no systemd equivalent, although there are various approaches people have
+managed to make work for Windows daemons / services.

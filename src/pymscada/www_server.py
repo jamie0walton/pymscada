@@ -1,14 +1,14 @@
 """WWW Server."""
 import asyncio
 from aiohttp import web, WSMsgType
-from struct import pack
-from pathlib import Path
-import time
 import logging
-from pymscada.tag import Tag, TYPES
-from pymscada.config import get_file
+from pathlib import Path
+from struct import pack, unpack_from
+import time
 from pymscada.bus_client import BusClient
+from pymscada.config import get_html_file
 import pymscada.protocol_constants as pc
+from pymscada.tag import Tag, TYPES
 
 
 def tag_for_web(tagname: str, tag: dict):
@@ -41,6 +41,8 @@ class WSHandler():
     This are transitory, lasting for a given web browser client.
     """
 
+    ids = set(range(1, 100))
+
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
                  tag_info: dict[str, Tag], do_rqs):
         """Create callbacks to monitor tag values."""
@@ -51,6 +53,12 @@ class WSHandler():
         self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
         self.do_rqs = do_rqs
+        self.rqs_id = self.ids.pop()
+        logging.info(f'weksocket id {self.rqs_id}')
+
+    def __del__(self):
+        """Depends on garbage collector. Is OK."""
+        self.ids.add(self.rqs_id)
 
     async def send_queue(self):
         """Run forever, write from queue."""
@@ -62,7 +70,8 @@ class WSHandler():
                 else:
                     await self.ws.send_json(message)
         except asyncio.CancelledError:
-            logging.warn(f"send queue error, close {self.ws.exception()}")
+            logging.warn(f'{self.rqs_id}: send queue error, close '
+                         f'{self.ws.exception()}')
             return
 
     def publish(self, tag: Tag):
@@ -104,13 +113,17 @@ class WSHandler():
                 asbytes             # Char as needed
             )))
         elif tag.type == bytes:
-            self.queue.put_nowait((True, pack(
-                f'!HHQ{len(tag.value)}s',  # Network big-endian
-                tag.id,             # Uint16
-                pc.TYPE_BYTES,        # Uint16
-                tag.time_us,        # Uint64
-                tag.value           # Char as needed
-            )))
+            rqs_id = unpack_from('>H', tag.value)[0]
+            if rqs_id in [0, self.rqs_id]:
+                self.queue.put_nowait((True, pack(
+                    f'!HHQ{len(tag.value)}s',  # Network big-endian
+                    tag.id,             # Uint16
+                    pc.TYPE_BYTES,        # Uint16
+                    tag.time_us,        # Uint64
+                    tag.value           # Char as needed
+                )))
+            else:
+                logging.info(f'{self.rqs_id}: {tag.name} bytes mismatch id')
         elif tag.type in [dict, list]:
             self.queue.put_nowait((False, {
                 'type': 'tag',
@@ -123,7 +136,7 @@ class WSHandler():
 
     def notify_id(self, tag: Tag):
         """Must be done here."""
-        logging.info(f'send id to webclient for {tag.name}')
+        logging.info(f'{self.rqs_id}: send id to webclient for {tag.name}')
         self.tag_info[tag.name]['id'] = tag.id
         self.tag_by_id[tag.id] = tag
         self.tag_by_name[tag.name] = tag
@@ -138,7 +151,7 @@ class WSHandler():
             tag = self.tag_by_name[tagname]
         except KeyError:
             if tagname not in self.tag_info:
-                logging.warning(f'no {tagname} in tag_info')
+                logging.warning(f'{self.rqs_id}: no {tagname} in tag_info')
                 return
             tag = Tag(tagname, TYPES[self.tag_info[tagname]['type']])
         if tag.id is None:
@@ -155,7 +168,7 @@ class WSHandler():
             (False, {'type': 'pages', 'payload': self.pages}))
         async for msg in self.ws:
             if msg.type == WSMsgType.TEXT:
-                logging.info(f"websocket recv {msg.json()}")
+                logging.info(f'{self.rqs_id}: websocket recv {msg.json()}')
                 command = msg.json()
                 action = command['type']
                 tagname = command['tagname']
@@ -168,17 +181,20 @@ class WSHandler():
                     if 'File' in value:
                         file = await anext(self.ws)
                         value['_file_data'] = file.data
+                    value['__rqs_id__'] = self.rqs_id
                     self.do_rqs(tagname, value)
                 elif action == 'sub':  # pc.CMD_SUB
                     self.do_sub(tagname)
                 elif action == 'get':  # pc.CMD_GET
-                    logging.warning('CMD_GET not implemented.')
+                    logging.warning(f'{self.rqs_id}: CMD_GET not implemented.')
                 elif action == 'unsub':  # pc.CMD_UNSUB
-                    logging.warning('CMD_UNSUB not implemented.')
+                    logging.warning(f'{self.rqs_id}: CMD_UNSUB not '
+                                    'implemented.')
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')
             elif msg.type == WSMsgType.ERROR:
-                logging.warn(f"ws closing error {self.ws.exception()}")
+                logging.warn(f'{self.rqs_id}: ws closing error '
+                             f'{self.ws.exception()}')
         send_queue.cancel()
         for tag in self.tag_by_id.values():
             tag.del_callback_id(self.notify_id)
@@ -214,7 +230,7 @@ class WwwServer:
     async def redirect_handler(self, _request: web.Request):
         """Point an empty request to the index."""
         if self.get_path is None:
-            file = get_file('index.html')
+            file = get_html_file('index.html')
         else:
             file = Path(self.get_path, 'index.html')
         return web.FileResponse(file)
@@ -223,7 +239,7 @@ class WwwServer:
         """Point an empty request to the index."""
         logging.info(f"read {request.match_info['file']}")
         if self.get_path is None:
-            file = get_file(request.match_info['file'])
+            file = get_html_file(request.match_info['file'])
         else:
             file = Path(self.get_path, request.match_info['file'])
         return web.FileResponse(file)

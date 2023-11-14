@@ -60,9 +60,9 @@ class TagHistory():
         else:
             self.type = TYPES[tagtype]
         if tagtype is int:
-            self.type = '!Qq'
+            self.packstr = '!Qq'
         elif tagtype is float:
-            self.type = '!Qd'
+            self.packstr = '!Qd'
         else:
             raise TypeError(f'{tagtype} not supported')
         self.path = Path(path)
@@ -112,7 +112,7 @@ class TagHistory():
             with open(files_us[time_us], 'rb') as fh:
                 dat = fh.read()
                 for i in range(0, size, ITEM_SIZE):
-                    vtime_us, value = unpack_from(self.type, dat, offset=i)
+                    vtime_us, value = unpack_from(self.packstr, dat, offset=i)
                     if end_us != -1 and vtime_us >= end_us:
                         break
                     if vtime_us >= start_us:
@@ -121,7 +121,7 @@ class TagHistory():
                 if end_us != -1 and vtime_us >= end_us:
                     break
         for i in range(0, self.chunk_idx, ITEM_SIZE):
-            vtime_us, value = unpack_from(self.type, self.chunk, offset=i)
+            vtime_us, value = unpack_from(self.packstr, self.chunk, offset=i)
             if end_us != -1 and vtime_us >= end_us:
                 break
             if vtime_us >= start_us:
@@ -154,20 +154,22 @@ class TagHistory():
                 dat = fh.read()
                 if idx == 0:  # find start
                     for i in range(0, end, ITEM_SIZE):
-                        vtime_us, value = unpack_from(self.type, dat, offset=i)
+                        vtime_us, value = unpack_from(self.packstr, dat,
+                                                      offset=i)
                         if vtime_us >= start_us:
                             start = i
                             break
                 if end_us != -1 and idx == len(times) - 1:  # find end
                     for i in range(end - ITEM_SIZE, 0, -ITEM_SIZE):
-                        vtime_us, value = unpack_from(self.type, dat, offset=i)
+                        vtime_us, value = unpack_from(self.packstr, dat,
+                                                      offset=i)
                         if vtime_us < end_us:
                             end = i + ITEM_SIZE
                             break
                 resp += dat[start:end]
         add_chunk = False
         if self.chunk_idx > 0:
-            vtime_us, value = unpack_from(self.type, self.chunk, offset=0)
+            vtime_us, value = unpack_from(self.packstr, self.chunk, offset=0)
             if vtime_us < end_us:
                 add_chunk = True
         if end_us == -1 or add_chunk:
@@ -175,12 +177,13 @@ class TagHistory():
             end = self.chunk_idx
             if idx == 0:  # find start
                 for i in range(0, self.chunk_idx, ITEM_SIZE):
-                    vtime_us, value = unpack_from(self.type, dat, offset=i)
+                    vtime_us, value = unpack_from(self.packstr, dat, offset=i)
                     if vtime_us >= start_us:
                         start = i
                         break
             for i in range(self.chunk_idx - ITEM_SIZE, 0, -ITEM_SIZE):
-                vtime_us, value = unpack_from(self.type, self.chunk, offset=i)
+                vtime_us, value = unpack_from(self.packstr, self.chunk,
+                                              offset=i)
                 if vtime_us < end_us:
                     end = i + ITEM_SIZE
                     break
@@ -210,7 +213,7 @@ class TagHistory():
             return
         self.value = value
         try:
-            pack_into(self.type, self.chunk, self.chunk_idx,
+            pack_into(self.packstr, self.chunk, self.chunk_idx,
                       time_us, value)
             self.chunk_idx += ITEM_SIZE
         except error:
@@ -259,7 +262,7 @@ class History():
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].add_callback(self.hist_tags[tagname].callback)
         self.rqs = Tag('__history__', bytes)
-        self.rqs.value = b'\x00\x00\x00\x00'
+        self.rqs.value = b'\x00\x00\x00\x00\x00\x00'
         self.busclient.add_callback_rqs('__history__', self.rqs_cb)
 
     def rqs_cb(self, request):
@@ -267,6 +270,9 @@ class History():
         if 'start_ms' in request:
             request['start_us'] = request['start_ms'] * 1000
             request['end_us'] = request['end_ms'] * 1000
+        rqs_id = 0
+        if '__rqs_id__' in request:
+            rqs_id = request['__rqs_id__']
         tagname = request['tagname']
         start_time = time.asctime(time.localtime(
             request['start_us'] / 1000000))
@@ -283,9 +289,9 @@ class History():
                 packtype = 1
             elif tagtype == float:
                 packtype = 2
-            self.rqs.value = pack('>HH', tagid, packtype) + data
+            self.rqs.value = pack('>HHH', rqs_id, tagid, packtype) + data
             logging.info(f'sent {len(data)} bytes for {request["tagname"]}')
-            self.rqs.value = b'\x00\x00\x00\x00'
+            self.rqs.value = b'\x00\x00\x00\x00\x00\x00'
         except Exception as e:
             logging.error(f'history rqs_cb {e}')
 

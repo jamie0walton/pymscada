@@ -1,18 +1,38 @@
 """Read config, either from command line argument or from resources."""
 import importlib.resources
 from importlib.abc import Traversable
-from yaml import safe_load_all, YAMLError
 import logging
-from pymscada import assets
+from pathlib import Path
+from yaml import safe_load_all, YAMLError
+from pymscada import demo, html, pdf
 
 
-def get_file(filename: str) -> Traversable:
+def get_html_file(filename: str) -> Traversable:
     """Provide file resources to package."""
-    fn = importlib.resources.files(assets).joinpath(filename)
+    fn = importlib.resources.files(html).joinpath(filename)
     if fn.is_file():
         return fn
     else:
         raise FileNotFoundError(filename)
+
+
+def get_demo_file(filename: str) -> Traversable:
+    """Provide file resources to package."""
+    fn = importlib.resources.files(demo).joinpath(filename)
+    if fn.is_file():
+        return fn
+    else:
+        raise FileNotFoundError(filename)
+
+
+def get_demo_files():
+    """Provide an iterable of the demo files."""
+    return importlib.resources.files(demo).iterdir()
+
+
+def get_pdf_files():
+    """Provide an iterable of the demo files."""
+    return importlib.resources.files(pdf).iterdir()
 
 
 class Config(dict):
@@ -20,10 +40,19 @@ class Config(dict):
 
     def __init__(self, filename: str):
         """Open."""
-        with open(filename, 'r') as fh:
+        fp = Path(filename)
+        if fp.exists():
+            logging.info(f'using config file {fp}')
+        else:
+            try:
+                fp = get_demo_file(filename)
+                logging.warning(f'using demo config file {fp}')
+            except FileNotFoundError:
+                raise SystemExit(f'config {filename} missing')
+        with open(fp, 'r') as fh:
             try:
                 for data in safe_load_all(fh):
                     for x in data:
                         self[x] = data[x]
             except YAMLError as e:
-                logging.error(f'failed to load {filename} {e}')
+                raise SystemExit(f'failed to load {filename} {e}')

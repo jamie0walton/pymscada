@@ -10,10 +10,7 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": [
-                "run", "bus",
-                "--verbose"
-            ],
+            "args": ["bus", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -23,11 +20,7 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": [
-                "run", "files",
-                "--verbose",
-                "--config", "./pymscada/docs/examples/files.yaml"
-            ],
+            "args": ["files", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -37,12 +30,7 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": [
-                "run", "wwwserver",
-                "--verbose",
-                "--config", "./pymscada/docs/examples/wwwserver.yaml",
-                "--tags", "./pymscada/docs/examples/tags.yaml"
-            ],
+            "args": ["wwwserver", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -52,12 +40,7 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": [
-                "run", "history",
-                "--verbose",
-                "--config", "pymscada/docs/examples/history.yaml",
-                "--tags", "pymscada/docs/examples/tags.yaml"
-            ],
+            "args": ["history", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -67,12 +50,37 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": [
-                "run", "simulate",
-                "--verbose",
-                "--config", "./pymscada/docs/examples/simulate.yaml",
-                "--tags", "./pymscada/docs/examples/tags.yaml"
-            ],
+            "args": ["simulate", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"mbserver",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["modbusserver", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"mbclient",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["modbusclient", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"checkout",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["checkout", "--overwrite", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

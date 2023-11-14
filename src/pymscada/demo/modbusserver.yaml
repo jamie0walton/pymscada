@@ -1,0 +1,46 @@
+bus_ip:
+bus_port:
+ip: 0.0.0.0
+port: 502
+protocol: tcp
+rtus:
+  - unit: 1
+    files:
+    - {name: 4x, size: 100}
+tags:
+  unit_1_IntSet:
+    type: int16
+    addr: 1:4x:1
+  unit_1_IntVal:
+    type: int16
+    addr: 1:4x:2
+  unit_1_FloatSet:
+    type: float32
+    addr: 1:4x:3
+  unit_1_FloatVal:
+    type: float32
+    addr: 1:4x:5
+  unit_1_MultiSet:
+    type: int16
+    addr: 1:4x:7
+  unit_1_MultiVal:
+    type: int16
+    addr: 1:4x:8
+  unit_1_TimeSet:
+    type: uint64
+    addr: 1:4x:9
+  unit_1_TimeVal:
+    type: uint64
+    addr: 1:4x:13
+  unit_1_DateSet:
+    type: uint64
+    addr: 1:4x:17
+  unit_1_DateVal:
+    type: uint64
+    addr: 1:4x:21
+  unit_1_DateTimeSet:
+    type: uint64
+    addr: 1:4x:25
+  unit_1_DateTimeVal:
+    type: uint64
+    addr: 1:4x:29
