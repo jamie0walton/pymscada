@@ -1,52 +1,50 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
 rtus:
-  mb1:
-    ip: 0.0.0.0
-    port: 1502
-    protocol: tcp
-    unit: 1
-    zero_based: False
-    rate: 0.001
-    failcount: 10
-    reads:
-    - {name: 4x, start: 1, end: 101}
-    writes:
-    - {name: 4x, start: 1, end: 101}
+- name: RTU
+  ip: 127.0.0.1
+  port: 502
+  tcp_udp: tcp
+  rate: 2.0
+  read:
+  - {unit: 1, file: 4x, start: 1, end: 50}
+  - {unit: 1, file: 4x, start: 51, end: 101}
+  writeok:
+  - {unit: 1, file: 4x, start: 1, end: 101}
 tags:
   IntSet:
     type: int16
-    address: mb1:4x:1
+    addr: RTU:1:4x:1
   IntVal:
     type: int16
-    addr: mb1:4x:2
+    addr: RTU:1:4x:2
   FloatSet:
     type: float32
-    addr: mb1:4x:3
+    addr: RTU:1:4x:3
   FloatVal:
     type: float32
-    addr: mb1:4x:5
+    addr: RTU:1:4x:5
   MultiSet:
     type: int16
-    addr: mb1:4x:7
+    addr: RTU:1:4x:7
   MultiVal:
     type: int16
-    addr: mb1:4x:8
+    addr: RTU:1:4x:8
   TimeSet:
-    type: int32
-    addr: mb1:4x:9
+    type: uint64
+    addr: RTU:1:4x:9
   TimeVal:
-    type: int32
-    addr: mb1:4x:11
+    type: uint64
+    addr: RTU:1:4x:13
   DateSet:
-    type: int32
-    addr: mb1:4x:13
+    type: uint64
+    addr: RTU:1:4x:17
   DateVal:
-    type: int32
-    addr: mb1:4x:15
+    type: uint64
+    addr: RTU:1:4x:21
   DateTimeSet:
-    type: int32
-    addr: mb1:4x:17
+    type: uint64
+    addr: RTU:1:4x:25
   DateTimeVal:
-    type: int32
-    addr: mb1:4x:19
+    type: uint64
+    addr: RTU:1:4x:29

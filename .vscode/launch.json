@@ -75,6 +75,15 @@
             "justMyCode":true
         },
         {
+            "name":"modbus_plc",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/demo/modbus_plc.py",
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"checkout",
             "type":"python",
             "request":"launch",

@@ -1,46 +1,46 @@
 bus_ip:
 bus_port:
-ip: 0.0.0.0
-port: 502
-protocol: tcp
 rtus:
-  - unit: 1
-    files:
-    - {name: 4x, size: 100}
+- name: RTU
+  ip: 0.0.0.0
+  port: 502
+  tcp_udp: tcp
+  serve:
+  - {unit: 1, file: 4x, start: 1, end: 101}
 tags:
-  unit_1_IntSet:
+  sim_IntSet:
     type: int16
-    addr: 1:4x:1
-  unit_1_IntVal:
+    addr: RTU:1:4x:1
+  sim_IntVal:
     type: int16
-    addr: 1:4x:2
-  unit_1_FloatSet:
+    addr: RTU:1:4x:2
+  sim_FloatSet:
     type: float32
-    addr: 1:4x:3
-  unit_1_FloatVal:
+    addr: RTU:1:4x:3
+  sim_FloatVal:
     type: float32
-    addr: 1:4x:5
-  unit_1_MultiSet:
+    addr: RTU:1:4x:5
+  sim_MultiSet:
     type: int16
-    addr: 1:4x:7
-  unit_1_MultiVal:
+    addr: RTU:1:4x:7
+  sim_MultiVal:
     type: int16
-    addr: 1:4x:8
-  unit_1_TimeSet:
+    addr: RTU:1:4x:8
+  sim_TimeSet:
     type: uint64
-    addr: 1:4x:9
-  unit_1_TimeVal:
+    addr: RTU:1:4x:9
+  sim_TimeVal:
     type: uint64
-    addr: 1:4x:13
-  unit_1_DateSet:
+    addr: RTU:1:4x:13
+  sim_DateSet:
     type: uint64
-    addr: 1:4x:17
-  unit_1_DateVal:
+    addr: RTU:1:4x:17
+  sim_DateVal:
     type: uint64
-    addr: 1:4x:21
-  unit_1_DateTimeSet:
+    addr: RTU:1:4x:21
+  sim_DateTimeSet:
     type: uint64
-    addr: 1:4x:25
-  unit_1_DateTimeVal:
+    addr: RTU:1:4x:25
+  sim_DateTimeVal:
     type: uint64
-    addr: 1:4x:29
+    addr: RTU:1:4x:29

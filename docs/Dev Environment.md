@@ -88,6 +88,11 @@ that only connects to port 502.
 setcap CAP_NET_BIND_SERVICE=+eip /usr/bin/python3.11
 ```
 
+Running the demo PLC code.
+```bash
+nohup .venv/bin/python3.11 src/pymscada/demo/modbus_plc.py &
+```
+
 # Windows
 
 Mostly works the same, just install the latest CPython, ```pip install pdm``` then
