@@ -1,11 +1,11 @@
 [Unit]
-    Description=pymscada - simulate
+    Description=pymscada - modbus client
     BindsTo=pymscada-bus.service
     After=pymscada-bus.service
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__EXE__ simulate --verbose
+    ExecStart=__EXE__ modbusclient --verbose
     Restart=always
     RestartSec=5
     User=mscada

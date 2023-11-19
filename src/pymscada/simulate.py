@@ -21,7 +21,7 @@ class Simulate():
         self.busclient = BusClient(bus_ip, bus_port, tag_info)
         self.process = process
         self.tags = {}
-        for x in ['sub', 'pub']:  # resist the temptation to 
+        for x in ['sub', 'pub']:  # resist the temptation to
             for t in find_nodes(x, self.process):
                 for tagname in t[x].values():
                     self.tags[tagname] = Tag(

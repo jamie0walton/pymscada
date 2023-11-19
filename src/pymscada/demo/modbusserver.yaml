@@ -6,7 +6,7 @@ rtus:
   port: 502
   tcp_udp: tcp
   serve:
-  - {unit: 1, file: 4x, start: 1, end: 101}
+  - {unit: 1, file: 4x, start: 1, end: 100}
 tags:
   sim_IntSet:
     type: int16

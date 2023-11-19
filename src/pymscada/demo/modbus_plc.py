@@ -1,9 +1,6 @@
 """Demo PLC simulation."""
 import asyncio
-from pymscada.config import Config
-from pymscada.modbus_server import ModbusServer
-from pymscada.periodic import RunEvery
-from pymscada.tag import Tag
+from pymscada import Config, ramp, ModbusServer, Periodic, Tag
 
 
 sim_IntSet = Tag('sim_IntSet', int)
@@ -26,27 +23,8 @@ sim_DateTimeSet.value = 0
 sim_DateTimeVal = Tag('sim_DateTimeVal', int)
 
 
-def ramp(current, target, step):
-    """Ramp the current value to the target no faster than step."""
-    if target is None:
-        return current
-    if current is None:
-        return target
-    if target > current:
-        current += step
-        if target < current:
-            current = target
-    elif target < current:
-        current -= step
-        if target > current:
-            current = target
-    return current
-
-
-def run_every_second():
-    """Simulate a simple PLC."""
-    # print(f'Float val is {sim_FloatVal.value} '
-    #       f'Float set is {sim_FloatSet.value}')
+async def main_periodic():
+    """Emulate some PLC logic."""
     sim_IntVal.value = ramp(sim_IntVal.value, sim_IntSet.value, 1)
     sim_FloatVal.value = ramp(sim_FloatVal.value, sim_FloatSet.value, 0.5)
     sim_MultiVal.value = sim_MultiSet.value
@@ -56,11 +34,12 @@ def run_every_second():
 
 
 async def main():
-    """Run the Modbus server."""
+    """Emulate a PLC supporting Modbus/TCP (registers only)."""
     config = Config('modbusserver.yaml')
     mbserver = ModbusServer(**config)
     await mbserver.start()
-    RunEvery(run_every_second, 1.0)
+    periodic = Periodic(main_periodic, 1.0)
+    await periodic.start()
     await asyncio.get_event_loop().create_future()
 
 

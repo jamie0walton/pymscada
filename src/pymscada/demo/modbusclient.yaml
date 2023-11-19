@@ -5,12 +5,12 @@ rtus:
   ip: 127.0.0.1
   port: 502
   tcp_udp: tcp
-  rate: 2.0
+  rate: 0.02
   read:
   - {unit: 1, file: 4x, start: 1, end: 50}
-  - {unit: 1, file: 4x, start: 51, end: 101}
+  - {unit: 1, file: 4x, start: 51, end: 100}
   writeok:
-  - {unit: 1, file: 4x, start: 1, end: 101}
+  - {unit: 1, file: 4x, start: 1, end: 100}
 tags:
   IntSet:
     type: int16

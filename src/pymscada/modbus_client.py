@@ -106,17 +106,16 @@ class ModbusClientConnector:
         self.periodic = Periodic(self.poll, rate)
         self.mapping = mapping
         self.sent = {}
-        size = {}
+        tables = {}
         for file_range in chain(read, writeok):
             unit = file_range['unit']
             file = file_range['file']
+            table = f'{name}:{unit}:{file}'
             end = file_range['end']
-            if unit not in size:
-                size[unit] = {}
-            if file not in size[unit]:
-                size[unit][file] = 1
-            size[unit][file] = max(size[unit][file], end)
-        self.mapping.add_data_table(self.name, size)
+            if table not in tables:
+                tables[table] = 1
+            tables[table] = max(tables[table], end)
+        self.mapping.add_data_table(tables, self.write_tag_update)
         self._mbap_tr = 0
 
     def process(self, msg):
@@ -129,6 +128,9 @@ class ModbusClientConnector:
             self.mapping.set_data(name=self.name, data=data,
                                   **self.sent[mbap_tr])
             del self.sent[mbap_tr]
+        elif pdu_fc == 16:
+            pdu_start, pdu_count = unpack_from(">2H", msg, 8)
+            pass
         elif pdu_fc > 128:
             errorcode, *_ = unpack_from('>B', msg, 8)
             logging.error(f"Received error on {pdu_fc - 128} {errorcode}")
@@ -160,7 +162,7 @@ class ModbusClientConnector:
             self._mbap_tr = 0
         return self._mbap_tr
 
-    def mb_read(self, unit, file, start, end):
+    def mb_read(self, unit: int, file: str, start: int, end: int):
         """Build read, save the transaction for matching responses."""
         mbap_tr = self.mbap_tr()
         mbap_pr = 0  # protocol always 0
@@ -168,7 +170,7 @@ class ModbusClientConnector:
         mbap_unit = unit
         if file == '4x':
             pdu_fc = 3
-            pdu_start = start
+            pdu_start = start - 1
             pdu_count = end - start + 1
             pdu = pack(">B2H", pdu_fc, pdu_start, pdu_count)
             pdu_len = 5
@@ -182,10 +184,11 @@ class ModbusClientConnector:
             self.transport.sendto(msg)
         else:
             self.transport.write(msg)
-        self.sent[mbap_tr] = {"unit": unit, "file": file, 
-                              "start": start, "end": end}
+        self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
+                              "pdu_start": pdu_start, "pdu_count": pdu_count}
 
-    def mb_write(self, unit, file, start, end):
+    def mb_write(self, unit: int, file: str, start: int, end: int,
+                 data: bytes):
         """Build write, save transaction to match."""
         logging.debug(f"would write {unit} {file} {start} {end}")
         mbap_tr = self.mbap_tr()
@@ -195,15 +198,7 @@ class ModbusClientConnector:
         count = end - start
         if file == '4x':
             pdu_fc = 16
-            data = []
-            for address in range(start, end):
-                target = self.tags[mbap_unit][file]
-                if target[address].value is None:
-                    data.append(0)
-                else:
-                    data.append(target[address].value)
-            pdu = pack(f">B2HB{count}H", pdu_fc, start, count, count * 2,
-                       *data)
+            pdu = pack('>B2HB', pdu_fc, start, count, count * 2) + data
             pdu_len = 6 + count * 2
             # logging.info(f"{pdu_fc} {start} {count} "
             #          f"{count * 2} {data} {pdu.hex()}")
@@ -214,11 +209,20 @@ class ModbusClientConnector:
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
         if self.tcp_udp == "udp":
-            logging.info(f"UDP write {unit} {file} {start} {end}")
+            logging.info(f"UDP write {mbap_unit} {file} {start} {end}")
             self.transport.sendto(msg)
         else:
-            logging.info(f"TCP write {unit} {file} {start} {end}")
+            logging.info(f"TCP write {mbap_unit} {file} {start} {end}")
             self.transport.write(msg)
+
+    def write_tag_update(self, addr: str, byte: int, data: bytes):
+        """Write out any tag updates."""
+        _, unit, file = addr.split(':')
+        mbap_unit = int(unit)
+        start = byte // 2
+        end = start + len(data) // 2
+        self.mb_write(mbap_unit, file, start, end, data)
+        pass
 
     async def poll(self):
         """Create Modbus polling connections."""
@@ -255,7 +259,6 @@ class ModbusClient:
             self.busclient = BusClient(bus_ip, bus_port)
         self.mapping = ModbusMaps(tags)
         self.connections: list[ModbusClientConnector] = []
-        self.data = {}
         for rtu in rtus:
             connection = ModbusClientConnector(**rtu, mapping=self.mapping)
             self.connections.append(connection)

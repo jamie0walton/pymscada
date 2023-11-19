@@ -2,7 +2,6 @@
 import asyncio
 import logging
 from struct import pack, unpack_from
-from time import time
 from pymscada.bus_client import BusClient
 from pymscada.modbus_map import ModbusMaps
 
@@ -135,17 +134,16 @@ class ModbusServerConnector:
         self.tcp_udp = tcp_udp
         self.serve = serve
         self.mapping = mapping
-        size = {}
+        tables = {}
         for file_range in serve:
             unit = file_range['unit']
             file = file_range['file']
+            table = f'{name}:{unit}:{file}'
             end = file_range['end']
-            if unit not in size:
-                size[unit] = {}
-            if file not in size[unit]:
-                size[unit][file] = 1
-            size[unit][file] = max(size[unit][file], end)
-        mapping.add_data_table(self.name, size)
+            if table not in tables:
+                tables[table] = 1
+            tables[table] = max(tables[table], end)
+        mapping.add_data_table(tables)
 
     async def start(self):
         """Start the UDP or TCP binding."""
@@ -180,7 +178,6 @@ class ModbusServer:
             self.busclient = BusClient(bus_ip, bus_port)
         self.mapping = ModbusMaps(tags)
         self.connections: list[ModbusServerConnector] = []
-        self.data = {}
         for rtu in rtus:
             connection = ModbusServerConnector(**rtu, mapping=self.mapping)
             self.connections.append(connection)

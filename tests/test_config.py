@@ -12,6 +12,6 @@ def test_html_file():
 
 def test_Config():
     """Read config back as dictionary."""
-    cfg = Config('docs/examples/bus.yaml')
+    cfg = Config('bus.yaml')
     assert cfg['ip'] == '127.0.0.1'
     assert cfg['port'] == 1324
