@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - modbus client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYTHON__ ./pymscada/src/pymscada/demo/modbus_plc.py
+    Restart=always
+    RestartSec=5
+    User=mscada
+    Group=mscada
+
+[Install]
+    WantedBy=multi-user.target

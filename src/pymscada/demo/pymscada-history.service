@@ -4,8 +4,8 @@
     After=pymscada-bus.service
 
 [Service]
-    WorkingDirectory=/home/mscada
-    ExecStart=/home/mscada/pymscada/.venv/bin/pymscada run history --config ./pymscada/docs/examples/history.yaml --tags ./pymscada/docs/examples/tags.yaml --verbose
+    WorkingDirectory=__DIR__
+    ExecStart=__EXE__ history --verbose
     Restart=always
     RestartSec=5
     User=mscada

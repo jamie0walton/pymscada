@@ -1,11 +1,11 @@
 [Unit]
-    Description=pymscada - files
+    Description=pymscada - modbus client
     BindsTo=pymscada-bus.service
     After=pymscada-bus.service
 
 [Service]
-    WorkingDirectory=/home/mscada
-    ExecStart=/home/mscada/pymscada/.venv/bin/pymscada run files --config ./pymscada/docs/examples/files.yaml --verbose
+    WorkingDirectory=__DIR__
+    ExecStart=__EXE__ modbusclient --verbose
     Restart=always
     RestartSec=5
     User=mscada

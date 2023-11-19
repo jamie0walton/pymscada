@@ -11,3 +11,14 @@ def find_nodes(key: str, tree):
     elif isinstance(tree, list):
         for i in tree:
             yield from find_nodes(key, i)
+
+
+def ramp(now, target, step):
+    """Ramp now towards target by step."""
+    if target is None:
+        return now
+    if now is None:
+        return target
+    if target > now:
+        return min(now + step, target)
+    return max(now - step, target)

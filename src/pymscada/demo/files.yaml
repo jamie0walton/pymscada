@@ -1,0 +1,10 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+files:
+- path: pdf/one.pdf
+  desc: PDF
+- path: pdf/two.pdf
+  desc: PDF writeable
+  mode: rw
+- path: config/*.yaml
+- path: history/*.dat

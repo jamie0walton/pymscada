@@ -1,2 +1,3 @@
-graft src/pymscada/assets
+graft src/pymscada/demo
 graft src/pymscada/html
+graft src/pymscada/pdf

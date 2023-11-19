@@ -1,0 +1,46 @@
+bus_ip:
+bus_port:
+rtus:
+- name: RTU
+  ip: 0.0.0.0
+  port: 502
+  tcp_udp: tcp
+  serve:
+  - {unit: 1, file: 4x, start: 1, end: 100}
+tags:
+  sim_IntSet:
+    type: int16
+    addr: RTU:1:4x:1
+  sim_IntVal:
+    type: int16
+    addr: RTU:1:4x:2
+  sim_FloatSet:
+    type: float32
+    addr: RTU:1:4x:3
+  sim_FloatVal:
+    type: float32
+    addr: RTU:1:4x:5
+  sim_MultiSet:
+    type: int16
+    addr: RTU:1:4x:7
+  sim_MultiVal:
+    type: int16
+    addr: RTU:1:4x:8
+  sim_TimeSet:
+    type: uint64
+    addr: RTU:1:4x:9
+  sim_TimeVal:
+    type: uint64
+    addr: RTU:1:4x:13
+  sim_DateSet:
+    type: uint64
+    addr: RTU:1:4x:17
+  sim_DateVal:
+    type: uint64
+    addr: RTU:1:4x:21
+  sim_DateTimeSet:
+    type: uint64
+    addr: RTU:1:4x:25
+  sim_DateTimeVal:
+    type: uint64
+    addr: RTU:1:4x:29

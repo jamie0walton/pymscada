@@ -1,0 +1,50 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+rtus:
+- name: RTU
+  ip: 127.0.0.1
+  port: 502
+  tcp_udp: tcp
+  rate: 0.02
+  read:
+  - {unit: 1, file: 4x, start: 1, end: 50}
+  - {unit: 1, file: 4x, start: 51, end: 100}
+  writeok:
+  - {unit: 1, file: 4x, start: 1, end: 100}
+tags:
+  IntSet:
+    type: int16
+    addr: RTU:1:4x:1
+  IntVal:
+    type: int16
+    addr: RTU:1:4x:2
+  FloatSet:
+    type: float32
+    addr: RTU:1:4x:3
+  FloatVal:
+    type: float32
+    addr: RTU:1:4x:5
+  MultiSet:
+    type: int16
+    addr: RTU:1:4x:7
+  MultiVal:
+    type: int16
+    addr: RTU:1:4x:8
+  TimeSet:
+    type: uint64
+    addr: RTU:1:4x:9
+  TimeVal:
+    type: uint64
+    addr: RTU:1:4x:13
+  DateSet:
+    type: uint64
+    addr: RTU:1:4x:17
+  DateVal:
+    type: uint64
+    addr: RTU:1:4x:21
+  DateTimeSet:
+    type: uint64
+    addr: RTU:1:4x:25
+  DateTimeVal:
+    type: uint64
+    addr: RTU:1:4x:29
