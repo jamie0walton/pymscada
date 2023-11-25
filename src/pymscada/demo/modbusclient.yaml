@@ -5,7 +5,7 @@ rtus:
   ip: 127.0.0.1
   port: 1502
   tcp_udp: tcp
-  rate: 0.02
+  rate: 0.2
   read:
   - {unit: 1, file: 4x, start: 1, end: 50}
   - {unit: 1, file: 4x, start: 51, end: 100}
