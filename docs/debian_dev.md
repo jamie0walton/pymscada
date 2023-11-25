@@ -1,9 +1,28 @@
 # Development Environment - Debian
+#### [Previous](./modbus_plc_demo.md) [Up](./README.md) [Next](./apache.md)
+
+## Prerequisites
+You will need a linux install with support for ```systemd```, you should
+select Apache and ssh, I normally don't install any form of x windows as
+the idea is to never need to log on to the SCADA server as a desktop
+computer.Difficult to secure a desktop, a server style install with minimal
+attack surface is best. The attack surface I aim for is https and wss
+through Apache and ssh.
+
+The following fairly standard set of changes taken from my console history are:
+
+```bash
+vi /etc/hosts                  # Comment out IPV6 (localhost)
+vi /etc/network/interfaces     # No X so static IPV4 config
+adduser mscada
+```
+
+
 
 ## Setup
-
-Debian 12, once ipv4 is working. Set up to run headless (no x-windows), with ssh and apache. Remote
-development with VS code over ssh, and with Apache for web facing services. Then:
+Debian 12, once ipv4 is working. Set up to run headless (no x-windows), with ssh
+and apache. Remote development with VS code over ssh, and with Apache for web
+facing services. Then:
 
 ```bash
 su -
@@ -17,15 +36,6 @@ cd pymscada
 pdm install
 ```
 
-VSCode extensions typically auto-detect and prompt for install if you open a python file. For my
-system these include python, flake8, vscode noticing the .venv folder and probably some other
-things as well.
-
-Avoid using pip. pdm avoids it, and as of Debian 12, the OS version of python
-doesn't like it either (see PEP 668).
-
-## Check pymscada Runs
-
 You should be able to run pymscada ...
 ```bash
 (.venv) mscada@deb12dev:~/pymscada$ pymscada
@@ -34,11 +44,19 @@ pymscada: error: the following arguments are required: action
 (.venv) mscada@deb12dev:~/pymscada$ 
 ```
 
-## Setting up the Services
+# Notes
 
-The simplest dev setup is to use VS Code to ssh to a Debian install, have the services you are not
-editing run by systemd, and run the service you are debugging with the python debugger in VS code.
-Best to set all the services up to run, and stop the one you are going to run in debug.
+VSCode extensions typically auto-detect and prompt for install if you open a python
+file. For my system these include python, flake8, vscode noticing the .venv folder
+and probably some other things as well.
+
+Avoid using pip. pdm avoids it, and as of Debian 12, the OS version of python
+doesn't like it either (see PEP 668).
+
+The simplest dev setup is to use VS Code to ssh to a Debian install, have the services
+you are not editing run by systemd, and run the service you are debugging with the
+python debugger in VS code. Best to set all the services up to run, and stop the one
+you are going to run in debug.
 
 ```bash
 cd /home/mscada

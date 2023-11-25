@@ -6,9 +6,9 @@ from pathlib import Path
 from struct import pack, unpack_from
 import time
 from pymscada.bus_client import BusClient
-from pymscada.config import get_html_file
 import pymscada.protocol_constants as pc
 from pymscada.tag import Tag, TYPES
+from pymscada_html import get_html_file
 
 
 def tag_for_web(tagname: str, tag: dict):
