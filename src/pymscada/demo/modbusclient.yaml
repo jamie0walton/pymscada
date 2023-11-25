@@ -3,7 +3,7 @@ bus_port: 1324
 rtus:
 - name: RTU
   ip: 127.0.0.1
-  port: 502
+  port: 1502
   tcp_udp: tcp
   rate: 0.02
   read:

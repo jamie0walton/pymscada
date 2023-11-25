@@ -9,6 +9,12 @@ PATH = {
     '__EXE__': Path(f'{sys.exec_prefix}/bin/pymscada'),
     '__PYTHON__': Path(f'{sys.exec_prefix}/bin/python')
 }
+if sys.platform == "win32":
+    PATH = {
+        '__DIR__': Path('.'),
+        '__EXE__': Path(f'{sys.exec_prefix}/Scripts/pymscada'),
+        '__PYTHON__': Path(f'{sys.exec_prefix}/Scripts/python')
+    }
 
 
 def make_history():

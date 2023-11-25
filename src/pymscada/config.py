@@ -18,12 +18,14 @@ def get_demo_file(filename: str) -> Traversable:
 
 def get_demo_files():
     """Provide an iterable of the demo files."""
-    return importlib.resources.files(demo).iterdir()
+    demo_iter = importlib.resources.files(demo).iterdir()
+    return [f for f in demo_iter if f.is_file()]
 
 
 def get_pdf_files():
     """Provide an iterable of the demo files."""
-    return importlib.resources.files(pdf).iterdir()
+    pdf_iter = importlib.resources.files(pdf).iterdir()
+    return [f for f in pdf_iter if f.is_file()]
 
 
 class Config(dict):

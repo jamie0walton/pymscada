@@ -1,5 +1,5 @@
 # pymscada
-#### [Docs](./docs/README.md)
+#### [Docs](https://github.com/jamie0walton/pymscada/blob/main/docs/README.md)
 ## Python Mobile SCADA
 
 This is a small SCADA package that will run on Linux (preferably) or
@@ -15,11 +15,7 @@ information through a message bus. A __subset__ of modules is:
 Web pages are responsive and defined procedurally from the
 ```wwwserver.yaml``` config file.
 
-![Display and Setpoint Components](docs/ex001.png)
-
 Trends use [uPlot](https://github.com/leeoniya/uPlot).
-
-![uPlot based Trend Display](docs/ex002.png)
 
 ## Objectives
 
@@ -38,18 +34,6 @@ complete rewrite, however the aim is the same.
 
 All tag value updates are by exception. So an update from you setting a
 value to seeing the feedback should be __FAST__.
-
-## More Details
-
-See [docs](./docs/README.md) for more. These include:
-
-- Install and getting the demo to run in [Windows](./docs/windows_demo.md)
-- ... and in [Debian 12](./docs/debian_demo.md)
-- Additional [Modules](./docs/module_list.md)
-- The [Tag](./docs/tags.md) class
-- A description of the [Modbus PLC](./docs/modbus_plc_demo.md) emulation demo
-- Setting up a [development environment](./docs/debian_dev.md) on Debian
-- Using Apache on Linux as a web facing [front end](./docs/apache.md)
 
 # Licence
 

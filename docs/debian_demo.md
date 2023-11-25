@@ -24,12 +24,12 @@ pymscada is a collection of modulees that run individually, you will need a term
 for each one. It's set up to work well in Debian with systemd but does run in Windows.
 
 ```shell
-pymscada run bus                # always run this first
-pymscada run wwwserver
-pymscada run files
-pymscada run history
-pymscada run modbusclient
-python modbus_device.py         # for the demo only
+nohup pymscada bus --verbose &
+nohup pymscada wwwserver --verbose &
+nohup pymscada history --verbose  &
+pmscada checkout  # required to get modbus_plc.py
+nohup .venv/bin/python ./config/modbus_plc.py &
+nohup pymscada modbusclient --verbose  &
 # Browse to https://localhost:8324/
 ```
 
