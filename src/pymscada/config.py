@@ -4,16 +4,7 @@ from importlib.abc import Traversable
 import logging
 from pathlib import Path
 from yaml import safe_load_all, YAMLError
-from pymscada import demo, html, pdf
-
-
-def get_html_file(filename: str) -> Traversable:
-    """Provide file resources to package."""
-    fn = importlib.resources.files(html).joinpath(filename)
-    if fn.is_file():
-        return fn
-    else:
-        raise FileNotFoundError(filename)
+from pymscada import demo, pdf
 
 
 def get_demo_file(filename: str) -> Traversable:

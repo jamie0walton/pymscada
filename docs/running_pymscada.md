@@ -1,4 +1,5 @@
 # Running
+#### [Previous](../README.md) [Up](../README.md) [Next](../README.md)
 
 ## Debian
 

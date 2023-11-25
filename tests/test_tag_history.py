@@ -22,9 +22,9 @@ VALUES = [
 
 def make_test_files():
     """Make test files in the test_assets folder."""
-    for df in Path('tests/test_assets').glob('tag_0_*'):
+    for df in Path('tests/test_assets').glob('hist_tag_0_*'):
         df.unlink()
-    t0 = TagHistory('tag_0', int, 'tests/test_assets')
+    t0 = TagHistory('hist_tag_0', int, 'tests/test_assets')
     for time_us, value in zip(TIMES, VALUES):
         t0.append(time_us, value)
         if time_us in [14, 25, 49]:
@@ -35,9 +35,9 @@ def make_test_files():
 @pytest.mark.asyncio()
 async def test_read_ranges():
     """Basic tests."""
-    for df in Path('tests/test_assets').glob('tag_0_*'):
+    for df in Path('tests/test_assets').glob('hist_tag_0_*'):
         df.unlink()
-    t0 = TagHistory('tag_0', int, 'tests/test_assets')
+    t0 = TagHistory('hist_tag_0', int, 'tests/test_assets')
     for time_us, value in zip(TIMES, VALUES):
         t0.append(time_us, value)
         if time_us in [14, 25, 49]:
@@ -49,7 +49,7 @@ async def test_read_ranges():
     rd_t = []
     rd_v = []
     for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.type, rd, offset=i)
+        t, v = unpack_from(t0.packstr, rd, offset=i)
         rd_t.append(t)
         rd_v.append(v)
     assert rd_t == TIMES
@@ -61,7 +61,7 @@ async def test_read_ranges():
     rd_t = []
     rd_v = []
     for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.type, rd, offset=i)
+        t, v = unpack_from(t0.packstr, rd, offset=i)
         rd_t.append(t)
         rd_v.append(v)
     assert rd_t == TIMES[1:20]
@@ -73,7 +73,7 @@ async def test_read_ranges():
     rd_t = []
     rd_v = []
     for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.type, rd, offset=i)
+        t, v = unpack_from(t0.packstr, rd, offset=i)
         rd_t.append(t)
         rd_v.append(v)
     assert rd_t == TIMES[20:40]
@@ -85,7 +85,7 @@ async def test_read_ranges():
     rd_t = []
     rd_v = []
     for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.type, rd, offset=i)
+        t, v = unpack_from(t0.packstr, rd, offset=i)
         rd_t.append(t)
         rd_v.append(v)
     assert rd_t == TIMES[20:]
@@ -134,15 +134,15 @@ async def test_deadband_write_history():
 
 def test_read_rqs_cb():
     """Test the RQS request data."""
-    history = History(path='tests/test_assets', tag_info={'tag_0': {
+    history = History(path='tests/test_assets', tag_info={'hist_tag_0': {
         'desc': 'Test tag',
         'type': 'int'
     }})
     history_tag = Tag('__history__', bytes)
-    tag_0 = Tag('tag_0', int)
+    hist_tag_0 = Tag('hist_tag_0', int)
     history_tag.id = 1  # no bus running in test so force this
-    tag_0.id = 2
-    assert history_tag.value == b'\x00\x00\x00\x00'
+    hist_tag_0.id = 2
+    assert history_tag.value == b'\x00\x00\x00\x00\x00\x00'
     results = []
 
     def history_cb(tag: Tag):
@@ -151,17 +151,19 @@ def test_read_rqs_cb():
 
     history_tag.add_callback(history_cb, 999)  # fake non-local bus
     history.rqs_cb({
-        'tagname': 'tag_0',
+        '__rqs_id__': 12345,
+        'tagname': 'hist_tag_0',
         'start_us': 5,
         'end_us': 30
     })
     decoded = []
     size = len(results[0])
-    tagid, packtype = unpack_from('>HH', results[0])
+    rqs_id, tagid, packtype = unpack_from('>HHH', results[0])
+    assert rqs_id == 12345
     assert tagid == 2  # as set above
     assert packtype == 1  # is integer
-    for offset in range(4, size, 16):
+    for offset in range(6, size, 16):
         decoded.append(unpack_from('!Qq', results[0], offset=offset))
     assert decoded[0][0] == 5
     assert decoded[21][0] == 26
-    assert results[1] == b'\x00\x00\x00\x00'
+    assert results[1] == b'\x00\x00\x00\x00\x00\x00'
