@@ -39,15 +39,6 @@ complete rewrite, however the aim is the same.
 All tag value updates are by exception. So an update from you setting a
 value to seeing the feedback should be __FAST__.
 
-## Commercial Support
-
-For basic SCADA functionality, ```pyscada``` costs nothing and should be
-inexpensive to set up and run. ```Mobile SCADA``` is a commercial product
-which is the source of most of the ```pymscada``` functionality.
-
-If you want commercial support you can contact me through
-[linkedin](https://www.linkedin.com/in/jamie-walton-47b82822/).
-
 ## More Details
 
 See [docs](./docs/README.md) for more. These include:
