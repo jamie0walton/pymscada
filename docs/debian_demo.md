@@ -34,17 +34,15 @@ nohup pymscada modbusclient --verbose  &
 ```
 
 ## Create Your Own
-Demo configs are in the pymscada package, you can check these out into your directory
-and start editing from here. These _are_ the demo config files.
+The files created in the prior step in order to create ```modbus_plc.py``` also
+creates a directory of config files. You can edit and use these as follows,
+wrapping in ```nohup ... &``` or setting as service (see the dev description).
 
 ```shell
-mkdir MyProject
-cd MyProject
-pymscada checkout               # creates files and folder in .
 pymscada run bus
-pymscada run wwwserver --config config\wwwserver.yaml --tags config\tags.yaml
-pymscada run simulate --config config\simulate.yaml --tags config\tags.yaml
-pymscada run files --config config\files.yaml
-pymscada run history --config config\history.yaml --tags config\tags.yaml
+pymscada run wwwserver --config config/wwwserver.yaml --tags config/tags.yaml
+pymscada run simulate --config config/simulate.yaml --tags config/tags.yaml
+pymscada run files --config config/files.yaml
+pymscada run history --config config/history.yaml --tags config/tags.yaml
 # Browse to http://localhost:8324
 ```

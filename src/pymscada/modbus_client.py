@@ -142,18 +142,21 @@ class ModbusClientConnector:
 
     async def start_connection(self):
         """Start the UDP or TCP connection."""
-        if self.tcp_udp == 'udp':
-            logging.debug(f'UDP to {self.ip}:{self.port}')
-            self.transport, self.protocol = \
-                await asyncio.get_running_loop().create_datagram_endpoint(
-                    lambda: ModbusClientProtocol(self.process),
-                    remote_addr=(self.ip, self.port))
-        else:
-            logging.debug(f'TCP to {self.ip}:{self.port}')
-            self.transport, self.protocol = \
-                await asyncio.get_running_loop().create_connection(
-                    lambda: ModbusClientProtocol(self.process),
-                    self.ip, self.port)
+        try:
+            if self.tcp_udp == 'udp':
+                logging.debug(f'UDP to {self.ip}:{self.port}')
+                self.transport, self.protocol = \
+                    await asyncio.get_running_loop().create_datagram_endpoint(
+                        lambda: ModbusClientProtocol(self.process),
+                        remote_addr=(self.ip, self.port))
+            else:
+                logging.debug(f'TCP to {self.ip}:{self.port}')
+                self.transport, self.protocol = \
+                    await asyncio.get_running_loop().create_connection(
+                        lambda: ModbusClientProtocol(self.process),
+                        self.ip, self.port)
+        except Exception as e:
+            logging.warn(f'start_connection {e}')
 
     def mbap_tr(self):
         """Global transaction number provider."""
@@ -217,6 +220,8 @@ class ModbusClientConnector:
 
     def write_tag_update(self, addr: str, byte: int, data: bytes):
         """Write out any tag updates."""
+        if self.transport is None:
+            return
         _, unit, file = addr.split(':')
         mbap_unit = int(unit)
         start = byte // 2
@@ -232,6 +237,8 @@ class ModbusClientConnector:
             self.transport = None
         if self.transport is None:
             await self.start_connection()
+        if self.transport is None:
+            return
         for poll in self.read:
             self.mb_read(**poll)
 

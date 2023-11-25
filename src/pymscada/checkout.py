@@ -12,8 +12,8 @@ PATH = {
 if sys.platform == "win32":
     PATH = {
         '__DIR__': Path('.'),
-        '__EXE__': Path(f'{sys.exec_prefix}/Scripts/pymscada'),
-        '__PYTHON__': Path(f'{sys.exec_prefix}/Scripts/python')
+        '__EXE__': Path(f'{sys.exec_prefix}/Scripts/pymscada.exe'),
+        '__PYTHON__': Path(f'{sys.exec_prefix}/python.exe')
     }
 
 
