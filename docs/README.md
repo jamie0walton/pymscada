@@ -1,5 +1,45 @@
 # Index
 #### [Up](../README.md) [Next](./windows_demo.md)
+
+## Python Mobile SCADA
+
+This is a small SCADA package that will run on Linux (preferably) or
+Windows. The server runs as several modules on the host, sharing
+information through a message bus. A __subset__ of modules is:
+
+- Bus server - shares tag values with by exception updates
+- Modbus client - reads and writes to a PLC using Modbus/TCP
+- History - saves data changes, serves history to web pages
+- Web server - serves web pages which connect with a web socket
+- Web pages - an Angular single page web application
+
+Web pages are responsive and defined procedurally from the
+```wwwserver.yaml``` config file.
+
+![Display and Setpoint Components](ex001.png)
+
+Trends use [uPlot](https://github.com/leeoniya/uPlot).
+
+![uPlot based Trend Display](ex002.png)
+
+## Objectives
+
+Traditional SCADA has a fixed 19:6, 1920x1080 or some equivalent layout.
+It's great on a big screen but not good on a phone. Hence __Mobile__
+SCADA with a responsive layout.
+
+I wrote Mobile SCADA to provide a GUI to the other things I was trying to
+do, I wanted to leverage web browsers and eliminate a dedicated
+_viewer.exe_. Display on the client is fast, trends, as fast as I can
+make them.
+
+Uptimes should be excellent. The best I have on an earlier version is
+over 5 years for about half of the script modules. This version is a
+complete rewrite, however the aim is the same.
+
+All tag value updates are by exception. So an update from you setting a
+value to seeing the feedback should be __FAST__.
+
 ## Security
 _busserver_ listens on a port for the bus module. At very least
 a denial of service attack will work. This should listen on 127.0.0.1
@@ -16,16 +56,6 @@ should be in the same space with appropriate security between IT and OT.
 See [apache](./apache.md) for a reasonably secure way to provide
 intranet access to users already permitted on your network.
 
-## Index
+# Licence
 
-- Install and getting the demo to run in [Windows](./windows_demo.md)
-- ... and in [Debian 12](./debian_demo.md)
-- Additional [Modules](./module_list.md)
-- The [Tag](./tags.md) class
-- A description of the [Modbus PLC](./modbus_plc_demo.md) emulation demo
-- Setting up a [development environment](./debian_dev.md) on Debian
-- Using [Apache](./apache.md) as a front end.
-- [Road map](./road_map.md)
-
-Older (and likely not current) information includes:
-- [Initial build](./initial_build.md) description
+```pymscada``` is distributed under the GPLv3 [license](./LICENSE).

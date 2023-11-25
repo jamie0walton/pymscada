@@ -144,6 +144,7 @@ class TagHistory():
                 times.pop()
             else:
                 break
+        idx = 0
         for idx, time_us in enumerate(times):
             start = 0
             end = files_us[time_us].stat().st_size

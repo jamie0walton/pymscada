@@ -2,7 +2,7 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 ip: 0.0.0.0
 port: 8324
-get_path: angmscada/dist/angmscada
+get_path:
 paths:
 - pymscada/docs/examples
 - pymscada/docs/examples/pdf
