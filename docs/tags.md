@@ -2,17 +2,17 @@
 #### [Previous](./module_list.md) [Up](./README.md) [Next](./modbus_plc_demo.md)
 
 ## Concept
-The Tag value can be read and written anywhere, quickly, and easily.
-Code can be triggered by a value change. Tag's are not restricted to
+```pymscada``` is based on sharing ```Tag``` values. These can be read
+and written anywhere. Values are transparently passed up to the message
+bus. Code can be triggered by a value change. Tag's are not restricted to
 one process.
 
-This is linked to the design principle in pymscada that each
-self-contained function runs in a separate process. Each process has
+In ```pymscada``` each module is a separate process. Each process has
 access to Tags via the bus.
 
-Two classes support the Tag operation. The ```BusServer``` which runs
-in the bus module, this keeps the last value and time of every tag,
-provides the value and time to any request, and sends updates to any
+Two classes share the values, ```BusServer``` which runs in the bus
+module, this keeps the last value and time of every tag, provides the
+value and time to any request, and sends updates to any
 connected subscriber to each tag. The ```BusClient``` makes a
 connection to the bus module, publishes and subscribes as necessary
 to send and receive tag values, and stops any update loops associated

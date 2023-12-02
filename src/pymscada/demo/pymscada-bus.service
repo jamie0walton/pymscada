@@ -3,7 +3,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=/home/mscada/pymscada/.venv/bin/pymscada bus --verbose
+    ExecStart=__PYMSCADA__ bus __DIR__/config/bus.yaml
     Restart=always
     RestartSec=5
     User=mscada

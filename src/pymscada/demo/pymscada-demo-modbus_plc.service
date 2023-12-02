@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYTHON__ ./pymscada/src/pymscada/demo/modbus_plc.py
+    ExecStart=__PYTHON__ __DIR__/config/modbus_plc.py
     Restart=always
     RestartSec=5
     User=mscada
