@@ -1,10 +1,16 @@
-# Running Windows Demo
+# Running on Windows
 #### [Previous](./README.md) [Up](./README.md) [Next](./debian_demo.md)
 ## Prerequisites
-I tried this on both Windows 11 and Windows 10 at varying times, although my
-home computer is Windows 11 so this is the least impacted by IT security
-policy. I used python from [here](https://www.python.org/downloads/).
-Versions varied between 3.9 and 3.11.
+I have run this on both Windows 11 and Windows 10 at varying times with python
+versions from 3.9 to 3.11. When the ```--config``` argument is not used
+```pymscada``` uses the internal copy of the files written out when you run
+```pymscada checkout```. This is a convenience function. When you check the
+config files out samples are written and appropriate ```systemd``` config files
+are generated.
+
+You may be able to make these run in the background in windows with
+[daemonize](https://github.com/thesharp/daemonize), however ```pymscada``` is
+really intended to run as services on a linux system.
 
 ## Installing
 
@@ -14,23 +20,26 @@ pip install pymscada
 
 ## Run the Demo
 
-Open five command shell windows. In all change directory to a temp directory
-where you can create the files. For all of these, be in the same directory.
-Not all of this is absolutely necessary, however Windows performance has
-not been my focus.
+Open five command shell windows. In each command shell:
 ```shell
+mkdir My Dir
+cd MyDir
+pymscada checkout
+python .\config\modbus_plc.py --verbose
+```
+```shell
+cd MyDir
 pymscada bus --verbose
 ```
 ```shell
+cd MyDir
 pymscada wwwserver --verbose
 ```
 ```shell
-pymscada checkout
-python .\config\modbus_plc.py
-```
-```shell
+cd MyDir
 pymscada modbusclient --verbose
 ```
 ```shell
+cd MyDir
 pymscada history --verbose
 ```

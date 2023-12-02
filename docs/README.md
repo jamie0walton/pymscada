@@ -26,15 +26,11 @@ Trends use [uPlot](https://github.com/leeoniya/uPlot).
 
 Traditional SCADA has a fixed 19:6, 1920x1080 or some equivalent layout.
 It's great on a big screen but not good on a phone. Hence __Mobile__
-SCADA with a responsive layout.
+SCADA with a responsive layout. I wrote Mobile SCADA to provide a GUI for
+an optimal dispatch package, adding enough to make it useful on its own.
 
-I wrote Mobile SCADA to provide a GUI to the other things I was trying to
-do, I wanted to leverage web browsers and eliminate a dedicated
-_viewer.exe_. Display on the client is fast, trends, as fast as I can
-make them.
-
-Uptimes should be excellent. The best I have on an earlier version is
-over 5 years for about half of the script modules. This version is a
+Uptimes should be good. An earlier version has been running continuously
+for over 5 years for about half of the script modules. This version is a
 complete rewrite, however the aim is the same.
 
 All tag value updates are by exception. So an update from you setting a

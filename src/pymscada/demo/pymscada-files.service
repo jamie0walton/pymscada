@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__EXE__ files --verbose
+    ExecStart=__PYMSCADA__ files __DIR__/config/files.yaml
     Restart=always
     RestartSec=5
     User=mscada

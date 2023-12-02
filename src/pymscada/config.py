@@ -16,7 +16,7 @@ def get_demo_file(filename: str) -> Traversable:
         raise FileNotFoundError(filename)
 
 
-def get_demo_files():
+def get_demo_files() -> list[Traversable]:
     """Provide an iterable of the demo files."""
     demo_iter = importlib.resources.files(demo).iterdir()
     files = []
@@ -27,7 +27,7 @@ def get_demo_files():
     return files
 
 
-def get_pdf_files():
+def get_pdf_files() -> list[Traversable]:
     """Provide an iterable of the demo files."""
     pdf_iter = importlib.resources.files(pdf).iterdir()
     files = []

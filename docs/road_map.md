@@ -11,18 +11,21 @@ industry is very conservative so I'd like to keep the functionality
 reasonably complete for a SCADA package but without attempting to do
 everything.
 
-Plans for the future include:
+Plans for the future:
 
-1. Prefix multi tag states with _ and grey these options out in the
-angular web client.
+1. Consider adding Tag classes for each data type. i.e.
+```TagInt('tagname')``` as opposed to ```Tag('tagname', int)```.
 
-1. Making the _files_ module work. It's handy to have electrical
-drawings for a PLC with the UI.
+1. Prefix multi tag state descriptions with _ and grey these options
+out in the angular web client.
 
-1. Adding a minimal _alarms_ system. I have an SMS callout module
+1. Make the _files_ module work for downloading history, config and
+pdf files, and allow upload of pdf files.
+
+1. Add an _alarms_ system. I have an SMS callout module in MobileSCADA
 however this needs a rethink.
 
-1. Adding a [pycomm3](https://github.com/ottowayi/pycomm3) wrapper. A
+1. Add a [pycomm3](https://github.com/ottowayi/pycomm3) wrapper. A
 lot of my projects connect to Rockwell PLCs.
 
-1. More tests.
+1. Improve ```pytest``` coverage.

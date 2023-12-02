@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__EXE__ wwwserver --verbose
+    ExecStart=__PYMSCADA__ wwwserver __DIR__/config/wwwserver.yaml
     Restart=always
     RestartSec=5
     User=mscada
