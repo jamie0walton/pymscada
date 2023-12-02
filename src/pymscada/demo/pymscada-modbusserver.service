@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ modbusserver __DIR__/config/modbusserver.yaml
+    ExecStart=__PYMSCADA__ modbusserver --config __DIR__/config/modbusserver.yaml
     Restart=always
     RestartSec=5
     User=mscada

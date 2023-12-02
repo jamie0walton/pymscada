@@ -3,7 +3,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ bus __DIR__/config/bus.yaml
+    ExecStart=__PYMSCADA__ bus --config __DIR__/config/bus.yaml
     Restart=always
     RestartSec=5
     User=mscada
