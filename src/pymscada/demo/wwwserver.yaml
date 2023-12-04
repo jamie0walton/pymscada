@@ -51,28 +51,34 @@ pages:
     axes:
     - scale: x
       range: [-86400, 0]  # 86400 172800 1209600
-    - scale: integers
+    - scale: '°C'
       range: [0.0, 100.0]
       dp: 1
-    - scale: floats
+    - scale: '%'
       range: [0.0, 100.0]
       dp: 1
-      side: 1
+      # side: 1
     # bands:  # TODO
     # - series: [I_Transpower_Limit_Hi, I_Transpower_Limit_Lo]
     #   fill: [red, 0.2]
     #   dir: -1
     series:
-    - tagname: IntVal
-      label: Int
-      scale: integers
-      color: red
+    - tagname: cpu_load
+      label: CPU Load
+      scale: '%'
+      color: black
       width: 1.5
       dp: 1
-    - tagname: FloatVal
-      label: Float
-      scale: floats
+    - tagname: disk_use
+      label: Disk Use
+      scale: '%'
       color: blue
+      width: 1
+      dp: 1
+    - tagname: cpu_temp
+      label: CPU Temp
+      scale: '°C'
+      color: red
       width: 1
       dp: 1
 - name: Files

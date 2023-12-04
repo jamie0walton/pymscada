@@ -44,3 +44,12 @@ tags:
   sim_DateTimeVal:
     type: uint64
     addr: RTU:1:4x:29
+  cpu_temp:
+    type: float32
+    addr: RTU:1:4x:33
+  cpu_load:
+    type: float32
+    addr: RTU:1:4x:35
+  disk_use:
+    type: float32
+    addr: RTU:1:4x:37
