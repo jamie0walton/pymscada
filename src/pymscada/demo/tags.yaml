@@ -109,3 +109,24 @@ FloatSelect:
     labels: [Floats, For, This, Tag]
     values: [0.1, 0.1, 0.2, 0.3]
     locks: [0, 1, 0, 0]
+cpu_temp:
+  desc: CPU Load
+  type: float
+  min: 0
+  max: 100
+  units: '°C'
+  dp: 1
+cpu_load:
+  desc: Float Value
+  type: float
+  min: 0
+  max: 100
+  units: '%'
+  dp: 1
+disk_use:
+  desc: Float Value
+  type: float
+  min: 0
+  max: 100
+  units: '%'
+  dp: 1
