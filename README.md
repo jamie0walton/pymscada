@@ -1,5 +1,8 @@
 # pymscada
 #### [Docs](https://github.com/jamie0walton/pymscada/blob/main/docs/README.md)
+
+#### [@Github](https://github.com/jamie0walton/pymscada/blob/main/README.md)
+
 ## Python Mobile SCADA
 
 This is a small SCADA package that will run on Linux (preferably) or
