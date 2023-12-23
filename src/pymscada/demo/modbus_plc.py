@@ -34,7 +34,7 @@ class PLC_Logic():
 
     async def periodic(self):
         """Emulate some PLC logic."""
-        self.sim_IntVal.value = ramp(self.sim_IntVal.value, 
+        self.sim_IntVal.value = ramp(self.sim_IntVal.value,
                                      self.sim_IntSet.value, 1)
         self.sim_FloatVal.value = ramp(self.sim_FloatVal.value,
                                        self.sim_FloatSet.value, 0.5)

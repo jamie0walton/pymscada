@@ -38,6 +38,18 @@ def tag_for_history(tagname: str, tag: dict):
         tag['deadband'] = None
 
 
+def get_tag_hist_files(path: Path, tagname: str) -> dict[int, Path]:
+    """Parse path for history files matching tagname."""
+    files_us = {}
+    for file in path.glob(f'{tagname}_*.dat'):
+        parts = file.stem.split('_')
+        parts_tag = '_'.join(parts[:-1])
+        if parts_tag != tagname or not parts[-1].isdigit():
+            continue
+        files_us[int(parts[-1])] = file
+    return files_us
+
+
 class TagHistory():
     """Efficiently store and serve history for a given tagname."""
 
@@ -91,10 +103,7 @@ class TagHistory():
         """Read in partial store on start-up, or read-in older data."""
         resp_time = []
         resp_values = []
-        files_us: dict[int, Path] = {}
-        for file in self.path.glob(f'{self.name}_*.dat'):
-            i = file.stem.rindex('_') + 1
-            files_us[int(file.stem[i:])] = file
+        files_us = get_tag_hist_files(self.path, self.name)
         times = [x for x in sorted(files_us.keys())]
         while len(times) > 2:
             if times[0] < start_us and times[1] < start_us:
@@ -132,64 +141,43 @@ class TagHistory():
     def read_bytes(self, start_us: int = 0, end_us: int = -1):
         """Read in partial store on start-up, or read-in older data."""
         resp: bytes = b''
-        files_us: dict[int, Path] = {}
-        for file in self.path.glob(f'{self.name}_*.dat'):
-            i = file.stem.rindex('_') + 1
-            files_us[int(file.stem[i:])] = file
-        times = [x for x in sorted(files_us.keys())]
-        while len(times) > 1:
-            if times[0] < start_us and times[1] < start_us:
-                times.pop(0)
-            elif end_us != -1 and times[-1] > end_us:
-                times.pop()
+        # find the chunks that cover the time span requested
+        srcs = get_tag_hist_files(self.path, self.name)
+        if self.chunk_idx > 0:
+            time_us, _ = unpack_from(self.packstr, self.chunk)
+            srcs[time_us] = None
+        times_us = [x for x in sorted(srcs.keys())]
+        while len(times_us) > 1:
+            if times_us[1] < start_us:
+                times_us.pop(0)
             else:
                 break
-        idx = 0
-        dat = b''
-        for idx, time_us in enumerate(times):
-            start = 0
-            end = files_us[time_us].stat().st_size
-            if end % ITEM_SIZE != 0:
-                logging.warning(f'{files_us[time_us]} size is incorrect.')
-                end -= end % ITEM_SIZE
-            with open(files_us[time_us], 'rb') as fh:
-                dat = fh.read()
-                if idx == 0:  # find start
-                    for i in range(0, end, ITEM_SIZE):
-                        vtime_us, value = unpack_from(self.packstr, dat,
-                                                      offset=i)
-                        if vtime_us >= start_us:
-                            start = i
-                            break
-                if end_us != -1 and idx == len(times) - 1:  # find end
-                    for i in range(end - ITEM_SIZE, 0, -ITEM_SIZE):
-                        vtime_us, value = unpack_from(self.packstr, dat,
-                                                      offset=i)
-                        if vtime_us < end_us:
-                            end = i + ITEM_SIZE
-                            break
-                resp += dat[start:end]
-        add_chunk = False
-        if self.chunk_idx > 0:
-            vtime_us, value = unpack_from(self.packstr, self.chunk, offset=0)
-            if vtime_us < end_us:
-                add_chunk = True
-        if end_us == -1 or add_chunk:
-            start = 0
-            end = self.chunk_idx
-            if idx == 0:  # find start
-                for i in range(0, self.chunk_idx, ITEM_SIZE):
-                    vtime_us, value = unpack_from(self.packstr, dat, offset=i)
-                    if vtime_us >= start_us:
-                        start = i
-                        break
-            for i in range(self.chunk_idx - ITEM_SIZE, 0, -ITEM_SIZE):
-                vtime_us, value = unpack_from(self.packstr, self.chunk,
-                                              offset=i)
-                if vtime_us < end_us:
-                    end = i + ITEM_SIZE
+        if end_us != -1:
+            while len(times_us) > 1:
+                if times_us[-1] > end_us:
+                    times_us.pop()
+                else:
                     break
-            resp += self.chunk[start:end]
+        # collect the chunks into a single response
+        for time_us in times_us:
+            if srcs[time_us] is None:
+                dat = self.chunk
+                end = self.chunk_idx
+            else:
+                with open(srcs[time_us], 'rb') as fh:
+                    dat = fh.read()
+                    end = len(dat)
+            for start in range(0, end, ITEM_SIZE):
+                first_us, _ = unpack_from(self.packstr, dat, offset=start)
+                if first_us >= start_us:
+                    break
+            for end in range(end - ITEM_SIZE, start, -ITEM_SIZE):
+                last_us, _ = unpack_from(self.packstr, dat,
+                                         offset=end)
+                if last_us < end_us or end_us == -1:
+                    break
+            end += ITEM_SIZE
+            resp += dat[start:end]
         return resp
 
     def flush(self):
