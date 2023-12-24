@@ -1,7 +1,7 @@
 Name                                 Stmts   Miss  Cover
 --------------------------------------------------------
 src/pymscada/__init__.py                 9      0   100%
-src/pymscada/bus_client.py             169     42    75%
+src/pymscada/bus_client.py             169     28    83%
 src/pymscada/bus_server.py             197     34    83%
 src/pymscada/config.py                  44      3    93%
 src/pymscada/demo/__init__.py            0      0   100%
@@ -14,6 +14,6 @@ src/pymscada/pdf/__init__.py             0      0   100%
 src/pymscada/periodic.py                29      2    93%
 src/pymscada/protocol_constants.py      17      0   100%
 src/pymscada/samplers.py                56     11    80%
-src/pymscada/tag.py                    193     47    76%
+src/pymscada/tag.py                    193     29    85%
 --------------------------------------------------------
-TOTAL                                 1360    205    85%
+TOTAL                                 1360    173    87%

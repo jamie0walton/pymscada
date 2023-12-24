@@ -204,6 +204,30 @@ async def test_client_init(bus_server):
 
 
 @pytest.mark.asyncio
+async def test_tag_info(bus_server):
+    """Check tag info init works."""
+    global server_port
+    global queue
+    tag_info = {
+        'ftag1': {'init': 123.456},
+        'dtag1': {'init': {'look': 'here'}},
+    }
+    ftag1 = Tag('ftag1', float)
+    dtag1 = Tag('dtag1', dict)
+    client = BusClient(port=server_port, tag_info=tag_info)
+    await client.start()
+    # must get None from bus before initialising
+    await asyncio.sleep(0.1)
+    assert ftag1.value == 123.456
+    assert dtag1.value == {'look': 'here'}
+    # cleanup, normally don't bother with this, but tests check more
+    # internals that ever done in an application
+    await client.shutdown()
+    del client
+    gc.collect()
+
+
+@pytest.mark.asyncio
 async def test_client_speed(capsys, bus_echo):
     """Test for round-trip speed of small packets."""
     global server_port

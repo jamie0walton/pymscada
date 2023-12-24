@@ -215,3 +215,17 @@ def test_deadband():
     assert d1.value == 0.05
     d1.value = 0.0  # Do update, within deadband at limit
     assert d1.value == 0.0
+
+
+def test_history():
+    """Internal tag history."""
+    h1 = Tag('h1', float)
+    h1.age_us = 1000
+    h1.value = 0
+    for v in range(1, 100):
+        h1.value = v
+        if v == 50:
+            get_us = h1.time_us
+    a_value = h1.get(get_us)
+    assert a_value == 50
+    assert len(h1.values) == 100
