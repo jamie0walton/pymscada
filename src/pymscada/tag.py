@@ -18,33 +18,6 @@ TYPES = {
 }
 
 
-def validate_tag(tag: dict):
-    """Correct tag dictionary in place."""
-    if 'desc' not in tag:
-        logging.error(f"{tag} missing desc")
-    if 'multi' in tag:
-        if 'type' in tag:
-            logging.warning(f"{tag} redundant type cast for multi")
-        tag['type'] = int
-    else:
-        if 'type' not in tag:
-            tag['type'] = float
-        else:
-            try:
-                tag['type'] = TYPES[tag['type']]
-            except KeyError:
-                logging.error(f"{tag} invalid type {tag['type']}")
-    if tag['type'] is int:
-        if 'dp' in tag:
-            logging.warning(f"{tag} redundant dp for int")
-        tag['dp'] = 0
-    elif tag['type'] is float and 'dp' not in tag:
-        tag['dp'] = 2
-    elif tag['type'] in [str, bytes] and 'dp' in tag:
-        logging.warning(f"{tag} str/bytes cannot use dp")
-        del tag['dp']
-
-
 class UniqueTag(type):
     """Super Tag class only create unique tags for unique tag names."""
 

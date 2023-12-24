@@ -86,7 +86,7 @@ def test_int_with_float():
     tag_7 = Tag('tag_7', float)
     tag_7.value = 1
     assert tag_6.value == 1
-    assert type(tag_7.value) == float
+    assert type(tag_7.value) is float
 
 
 def test_dict_callback():

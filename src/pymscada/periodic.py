@@ -36,6 +36,6 @@ class Periodic:
             if sleep_for < 0.0:
                 sleep_for = self.period
                 self._time = time.time()
-                logging.warn(f'{self._func} skipped at {self._time}')
+                logging.warning(f'{self._func} skipped at {self._time}')
             else:
                 await asyncio.sleep(sleep_for)

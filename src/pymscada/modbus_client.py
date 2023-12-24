@@ -66,7 +66,7 @@ class ModbusClientProtocol(asyncio.Protocol):
             start = end
 
     def datagram_received(self, recv, _addr):
-        """Received a UDP packet, see if it is a full modbus packet."""
+        """Received a UDP packet, discard any partial packets."""
         # logging.info("datagram_received")
         start = 0
         buffer = recv
@@ -81,7 +81,7 @@ class ModbusClientProtocol(asyncio.Protocol):
                 break
             end = start + 6 + mbap_len
             # got a complete message, set start to end for buffer prune
-            self.process(self.buffer[start:end])
+            self.process(buffer[start:end])
             start = end
 
 

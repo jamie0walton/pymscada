@@ -10,6 +10,9 @@ async def do_period():
     """Fast periodic counter function."""
     global flag
     flag += 1
+    if flag == 2:
+        # causes count to slip one
+        await asyncio.sleep(0.1)
 
 
 def resetflag():
@@ -22,11 +25,11 @@ def resetflag():
 async def test_periodic():
     """Periodic should run three times in 0.21 seconds."""
     resetflag()
-    periodic = Periodic(do_period, 0.1)
+    periodic = Periodic(do_period, 0.05)
     await periodic.start()
     await asyncio.sleep(0.21)
     await periodic.stop()
-    assert flag == 3
+    assert flag == 4
 
 
 @pytest.mark.asyncio()

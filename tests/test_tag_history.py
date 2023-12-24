@@ -34,7 +34,7 @@ def t0():
     return tag_0
 
 
-def test_right_files(t0):
+def test_right_files(t0: TagHistory):
     """Check tag_0 and tag_0_10 return different files."""
     t0_files = get_tag_hist_files(Path('tests/test_assets'), 'hist_tag_0')
     t0_times = [x for x in sorted(t0_files.keys())]
@@ -46,11 +46,8 @@ def test_right_files(t0):
 
 
 @pytest.mark.asyncio()
-async def test_read_ranges(t0):
+async def test_read_ranges(t0: TagHistory):
     """Basic tests."""
-    rd = t0.read()
-    assert rd[0] == TIMES
-    assert rd[1] == VALUES
     rd = t0.read_bytes()
     rd_t = []
     rd_v = []
@@ -60,42 +57,21 @@ async def test_read_ranges(t0):
         rd_v.append(v)
     assert rd_t == TIMES
     assert rd_v == VALUES
-    rd = t0.read(1, 20)
-    assert rd[0] == TIMES[1:20]
-    assert rd[1] == VALUES[1:20]
-    rd = t0.read_bytes(1, 20)
-    rd_t = []
-    rd_v = []
-    for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.packstr, rd, offset=i)
-        rd_t.append(t)
-        rd_v.append(v)
-    assert rd_t == TIMES[1:20]
-    assert rd_v == VALUES[1:20]
-    rd = t0.read(20, 40)
-    assert rd[0] == TIMES[20:40]
-    assert rd[1] == VALUES[20:40]
-    rd = t0.read_bytes(20, 40)
-    rd_t = []
-    rd_v = []
-    for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.packstr, rd, offset=i)
-        rd_t.append(t)
-        rd_v.append(v)
-    assert rd_t == TIMES[20:40]
-    assert rd_v == VALUES[20:40]
-    rd = t0.read(20)
-    assert rd[0] == TIMES[20:]
-    assert rd[1] == VALUES[20:]
-    rd = t0.read_bytes(20)
-    rd_t = []
-    rd_v = []
-    for i in range(0, len(rd), ITEM_SIZE):
-        t, v = unpack_from(t0.packstr, rd, offset=i)
-        rd_t.append(t)
-        rd_v.append(v)
-    assert rd_t == TIMES[20:]
-    assert rd_v == VALUES[20:]
+    # Check every range
+    for start in range(60):
+        for end in range(start, 61):
+            if end == 60:
+                rd = t0.read_bytes(start, -1)
+            else:
+                rd = t0.read_bytes(start, end)
+            rd_t = []
+            rd_v = []
+            for i in range(0, len(rd), ITEM_SIZE):
+                t, v = unpack_from(t0.packstr, rd, offset=i)
+                rd_t.append(t)
+                rd_v.append(v)
+            assert rd_t == TIMES[start:end]
+            assert rd_v == VALUES[start:end]
 
 
 @pytest.mark.asyncio()
@@ -138,12 +114,30 @@ async def test_deadband_write_history():
         p.unlink()
 
 
-def test_read_rqs_cb(t0):
+READ_TESTS = [
+    ({'__rqs_id__': 12345, 'tagname': 'hist_tag_0', 'start_us': 55,
+      'end_us': -1},
+     {'rqs_id': 12345, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
+      'end': (59, 59)}),
+    ({'__rqs_id__': 255, 'tagname': 'hist_tag_0', 'start_us': 55,
+      'end_us': 80},
+     {'rqs_id': 255, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
+      'end': (59, 59)}),
+    ({'__rqs_id__': 303, 'tagname': 'hist_tag_0', 'start_us': 20,
+      'end_us': 55},
+     {'rqs_id': 303, 'tagid': 2, 'packtype': 1, 'start': (20, 10),
+      'end': (54, 54)}),
+    ({'__rqs_id__': 305, 'tagname': 'hist_tag_0', 'start_us': -1,
+     'end_us': 30},
+     {'rqs_id': 305, 'tagid': 2, 'packtype': 1, 'start': (0, 255),
+      'end': (29, 19)}),
+]
+
+
+def test_read_rqs_cb(t0: TagHistory):
     """Test the RQS request data."""
-    history = History(path='tests/test_assets', tag_info={'hist_tag_0': {
-        'desc': 'Test tag',
-        'type': 'int'
-    }})
+    history = History(path='tests/test_assets',
+                      tag_info={'hist_tag_0': {'type': 'int'}})
     history_tag = Tag('__history__', bytes)
     hist_tag_0 = Tag('hist_tag_0', int)
     for time_us, value in zip(TIMES[50:], VALUES[50:]):
@@ -172,49 +166,12 @@ def test_read_rqs_cb(t0):
 
     history_tag.add_callback(history_cb, 999)  # fake non-local bus
     """Read in middle of range crossing two files."""
-    history.rqs_cb({
-        '__rqs_id__': 12345,
-        'tagname': 'hist_tag_0',
-        'start_us': 55,
-        'end_us': -1
-    })
-    decoded = decode(results.pop(0))
-    assert decoded['rqs_id'] == 12345
-    assert decoded['tagid'] == 2  # as set above
-    assert decoded['packtype'] == 1  # is integer
-    assert decoded['dat'][0] == (55, 55)
-    assert decoded['dat'][-1] == (59, 59)
-    assert results.pop(0) == b'\x00\x00\x00\x00\x00\x00'
-    """Read from memory data."""
-    history.rqs_cb({
-        '__rqs_id__': 255,
-        'tagname': 'hist_tag_0',
-        'start_us': 55,
-        'end_us': 80
-    })
-    decoded = decode(results.pop(0))
-    assert decoded['dat'][0] == (55, 55)
-    assert decoded['dat'][-1] == (59, 59)
-    assert results.pop(0) == b'\x00\x00\x00\x00\x00\x00'
-    """Data that is not available."""
-    history.rqs_cb({
-        '__rqs_id__': 303,
-        'tagname': 'hist_tag_0',
-        'start_us': 20,
-        'end_us': 55
-    })
-    decoded = decode(results.pop(0))
-    assert decoded['dat'][0] == (20, 10)
-    assert decoded['dat'][-1] == (54, 54)
-    assert results.pop(0) == b'\x00\x00\x00\x00\x00\x00'
-    """Data that is not available."""
-    history.rqs_cb({
-        '__rqs_id__': 303,
-        'tagname': 'hist_tag_0',
-        'start_us': -1,
-        'end_us': 30
-    })
-    decoded = decode(results.pop(0))
-    assert decoded['dat'][0] == (0, 255)
-    assert decoded['dat'][-1] == (29, 19)
-    assert results.pop(0) == b'\x00\x00\x00\x00\x00\x00'
+    for test, resp in READ_TESTS:
+        history.rqs_cb(test)
+        decoded = decode(results.pop(0))
+        assert decoded['rqs_id'] == resp['rqs_id']
+        assert decoded['tagid'] == resp['tagid']  # as set above
+        assert decoded['packtype'] == resp['packtype']  # is integer
+        assert decoded['dat'][0] == resp['start']
+        assert decoded['dat'][-1] == resp['end']
+        assert results.pop(0) == b'\x00\x00\x00\x00\x00\x00'

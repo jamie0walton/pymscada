@@ -19,7 +19,7 @@ def tag_for_history(tagname: str, tag: dict):
     tag['name'] = tagname
     tag['id'] = None
     if 'desc' not in tag:
-        tag['desc'] = tag.name
+        tag['desc'] = tag['name']
     if 'multi' in tag:
         tag['type'] = int
     else:
@@ -99,45 +99,6 @@ class TagHistory():
         self.chunks: int = 0
         self.file: Path = None
 
-    def read(self, start_us: int = 0, end_us: int = -1):
-        """Read in partial store on start-up, or read-in older data."""
-        resp_time = []
-        resp_values = []
-        files_us = get_tag_hist_files(self.path, self.name)
-        times = [x for x in sorted(files_us.keys())]
-        while len(times) > 2:
-            if times[0] < start_us and times[1] < start_us:
-                times.pop(0)
-            else:
-                break
-        if end_us != -1:
-            while times[-1] > end_us:
-                times.pop()
-        for time_us in times:
-            size = files_us[time_us].stat().st_size
-            if size % ITEM_SIZE != 0:
-                logging.warning(f'{files_us[time_us]} size is incorrect.')
-                size -= size % ITEM_SIZE
-            with open(files_us[time_us], 'rb') as fh:
-                dat = fh.read()
-                for i in range(0, size, ITEM_SIZE):
-                    vtime_us, value = unpack_from(self.packstr, dat, offset=i)
-                    if end_us != -1 and vtime_us >= end_us:
-                        break
-                    if vtime_us >= start_us:
-                        resp_time.append(vtime_us)
-                        resp_values.append(value)
-                if end_us != -1 and vtime_us >= end_us:
-                    break
-        for i in range(0, self.chunk_idx, ITEM_SIZE):
-            vtime_us, value = unpack_from(self.packstr, self.chunk, offset=i)
-            if end_us != -1 and vtime_us >= end_us:
-                break
-            if vtime_us >= start_us:
-                resp_time.append(vtime_us)
-                resp_values.append(value)
-        return resp_time, resp_values
-
     def read_bytes(self, start_us: int = 0, end_us: int = -1):
         """Read in partial store on start-up, or read-in older data."""
         resp: bytes = b''
@@ -148,7 +109,7 @@ class TagHistory():
             srcs[time_us] = None
         times_us = [x for x in sorted(srcs.keys())]
         while len(times_us) > 1:
-            if times_us[1] < start_us:
+            if times_us[1] <= start_us:
                 times_us.pop(0)
             else:
                 break
@@ -171,12 +132,12 @@ class TagHistory():
                 first_us, _ = unpack_from(self.packstr, dat, offset=start)
                 if first_us >= start_us:
                     break
-            for end in range(end - ITEM_SIZE, start, -ITEM_SIZE):
+            for end in range(end - ITEM_SIZE, start - ITEM_SIZE, -ITEM_SIZE):
                 last_us, _ = unpack_from(self.packstr, dat,
                                          offset=end)
                 if last_us < end_us or end_us == -1:
+                    end += ITEM_SIZE
                     break
-            end += ITEM_SIZE
             resp += dat[start:end]
         return resp
 
