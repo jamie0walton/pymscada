@@ -27,8 +27,10 @@ def test_ramp():
     """Ramp."""
     settag = Tag('set001', float)
     ramptag = Tag('ramp001', float)
-    settag.value = 50
     ramp = ps.Ramp(ramptag, settag, 5)
+    ramp.step()
+    assert ramptag.value is None
+    settag.value = 50
     ramp.step()
     assert ramptag.value == 50
     settag.value = 49.5

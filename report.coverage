@@ -13,7 +13,7 @@ src/pymscada/modbus_server.py          124     14    89%
 src/pymscada/pdf/__init__.py             0      0   100%
 src/pymscada/periodic.py                29      2    93%
 src/pymscada/protocol_constants.py      17      0   100%
-src/pymscada/samplers.py                56     11    80%
+src/pymscada/samplers.py                56     10    82%
 src/pymscada/tag.py                    193     29    85%
 --------------------------------------------------------
-TOTAL                                 1360    173    87%
+TOTAL                                 1360    172    87%
