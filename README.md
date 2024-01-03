@@ -38,6 +38,12 @@ complete rewrite, however the aim is the same.
 All tag value updates are by exception. So an update from you setting a
 value to seeing the feedback should be __FAST__.
 
+# See also
+
+- The angular project [angmscada](https://github.com/jamie0walton/angmscada)
+- Python container for the compiled angular pages [pymscada-html](https://github.com/jamie0walton/pymscada-html)
+- An add-on IO driver for Rockwell using pycomm3 [pymscada-pycomm3](https://github.com/jamie0walton/pymscada-pycomm3)
+
 # Licence
 
 ```pymscada``` is distributed under the GPLv3 [license](./LICENSE).
