@@ -12,6 +12,7 @@ from pymscada.modbus_client import ModbusClient
 from pymscada.modbus_server import ModbusServer
 from pymscada.simulate import Simulate
 from pymscada.www_server import WwwServer
+from pymscada.validate import validate
 
 
 def args():
@@ -22,7 +23,8 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['bus', 'console', 'wwwserver', 'history', 'files',
-                'modbusserver', 'modbusclient', 'simulate', 'checkout']
+                'modbusserver', 'modbusclient', 'simulate', 'checkout',
+                'validate']
     parser.add_argument('module', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
     parser.add_argument('--config', metavar='file',
@@ -32,7 +34,7 @@ def args():
     parser.add_argument('--verbose', action='store_true',
                         help="Set level to logging.INFO.")
     parser.add_argument('--path', metavar='folder',
-                        help="Working folder, used for history.")
+                        help="Working folder, used for history and validate.")
     parser.add_argument('--overwrite', action='store_true', default=False,
                         help='checkout may overwrite files, CARE!')
     return parser.parse_args()
@@ -75,6 +77,13 @@ async def run():
         module = Simulate(tag_info=tag_info, **config)
     elif options.module == 'checkout':
         checkout(overwrite=options.overwrite)
+        return
+    elif options.module == 'validate':
+        r, e = validate(options.path)
+        if r == True:
+            print(f'Config files in {options.path} valid.')
+        else:
+            print(e)
         return
     else:
         logging.warning(f'no {options.module}')

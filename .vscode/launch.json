@@ -94,6 +94,16 @@
             "justMyCode":true
         },
         {
+            "name":"validate",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["validate", "--path", "pymscada/src/pymscada/demo"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name": "Python: Debug Tests",
             "type": "python",
             "request": "launch",
