@@ -7,6 +7,7 @@ from pymscada.modbus_client import ModbusClient
 from pymscada.modbus_server import ModbusServer
 from pymscada.periodic import Periodic
 from pymscada.tag import Tag
+from pymscada.validate import validate
 
 __all__ = [
     'BusClient',
@@ -17,4 +18,5 @@ __all__ = [
     'ModbusServer',
     'Periodic',
     'Tag',
+    'validate'
 ]

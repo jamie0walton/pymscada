@@ -40,6 +40,11 @@ tags:
     addr: RTU:1:4x:1
 ```
 
+Configuration file checking (a work in progress) can be carried out as:
+```bash
+pymscada validate --path path/to/config_dir
+```
+
 The complete python code that uses this confir file starts with a
 minimal set of imports.
 ```python

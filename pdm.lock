@@ -5,7 +5,7 @@
 groups = ["default", "test", "pdm"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:95c2663ace234c8570020981fa92aab85a4454da109a2f37beafbf593afcffbf"
+content_hash = "sha256:19e134e823c44b0d44f2981f6e6d318f58980cec0f9bcd1cd0eca4d59cadafa1"
 
 [[package]]
 name = "aiohttp"
@@ -162,6 +162,16 @@ dependencies = [
 files = [
     {file = "cachecontrol-0.13.1-py3-none-any.whl", hash = "sha256:95dedbec849f46dda3137866dc28b9d133fc9af55f5b805ab1291833e4457aa4"},
     {file = "cachecontrol-0.13.1.tar.gz", hash = "sha256:f012366b79d2243a6118309ce73151bf52a38d4a5dac8ea57f09bd29087e506b"},
+]
+
+[[package]]
+name = "cerberus"
+version = "1.3.5"
+summary = "Lightweight, extensible schema and data validation tool for Pythondictionaries."
+groups = ["default"]
+files = [
+    {file = "Cerberus-1.3.5-py3-none-any.whl", hash = "sha256:7649a5815024d18eb7c6aa5e7a95355c649a53aacfc9b050e9d0bf6bfa2af372"},
+    {file = "Cerberus-1.3.5.tar.gz", hash = "sha256:81011e10266ef71b6ec6d50e60171258a5b134d69f8fb387d16e4936d0d47642"},
 ]
 
 [[package]]
