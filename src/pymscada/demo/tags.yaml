@@ -130,3 +130,39 @@ disk_use:
   max: 100
   units: '%'
   dp: 1
+sim_IntSet:  # for the demo PLC sim_ tags not required
+  desc: Simulation tag
+  type: int
+sim_IntVal:
+  desc: Simulation tag
+  type: int
+sim_FloatSet:
+  desc: Simulation tag
+  type: float
+sim_FloatVal:
+  desc: Simulation tag
+  type: float
+sim_MultiSet:
+  desc: Simulation tag
+  type: int
+sim_MultiVal:
+  desc: Simulation tag
+  type: int
+sim_TimeSet:
+  desc: Simulation tag
+  type: int
+sim_TimeVal:
+  desc: Simulation tag
+  type: int
+sim_DateSet:
+  desc: Simulation tag
+  type: int
+sim_DateVal:
+  desc: Simulation tag
+  type: int
+sim_DateTimeSet:
+  desc: Simulation tag
+  type: int
+sim_DateTimeVal:
+  desc: Simulation tag
+  type: int

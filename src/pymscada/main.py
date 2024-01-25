@@ -8,8 +8,9 @@ from pymscada.config import Config
 from pymscada.console import Console
 from pymscada.files import Files
 from pymscada.history import History
-from pymscada.modbus_client import ModbusClient
-from pymscada.modbus_server import ModbusServer
+from pymscada.iodrivers.logix_client import LogixClient
+from pymscada.iodrivers.modbus_client import ModbusClient
+from pymscada.iodrivers.modbus_server import ModbusServer
 from pymscada.simulate import Simulate
 from pymscada.www_server import WwwServer
 from pymscada.validate import validate
@@ -23,7 +24,9 @@ def args():
         epilog='Python MobileSCADA.'
     )
     commands = ['bus', 'console', 'wwwserver', 'history', 'files',
-                'modbusserver', 'modbusclient', 'simulate', 'checkout',
+                'logixclient',
+                'modbusserver', 'modbusclient',
+                'simulate', 'checkout',
                 'validate']
     parser.add_argument('module', type=str, choices=commands, metavar='action',
                         help=f'select one of: {", ".join(commands)}')
@@ -65,6 +68,9 @@ async def run():
     elif options.module == 'files':
         config = Config(options.config)
         module = Files(**config)
+    elif options.module == 'logixclient':
+        config = Config(options.config)
+        module = LogixClient(**config)
     elif options.module == 'modbusclient':
         config = Config(options.config)
         module = ModbusClient(**config)

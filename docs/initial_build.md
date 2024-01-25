@@ -21,6 +21,7 @@ pdm init
 # email -- jamie@walton.net.nz
 # python -- >=3.9  although I am setting up in 3.11. importlib choice
 pdm add -dG test pytest pytest-asyncio pytest-cov flake8 flake8-docstrings
+pdm add cerberus pycomm3
 pdm build
 pdm sync  # this installs in editable mode which allows pytest to work
 ```

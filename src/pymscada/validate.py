@@ -329,7 +329,7 @@ class MsValidator(Validator):
             self._error(field, 'ip address fails socket.inet_aton')
 
 
-def validate(path: str=''):
+def validate(path: str=None):
     """Validate."""
     s = {
         'tags': TAG_SCHEMA,
@@ -339,13 +339,16 @@ def validate(path: str=''):
         'modbusserver': MODBUSSERVER_SCHEMA,
         'modbusclient': MODBUSCLIENT_SCHEMA,
     }
+    prefix = ''
+    if path is not None:
+        prefix = path + '/'
     c = {
-        'tags': dict(Config(f'{path}/tags.yaml')),
-        'bus': dict(Config(f'{path}/bus.yaml')),
-        'wwwserver': dict(Config(f'{path}/wwwserver.yaml')),
-        'history': dict(Config(f'{path}/history.yaml')),
-        'modbusserver': dict(Config(f'{path}/modbusserver.yaml')),
-        'modbusclient': dict(Config(f'{path}/modbusclient.yaml')),
+        'tags': dict(Config(f'{prefix}tags.yaml')),
+        'bus': dict(Config(f'{prefix}bus.yaml')),
+        'wwwserver': dict(Config(f'{prefix}wwwserver.yaml')),
+        'history': dict(Config(f'{prefix}history.yaml')),
+        'modbusserver': dict(Config(f'{prefix}modbusserver.yaml')),
+        'modbusclient': dict(Config(f'{prefix}modbusclient.yaml')),
     }
     v = MsValidator(s)
     res = v.validate(c)

@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - pycomm3 client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=/home/mscada
+    ExecStart=/usr/bin/python -m pymscada_pycomm3
+    Restart=always
+    RestartSec=5
+    User=mscada
+    Group=mscada
+
+[Install]
+    WantedBy=multi-user.target

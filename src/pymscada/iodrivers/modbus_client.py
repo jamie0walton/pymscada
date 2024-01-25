@@ -4,7 +4,7 @@ from itertools import chain
 import logging
 from struct import pack, unpack_from
 from pymscada.bus_client import BusClient
-from pymscada.modbus_map import ModbusMaps
+from pymscada.iodrivers.modbus_map import ModbusMaps
 from pymscada.periodic import Periodic
 
 
