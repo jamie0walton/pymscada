@@ -41,9 +41,19 @@ is likely to be able to handle.
 
 ## Modbus Server
 
-_modbusserver_ is not strictly a ```pymscada``` module. It is a PLC
-simulation with a Modbus TCP server to enable in-package testing of
-the Modbus client.
+_modbusserver_ listens as a mailbox for Modbus data written to
+```pymscada``` by other devices. This is also useful for in-package
+testing of the Modbus client.
+
+## Logix Client
+
+_logixclient_ uses the [pycomm3](https://github.com/ottowayi/pycomm3)
+module to read and write to ControlLogix PLCs.
+
+## SnmpClient
+
+_snmpclient_ uses the [pysnmplib](https://github.com/pysnmp/pysnmp)
+to read MIBs from network devices.
 
 ## History
 

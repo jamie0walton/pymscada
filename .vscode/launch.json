@@ -75,6 +75,16 @@
             "justMyCode":true
         },
         {
+            "name":"snmpclient",
+            "type":"python",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["snmpclient", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"modbus_plc",
             "type":"python",
             "request":"launch",

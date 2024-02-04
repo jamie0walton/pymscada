@@ -20,25 +20,25 @@ class LogixMap:
         dtype, dmin, dmax = DTYPES[src_type][0:3]
         self.tag = Tag(tagname, dtype)
         self.map_bus = id(self)
-        plc_loc = plc_tag.find(':')
+        separator = plc_tag.find(':')
         arr_start_loc = plc_tag.find('[')
         arr_end_loc = plc_tag.find(']')
         bit_loc = plc_tag.find('.')
-        self.plc = plc_tag[:plc_loc]
+        self.plc = plc_tag[:separator]
         if arr_start_loc == -1 and bit_loc == -1:
-            self.var = plc_tag[plc_loc + 1:]
+            self.var = plc_tag[separator + 1:]
             self.elm = None
             self.bit = None
         elif arr_start_loc == -1:
-            self.var = plc_tag[plc_loc + 1:bit_loc]
+            self.var = plc_tag[separator + 1:bit_loc]
             self.elm = None
             self.bit = int(plc_tag[bit_loc + 1:])
         elif bit_loc == -1:
-            self.var = plc_tag[plc_loc + 1:arr_start_loc]
+            self.var = plc_tag[separator + 1:arr_start_loc]
             self.elm = int(plc_tag[arr_start_loc + 1:arr_end_loc])
             self.bit = None
         else:
-            self.var = plc_tag[plc_loc + 1:arr_start_loc]
+            self.var = plc_tag[separator + 1:arr_start_loc]
             self.elm = int(plc_tag[arr_start_loc + 1:arr_end_loc])
             self.bit = int(plc_tag[bit_loc + 1:])
         self.plc_tag = plc_tag
@@ -77,7 +77,7 @@ class LogixMap:
         self.callback(addr, tag.value)
 
 
-class LogixMaps():
+class LogixMaps:
     """Link tags with protocol connector."""
 
     def __init__(self, tags: dict):

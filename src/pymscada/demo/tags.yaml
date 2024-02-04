@@ -166,3 +166,51 @@ sim_DateTimeSet:
 sim_DateTimeVal:
   desc: Simulation tag
   type: int
+Router_eth1_bytes_in:
+  desc: eth1 bytes in
+  type: int
+Router_eth1_bytes_out:
+  desc: eth1 bytes out
+  type: int
+Router_eth2_bytes_in:
+  desc: eth2 bytes in
+  type: int
+Router_eth2_bytes_out:
+  desc: eth2 bytes out
+  type: int
+Router_eth3_bytes_in:
+  desc: eth3 bytes in
+  type: int
+Router_eth3_bytes_out:
+  desc: eth3 bytes out
+  type: int
+Router_eth4_bytes_in:
+  desc: eth4 bytes in
+  type: int
+Router_eth4_bytes_out:
+  desc: eth4 bytes out
+  type: int
+Router_eth5_bytes_in:
+  desc: eth5 bytes in
+  type: int
+Router_eth5_bytes_out:
+  desc: eth5 bytes out
+  type: int
+Router_eth6_bytes_in:
+  desc: eth6 bytes in
+  type: int
+Router_eth6_bytes_out:
+  desc: eth6 bytes out
+  type: int
+Router_eth7_bytes_in:
+  desc: eth7 bytes in
+  type: int
+Router_eth7_bytes_out:
+  desc: eth7 bytes out
+  type: int
+Router_eth8_bytes_in:
+  desc: eth8 bytes in
+  type: int
+Router_eth8_bytes_out:
+  desc: eth8 bytes out
+  type: int

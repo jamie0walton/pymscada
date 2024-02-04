@@ -1,11 +1,11 @@
 [Unit]
-    Description=pymscada - pycomm3 client
+    Description=pymscada - SNMP client
     BindsTo=pymscada-bus.service
     After=pymscada-bus.service
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ logixclient --config __DIR__/config/logixclient.yaml
+    ExecStart=__PYMSCADA__ snmpclient --config __DIR__/config/snmpclient.yaml
     Restart=always
     RestartSec=5
     User=mscada

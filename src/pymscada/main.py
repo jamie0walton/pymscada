@@ -11,6 +11,7 @@ from pymscada.history import History
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
+from pymscada.iodrivers.snmp_client import SnmpClient
 from pymscada.simulate import Simulate
 from pymscada.www_server import WwwServer
 from pymscada.validate import validate
@@ -26,6 +27,7 @@ def args():
     commands = ['bus', 'console', 'wwwserver', 'history', 'files',
                 'logixclient',
                 'modbusserver', 'modbusclient',
+                'snmpclient',
                 'simulate', 'checkout',
                 'validate']
     parser.add_argument('module', type=str, choices=commands, metavar='action',
@@ -77,6 +79,9 @@ async def run():
     elif options.module == 'modbusserver':
         config = Config(options.config)
         module = ModbusServer(**config)
+    elif options.module == 'snmpclient':
+        config = Config(options.config)
+        module = SnmpClient(**config)
     elif options.module == 'simulate':
         config = Config(options.config)
         tag_info = dict(Config(options.tags))

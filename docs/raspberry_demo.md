@@ -48,7 +48,7 @@ The bus process won't do much until another process connects to it.
 ```bash
 su -
 cd /home/mscada/MyDir
-cp ./config/pymscada-bus.service /etc/systemd/system/mnulti-user.target.wants/
+cp config/pymscada-bus.service /lib/systemd/system/
 systemctl enable pymscada-bus
 systemctl status pymscada-bus
 ```

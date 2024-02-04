@@ -9,8 +9,8 @@ rtus:
   - {addr: Iout, type: 'DINT[]', start: 0, end: 99}
   - {addr: OutVar, type: REAL}
   writeok:
-  - {addr: Fin, start: 0, end: 99}
-  - {addr: Iin, start: 0, end: 99}
+  - {addr: Fin, type: 'REAL[]', start: 0, end: 99}
+  - {addr: Iin, type: 'REAL[]', start: 0, end: 99}
   - {addr: InVar, type: REAL}
 tags:
   Ani_Fout_20:
