@@ -5,20 +5,39 @@
 
 ## Python Mobile SCADA
 
+This is an open source Python SCADA package intended for use over your
+mobile phone. It has been developed to connect custom python scripts to
+Modicon and Rockwell PLCs, and present a web based user interface, with
+minimal coding. ```pymscada``` does expect you to be able to use python.
+
+```pymscada``` shares values through a ```Tag``` for all data. Tag values
+are updated by exception through a message bus. Changes are in any
+direction with simple loops stopped with a simplistic _don't send updates
+back to where they came from_ check. It's too simple to stop you defeating
+it (but there are easier ways to break the code).
+
+There are primary owner Tag's. A _request to set_ command is passed to the
+author of the Tag, where it is updated. This allows database information
+to pass through the Tag values as well. Tag values are typically float or
+int however they may also be megabyte sized binary or dictionary values.
+
+Example ```systemd``` service files, pymscada module config files and
+custom script examples are included. The example scripts include polling
+weather from tommorrow.io and a python script based Modbus TCP PLC.
+
+## Introduction
+
 This is a small SCADA package that will run on Linux (preferably) or
 Windows. The server runs as several modules on the host, sharing
 information through a message bus. A __subset__ of modules is:
 
 - Bus server - shares tag values with by exception updates
 - Modbus client - reads and writes to a PLC using Modbus/TCP
+- Logix client - uses ```pycomm3``` to read / write to Rockwell PLCs
+- SNMP client - polls SNMP OID values
 - History - saves data changes, serves history to web pages
 - Web server - serves web pages which connect with a web socket
-- Web pages - an Angular single page web application
-
-Web pages are responsive and defined procedurally from the
-```wwwserver.yaml``` config file.
-
-Trends use [uPlot](https://github.com/leeoniya/uPlot).
+- Web pages - procedurally generated setpoint, indication and trends
 
 ## Objectives
 

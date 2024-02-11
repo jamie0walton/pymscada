@@ -85,6 +85,16 @@
             "justMyCode":true
         },
         {
+            "name":"logixclient",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "/home/mscada",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["logixclient", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"modbus_plc",
             "type":"python",
             "request":"launch",
