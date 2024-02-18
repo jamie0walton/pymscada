@@ -1,5 +1,5 @@
-bus_ip: 192.168.1.100  # for the demo PLC make empty (None)
-bus_port: 2345  # for the demo PLC make empty (None)
+bus_ip:
+bus_port:
 rtus:
 - name: RTU
   ip: 0.0.0.0

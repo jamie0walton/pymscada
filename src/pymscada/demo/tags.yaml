@@ -166,6 +166,46 @@ sim_DateTimeSet:
 sim_DateTimeVal:
   desc: Simulation tag
   type: int
+Ani_Fin_20:
+  desc: 'Logix Fin[20]'
+  type: float
+  dp: 2
+Ani_Fout_20:
+  desc: 'Logix Fout[20]'
+  type: float
+  dp: 2
+Ani_Iin_20:
+  desc: 'Logix Iin[20]'
+  type: int
+Ani_Iout_20:
+  desc: 'Logix Iout[20]'
+  type: int
+Ani_Iout_21_0:
+  desc: 'Logix Iout[21].0'
+  multi:
+  - 'Off'
+  - 'On'
+Ani_Iout_21_1:
+  desc: 'Logix Iout[21].1'
+  multi:
+  - 'Off'
+  - 'On'
+Ani_Iin_21_0:
+  desc: 'Logix Iin[21].0'
+  multi:
+  - 'Off'
+  - 'On'
+Ani_Iin_21_1:
+  desc: 'Logix Iin[21].1'
+  multi:
+  - 'Off'
+  - 'On'
+InVar:
+  desc: InVar
+  type: float
+OutVar:
+  desc: OutVar
+  type: float
 Router_eth1_bytes_in:
   desc: eth1 bytes in
   type: int

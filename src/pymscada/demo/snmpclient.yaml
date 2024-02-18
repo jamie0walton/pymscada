@@ -5,7 +5,7 @@ rtus:
   ip: 172.26.3.254
   community: public
   rate: 10
-  read:
+  poll:
   - '1.3.6.1.2.1.31.1.1.1.6.1'
   - '1.3.6.1.2.1.31.1.1.1.6.2'
   - '1.3.6.1.2.1.31.1.1.1.6.3'
@@ -25,49 +25,49 @@ rtus:
 tags:
   Router_eth1_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.1'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.1'
   Router_eth1_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.1'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.1'
   Router_eth2_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.2'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.2'
   Router_eth2_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.2'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.2'
   Router_eth3_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.3'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.3'
   Router_eth3_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.3'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.3'
   Router_eth4_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.4'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.4'
   Router_eth4_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.4'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.4'
   Router_eth5_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.5'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.5'
   Router_eth5_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.5'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.5'
   Router_eth6_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.6'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.6'
   Router_eth6_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.6'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.6'
   Router_eth7_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.7'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.7'
   Router_eth7_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.7'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.7'
   Router_eth8_bytes_in:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.6.8'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.6.8'
   Router_eth8_bytes_out:
     type: int_roc
-    addr: 'router:1.3.6.1.2.1.31.1.1.1.10.8'
+    read: 'router:1.3.6.1.2.1.31.1.1.1.10.8'

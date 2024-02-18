@@ -7,23 +7,22 @@ from pymscada.iodrivers.logix_map import LogixMaps
 
 
 class LogixClientConnector:
-    """Poll Logix device, write on change in write range."""
+    """Manage interface to device."""
 
-    def __init__(self, name: str, ip:str, rate: float, read: list,
-                 writeok: list, mapping: LogixMaps):
+    def __init__(self, name: str, ip: str, rate: float, poll: list,
+                 mapping: LogixMaps):
         """Set up polling client."""
         self.plc_name = name
         self.ip = ip
         self.read_tags = []
-        for r in read:
+        for r in poll:
             tag = r['addr']
             if r['type'].endswith('[]'):
                 count = r['end'] - r['start'] + 1
                 tag = f"{r['addr']}[{r['start']}]{{{count}}}"
             self.read_tags.append(tag)
         self.mapping = mapping
-        self.mapping.add_write_callback(name, writeok,
-                                        self.write_tag_update)
+        self.mapping.add_write_callback(name, self.write_tag_update)
         self.periodic = Periodic(self.poll, rate)
         self.plc = LogixDriver(ip)
 
@@ -33,14 +32,14 @@ class LogixClientConnector:
             logging.warning(f'write failed {self.plc_name} {addr} to {value}')
             return
         logging.info(f'writing {addr} {value}')
-        res = self.plc.write((addr, value))
-        pass
+        result = self.plc.write((addr, value))
+        logging.info(result)
 
     async def poll(self):
         """Poll data, reopen connection if dead."""
         if not self.plc.connected and not self.plc.open():
             return
-        polled_tags = None
+        # polled_tags = None
         polled_tags = self.plc.read(*self.read_tags)
         self.mapping.polled_data(self.plc_name, polled_tags)
 
@@ -50,6 +49,7 @@ class LogixClientConnector:
 
 
 class LogixClient:
+    """Manage interface between bus and individual devices."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  rtus: dict = {}, tags: dict = {}) -> None:

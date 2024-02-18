@@ -10,14 +10,14 @@ SERVER = {
         {
             'name': 'RTU',
             'ip': '127.0.0.1',
-            'port': 1502,
+            'port': 1512,
             'tcp_udp': 'tcp',
             'serve': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
         },
         {
             'name': 'RTU_UDP',
             'ip': '127.0.0.1',
-            'port': 1503,
+            'port': 1513,
             'tcp_udp': 'udp',
             'serve': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
         }
@@ -41,7 +41,7 @@ CLIENT = {
         {
             'name': 'RTU',
             'ip': '127.0.0.1',
-            'port': 1502,
+            'port': 1512,
             'tcp_udp': 'tcp',
             'rate': 0.1,
             'read': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}],
@@ -50,7 +50,7 @@ CLIENT = {
         {
             'name': 'RTU_UDP',
             'ip': '127.0.0.1',
-            'port': 1503,
+            'port': 1513,
             'tcp_udp': 'udp',
             'rate': 0.1,
             'read': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}],

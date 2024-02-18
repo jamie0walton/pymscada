@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name":"bus",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -16,7 +16,7 @@
         },
         {
             "name":"files",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -26,7 +26,7 @@
         },
         {
             "name":"wwwserver",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -36,7 +36,7 @@
         },
         {
             "name":"history",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -46,7 +46,7 @@
         },
         {
             "name":"simulate",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -56,7 +56,7 @@
         },
         {
             "name":"mbserver",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -66,7 +66,7 @@
         },
         {
             "name":"mbclient",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -76,7 +76,7 @@
         },
         {
             "name":"snmpclient",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -96,7 +96,7 @@
         },
         {
             "name":"modbus_plc",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/demo/modbus_plc.py",
@@ -105,7 +105,7 @@
         },
         {
             "name":"checkout",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -115,7 +115,7 @@
         },
         {
             "name":"validate",
-            "type":"python",
+            "type":"debugpy",
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
@@ -125,7 +125,7 @@
         },
         {
             "name": "Python: Debug Tests",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "purpose": ["debug-test"],

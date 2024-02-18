@@ -43,46 +43,33 @@ class ModbusClientProtocol(asyncio.Protocol):
         transport.set_write_buffer_limits(high=0)
         self.transport = transport
 
-    def data_received(self, recv):
-        """Received TCP data, see if there is a full modbus packet."""
-        # logging.info("data_received")
-        # logging.info(f'tcp echo server received: {recv}')
+    def unpack_mb(self):
+        """Return complete modbus packets and trim the buffer."""
         start = 0
-        self.buffer += recv
         while True:
             buf_len = len(self.buffer)
-            if buf_len < 6 + start:  # assumes possible mbap_len of 0
-                self.buffer = self.buffer[start:]
+            if buf_len < 6 + start:  # enough to unpack length
                 break
-            (_mbap_tr, _mbap_pr, mbap_len) = unpack_from(
-                ">3H", self.buffer, start
-            )
-            if buf_len < 6 + mbap_len:
-                self.buffer = self.buffer[start:]
+            mbap_tr, mbap_pr, mbap_len = unpack_from(">3H", self.buffer, start)
+            if buf_len < start + 6 + mbap_len:  # there is a complete message
                 break
             end = start + 6 + mbap_len
-            # got a complete message, set start to end for buffer prune
-            self.process(self.buffer[start:end])
+            yield self.buffer[start:end]
             start = end
+        self.buffer = self.buffer[end:]
+
+    def data_received(self, recv):
+        """Received TCP data, see if there is a full modbus packet."""
+        self.buffer += recv
+        for msg in self.unpack_mb():
+            self.process(msg)
 
     def datagram_received(self, recv, _addr):
         """Received a UDP packet, discard any partial packets."""
         # logging.info("datagram_received")
-        start = 0
-        buffer = recv
-        while True:
-            buf_len = len(buffer)
-            if buf_len < 6 + start:  # assumes possible mbap_len of 0
-                buffer = buffer[start:]
-                break
-            (_mbap_tr, _mbap_pr, mbap_len) = unpack_from(">3H", buffer, start)
-            if buf_len < 6 + mbap_len:
-                buffer = buffer[start:]
-                break
-            end = start + 6 + mbap_len
-            # got a complete message, set start to end for buffer prune
-            self.process(buffer[start:end])
-            start = end
+        self.buffer = recv
+        for msg in self.unpack_mb():
+            self.process(msg)
 
 
 class ModbusClientConnector:

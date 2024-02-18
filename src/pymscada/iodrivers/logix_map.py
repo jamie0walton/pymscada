@@ -13,6 +13,7 @@ DTYPES = {
 
 
 def tag_split(plc_tag: str):
+    """Split the address into rtu, variable, element and bit."""
     separator = plc_tag.find(':')
     arr_start_loc = plc_tag.find('[')
     arr_end_loc = plc_tag.find(']')
@@ -40,27 +41,40 @@ def tag_split(plc_tag: str):
 class LogixMap:
     """Do value updates for each tag."""
 
-    def __init__(self, tagname: str, src_type: str, read_tag: str,
-                 write_tag: str):
+    def __init__(self, tagname: str, tagdict: dict):
         """Initialise modbus map and Tag."""
-        dtype, dmin, dmax = DTYPES[src_type][0:3]
+        dtype, dmin, dmax = DTYPES[tagdict['type']][0:3]
         self.tag = Tag(tagname, dtype)
         self.map_bus = id(self)
-        self.read_plc, self.read_var, self.read_elm, self.read_bit = \
-            tag_split(read_tag)
-        self.plc_read_tag = read_tag
-        self.write_plc, self.write_var, self.write_elm, self.write_bit = \
-            tag_split(write_tag)
-        self.plc_write_tag = write_tag
-        self.callback = None
         if dmin is not None:
             self.tag.value_min = dmin
         if dmax is not None:
             self.tag.value_max = dmax
+        if 'read' in tagdict:
+            self.plc_read_tag = tagdict['read']
+            self.read_plc, self.read_var, self.read_elm, self.read_bit = \
+                tag_split(self.plc_read_tag)
+        else:
+            self.plc_read_tag = None
+            self.read_plc = None
+            self.read_var = None
+            self.read_elm = None
+            self.read_bit = None
+        if 'write' in tagdict:
+            self.plc_write_tag = tagdict['write']
+            self.write_plc, self.write_var, self.write_elm, self.write_bit = \
+                tag_split(self.plc_write_tag)
+        else:
+            self.plc_write_tag = None
+            self.write_plc = None
+            self.write_var = None
+            self.write_elm = None
+            self.write_bit = None
+        self.write_callback = None
 
     def set_callback(self, callback):
         """Add tag callback interface."""
-        self.callback = callback
+        self.write_callback = callback
         self.tag.add_callback(self.tag_value_changed, bus_id=self.map_bus)
 
     def set_tag_value(self, value, time_us):
@@ -83,7 +97,7 @@ class LogixMap:
             addr = f'{self.write_var}[{self.write_elm}]'
         else:
             addr = f'{self.write_var}[{self.write_elm}].{self.write_bit}'
-        self.callback(addr, tag.value)
+        self.write_callback(addr, tag.value)
 
 
 class LogixMaps:
@@ -95,14 +109,8 @@ class LogixMaps:
         self.tag_map: dict[str, LogixMap] = {}
         # use the plc_name then variable name to access a list of maps.
         self.read_var_map: dict[str, dict[str, list[LogixMap]]] = {}
-        for tagname, v in tags.items():
-            if 'addr' in v:
-                read_addr = v['addr']
-                write_addr = v['addr']
-            else:
-                read_addr = v['read']
-                write_addr = v['write']
-            map = LogixMap(tagname, v['type'], read_addr, write_addr)
+        for tagname, tagdict in tags.items():
+            map = LogixMap(tagname, tagdict)
             if map.read_plc not in self.read_var_map:
                 self.read_var_map[map.read_plc] = {}
             if map.read_var not in self.read_var_map[map.read_plc]:
@@ -111,21 +119,10 @@ class LogixMaps:
             self.read_var_map[map.read_plc][map.read_var].append(map)
             self.tag_map[map.tag.name] = map
 
-    def add_write_callback(self, plcname, writeok, callback):
-        """Connection advises device links."""
-        # Create a set of all possible valid addresses
-        write_set = set()
-        for w in writeok:
-            if '[' in w['type']:
-                for i in range(w['start'], w['end'] + 1):
-                    write_set.add((w['addr'], i))
-            else:
-                write_set.add((w['addr'], None))
-        # where the mapped tag uses a valid address, add callback to
-        # the connection writer
+    def add_write_callback(self, plcname, callback):
+        """Register connector with map for write tags."""
         for map in self.tag_map.values():
-            if map.write_plc == plcname and \
-                    (map.write_var, map.write_elm) in write_set:
+            if map.write_plc == plcname:
                 map.set_callback(callback)
 
     def polled_data(self, plcname, polls):

@@ -6,54 +6,58 @@ rtus:
   port: 1502
   tcp_udp: tcp
   rate: 0.2
-  read:
+  poll:
   - {unit: 1, file: 4x, start: 1, end: 50}
   - {unit: 1, file: 4x, start: 51, end: 100}
-  writeok:
-  - {unit: 1, file: 4x, start: 1, end: 100}
 tags:
   IntSet:
     type: int16
-    addr: RTU:1:4x:1
+    read: RTU:1:4x:1
+    write: RTU:1:4x:1
   IntVal:
     type: int16
-    addr: RTU:1:4x:2
+    read: RTU:1:4x:2
   FloatSet:
     type: float32
-    addr: RTU:1:4x:3
+    read: RTU:1:4x:3
+    write: RTU:1:4x:3
   FloatVal:
     type: float32
-    addr: RTU:1:4x:5
+    read: RTU:1:4x:5
   MultiSet:
     type: int16
-    addr: RTU:1:4x:7
+    read: RTU:1:4x:7
+    write: RTU:1:4x:7
   MultiVal:
     type: int16
-    addr: RTU:1:4x:8
+    read: RTU:1:4x:8
   TimeSet:
     type: uint64
-    addr: RTU:1:4x:9
+    read: RTU:1:4x:9
+    write: RTU:1:4x:9
   TimeVal:
     type: uint64
-    addr: RTU:1:4x:13
+    read: RTU:1:4x:13
   DateSet:
     type: uint64
-    addr: RTU:1:4x:17
+    read: RTU:1:4x:17
+    write: RTU:1:4x:17
   DateVal:
     type: uint64
-    addr: RTU:1:4x:21
+    read: RTU:1:4x:21
   DateTimeSet:
     type: uint64
-    addr: RTU:1:4x:25
+    read: RTU:1:4x:25
+    write: RTU:1:4x:25
   DateTimeVal:
     type: uint64
-    addr: RTU:1:4x:29
+    read: RTU:1:4x:29
   cpu_temp:
     type: float32
-    addr: RTU:1:4x:33
+    read: RTU:1:4x:33
   cpu_load:
     type: float32
-    addr: RTU:1:4x:35
+    read: RTU:1:4x:35
   disk_use:
     type: float32
-    addr: RTU:1:4x:37
+    read: RTU:1:4x:37

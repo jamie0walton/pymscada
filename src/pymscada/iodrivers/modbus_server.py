@@ -37,80 +37,65 @@ class ModbusServerProtocol:
         transport.set_write_buffer_limits(high=0)
         self.transport = transport
 
-    def data_received(self, recv):
-        """Received."""
-        # logging.info(f'received: {recv}')
+    def unpack_mb(self):
+        """Return complete modbus packets and trim the buffer."""
         start = 0
-        self.buffer += recv
         while True:
             buf_len = len(self.buffer)
             if buf_len < 6 + start:  # enough to unpack length
-                self.buffer = self.buffer[start:]
                 break
-            (_mbap_tr, _mbap_pr, mbap_len) = unpack_from(
-                ">3H", self.buffer, start
-            )
-            if buf_len < 6 + mbap_len:  # there is a complete message
-                self.buffer = self.buffer[start:]
+            mbap_tr, mbap_pr, mbap_len = unpack_from(">3H", self.buffer, start)
+            if buf_len < start + 6 + mbap_len:  # there is a complete message
                 break
             end = start + 6 + mbap_len
-            self.msg = self.buffer[start:end]
+            yield self.buffer[start:end]
             start = end
-            self.process()
-            if self.msg is not None:
-                self.transport.write(self.msg)
-            self.msg = b""
+        self.buffer = self.buffer[end:]
+
+    def data_received(self, recv):
+        """Received."""
+        # logging.info(f'received: {recv}')
+        self.buffer += recv
+        for msg in self.unpack_mb():
+            reply = self.process(msg)
+            self.transport.write(reply)
 
     def datagram_received(self, recv, addr):
         """Received."""
-        start = 0
-        buffer = recv
-        while True:
-            buf_len = len(buffer)
-            if buf_len < 6 + start:  # enough to unpack length
-                buffer = buffer[start:]
-                break
-            (_mbap_tr, _mbap_pr, mbap_len) = unpack_from(">3H", buffer, start)
-            if buf_len < 6 + mbap_len:  # there is a complete message
-                buffer = buffer[start:]
-                break
-            end = start + 6 + mbap_len
-            self.msg = buffer[start:end]
-            start = end
-            self.process()
-            if self.msg is not None:
-                self.transport.sendto(self.msg, addr)
-            self.msg = b""
+        self.buffer = recv
+        for msg in self.unpack_mb():
+            reply = self.process(msg)
+            self.transport.sendto(reply, addr)
 
-    def process(self):
+    def process(self, msg):
         """Process."""
         mbap_tr, mbap_pr, _mbap_len, mbap_unit, pdu_fc = unpack_from(
-            ">3H2B", self.msg, 0)
+            ">3H2B", msg, 0)
         if pdu_fc == 3:  # Read Holding Registers
             # Return 0 for missing addresses
-            pdu_start, pdu_count = unpack_from(">2H", self.msg, 8)
+            pdu_start, pdu_count = unpack_from(">2H", msg, 8)
             data = self.mapping.get_data(self.name, mbap_unit, '4x', pdu_start,
                                          pdu_count)
             data_len = len(data)
             msg_len = 3 + data_len
-            self.msg = pack('>3H3B', mbap_tr, mbap_pr, msg_len, mbap_unit,
-                            pdu_fc, data_len) + data
+            reply = pack('>3H3B', mbap_tr, mbap_pr, msg_len, mbap_unit,
+                         pdu_fc, data_len) + data
         elif pdu_fc == 6:  # Set Single Register    4x
-            pdu_start = unpack_from(">H", self.msg, 8)[0]
-            data = bytearray(self.msg[10:12])
+            pdu_start = unpack_from(">H", msg, 8)[0]
+            data = bytearray(msg[10:12])
             self.mapping.set_data(self.name, mbap_unit, '4x', pdu_start,
                                   1, data)
             msg_len = 6
-            self.msg = pack(">3H2BH", mbap_tr, mbap_pr, msg_len, mbap_unit,
-                            pdu_fc, pdu_start) + data
+            reply = pack(">3H2BH", mbap_tr, mbap_pr, msg_len, mbap_unit,
+                         pdu_fc, pdu_start) + data
         elif pdu_fc == 16:  # Set Multiple Registers 4x
-            pdu_start, pdu_count, pdu_bytes = unpack_from(">2HB", self.msg, 8)
-            data = bytearray(self.msg[13:13 + pdu_bytes])
+            pdu_start, pdu_count, pdu_bytes = unpack_from(">2HB", msg, 8)
+            data = bytearray(msg[13:13 + pdu_bytes])
             self.mapping.set_data(self.name, mbap_unit, '4x', pdu_start,
                                   pdu_count, data)
             msg_len = 6
-            self.msg = pack(">3H2B2H", mbap_tr, mbap_pr, msg_len, mbap_unit,
-                            pdu_fc, pdu_start, pdu_count)
+            reply = pack(">3H2B2H", mbap_tr, mbap_pr, msg_len, mbap_unit,
+                         pdu_fc, pdu_start, pdu_count)
         else:
             # Unsupported, send the standard Modbus exception
             logging.warn(
@@ -118,8 +103,9 @@ class ModbusServerProtocol:
                 f" attempted FC {pdu_fc}"
             )
             msg_len = 3
-            self.msg = pack(">3H2BB", mbap_tr, mbap_pr, msg_len, mbap_unit,
-                            pdu_fc + 128, 1)
+            reply = pack(">3H2BB", mbap_tr, mbap_pr, msg_len, mbap_unit,
+                         pdu_fc + 128, 1)
+        return reply
 
 
 class ModbusServerConnector:

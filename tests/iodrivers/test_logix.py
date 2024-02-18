@@ -4,6 +4,10 @@ import pytest
 from time import time
 from pymscada import Tag, LogixClient
 
+# You will require a Logix PLC at 172.26.7.196 with REAL and DINT
+# tags and arrays to match. The PLC must also write anything it
+# receives on IN to the matching OUT value.
+
 CLIENT = {
     'bus_ip': None,
     'bus_port': None,
@@ -12,29 +16,39 @@ CLIENT = {
             'name': 'Ani',
             'ip': '172.26.7.196',
             'rate': '0.2',
-            'read': [
+            'poll': [
                 {'addr': 'Fout', 'type': 'REAL[]', 'start': 0, 'end': 99},
                 {'addr': 'Iout', 'type': 'DINT[]', 'start': 0, 'end': 99},
                 {'addr': 'OutVar', 'type': 'REAL'}
-            ],
-            'writeok': [
-                {'addr': 'Fin', 'type': 'REAL[]', 'start': 0, 'end': 99},
-                {'addr': 'Iin', 'type': 'DINT[]', 'start': 0, 'end': 99},
-                {'addr': 'InVar', 'type': 'REAL'}
             ]
         }
     ],
     'tags': {
-        'Ani_Fin_20': {'type': 'float32', 'addr': 'Ani:Fin[20]'},
-        'Ani_Fout_20': {'type': 'float32', 'addr': 'Ani:Fout[20]'},
-        'Ani_Iin_20': {'type': 'int32', 'addr': 'Ani:Iin[20]'},
-        'Ani_Iout_20': {'type': 'int32', 'addr': 'Ani:Iout[20]'},
-        'InVar': {'type': 'float32', 'addr': 'Ani:InVar'},
-        'OutVar': {'type': 'float32', 'addr': 'Ani:OutVar'},
-        'Ani_Iin_21_0': {'type': 'bool', 'addr': 'Ani:Iin[21].0'},
-        'Ani_Iout_21_0': {'type': 'bool', 'addr': 'Ani:Iout[21].0'},
-        'Ani_Iin_21_1': {'type': 'bool', 'addr': 'Ani:Iin[21].1'},
-        'Ani_Iout_21_1': {'type': 'bool', 'addr': 'Ani:Iout[21].1'},
+        'Ani_Fin_20': {'type': 'float32',
+                       'read': 'Ani:Fout[20]',
+                       'write': 'Ani:Fin[20]'},
+        'Ani_Fout_20': {'type': 'float32',
+                        'read': 'Ani:Fout[20]'},
+        'Ani_Iin_20': {'type': 'int32',
+                       'read': 'Ani:Iout[20]',
+                       'write': 'Ani:Iin[20]'},
+        'Ani_Iout_20': {'type': 'int32',
+                        'read': 'Ani:Iout[20]'},
+        'InVar': {'type': 'float32',
+                  'read': 'Ani:OutVar',
+                  'write': 'Ani:InVar'},
+        'OutVar': {'type': 'float32',
+                   'read': 'Ani:OutVar'},
+        'Ani_Iin_21_0': {'type': 'bool',
+                         'read': 'Ani:Iout[21].0',
+                         'write': 'Ani:Iin[21].0'},
+        'Ani_Iout_21_0': {'type': 'bool',
+                          'read': 'Ani:Iout[21].0'},
+        'Ani_Iin_21_1': {'type': 'bool',
+                         'read': 'Ani:Iout[21].1',
+                         'write': 'Ani:Iin[21].1'},
+        'Ani_Iout_21_1': {'type': 'bool',
+                          'read': 'Ani:Iout[21].1'},
     }
 }
 queue = asyncio.Queue()
@@ -44,11 +58,6 @@ def tag_callback(tag: Tag):
     """Pipe all async messages through here."""
     global queue
     queue.put_nowait(tag)
-
-
-LOGIX_TEST = [
-    (float, '', '', 123.456, -987.654)
-]
 
 
 @pytest.mark.asyncio

@@ -1,3 +1,4 @@
+"""Poll SNMP OIDs from devices."""
 import logging
 import pysnmp.hlapi.asyncio as snmp
 from pymscada.bus_client import BusClient
@@ -8,7 +9,7 @@ from pymscada.iodrivers.snmp_map import SnmpMaps
 class SnmpClientConnector:
     """Poll snmp devices, write and traps are not implemented."""
 
-    def __init__(self, name: str, ip:str, rate: float, read: list,
+    def __init__(self, name: str, ip: str, rate: float, read: list,
                  community: str, mapping: SnmpMaps):
         """Set up polling client."""
         self.snmp_name = name
@@ -45,6 +46,7 @@ class SnmpClientConnector:
 
 
 class SnmpClient:
+    """SNMP client."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  rtus: dict = {}, tags: dict = {}) -> None:

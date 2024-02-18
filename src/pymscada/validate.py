@@ -51,7 +51,7 @@ TAG_SCHEMA = {
     'keysrules': {
         'type': 'string',
         # tag name discovery, save for later checking
-        'ms_tagname': True
+        'ms_tagname': 'save'
     },
     'valuesrules': {
         'type': 'dict',
@@ -67,7 +67,7 @@ TAG_SCHEMA = {
 BUS_SCHEMA = {
     'type': 'dict',
     'schema': {
-        'ip': {'type': 'string', 'ms_ip': True},
+        'ip': {'type': 'string', 'ms_ip': 'ipv4 none'},
         'port': {'type': 'integer', 'min': 1024, 'max': 65536}
     }
 }
@@ -88,12 +88,12 @@ VALUESETFILES_LIST = {
         'allowed': ['value', 'setpoint', 'files'],
     },
     # tagname must have been found in parsing tags.yaml
-    'tagname': {'type': 'string', 'ms_tagname': False}
+    'tagname': {'type': 'string', 'ms_tagname': 'exists'}
 }
 SELECTDICT_LIST = {
     'type': {'type': 'string', 'allowed': ['selectdict']},
     # tagname must have been found in parsing tags.yaml
-    'tagname': {'type': 'string', 'ms_tagname': False},
+    'tagname': {'type': 'string', 'ms_tagname': 'exists'},
     'opts': {
         'type': 'dict',
         # 'schema': {
@@ -138,7 +138,7 @@ UPLOT_LIST = {
             'type': 'dict',
             'schema': {
                 # tagname must have been found in parsing tags.yaml
-                'tagname': {'type': 'string', 'ms_tagname': False},
+                'tagname': {'type': 'string', 'ms_tagname': 'exists'},
                 'label': {'type': 'string', 'required': False},
                 'scale': {'type': 'string', 'required': False},
                 'color': {'type': 'string', 'required': False},
@@ -170,9 +170,9 @@ LIST_WWWSERVER = {
 WWWSERVER_SCHEMA = {
     'type': 'dict',
     'schema': {
-        'bus_ip': {'type': 'string', 'ms_ip': True},
+        'bus_ip': {'type': 'string', 'ms_ip': 'none ipv4'},
         'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536},
-        'ip': {'type': 'string', 'ms_ip': True},
+        'ip': {'type': 'string', 'ms_ip': 'none ipv4'},
         'port': {'type': 'integer', 'min': 1024, 'max': 65536},
         'get_path': {'nullable': True},
         'paths': {'type': 'list', 'allowed': ['history', 'config', 'pdf']},
@@ -186,7 +186,7 @@ WWWSERVER_SCHEMA = {
 HISTORY_SCHEMA = {
     'type': 'dict',
     'schema': {
-        'bus_ip': {'type': 'string', 'ms_ip': True},
+        'bus_ip': {'type': 'string', 'ms_ip': 'none ipv4'},
         'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536},
         'path': {'type': 'string'},
     }
@@ -195,7 +195,7 @@ HISTORY_SCHEMA = {
 MODBUSSERVER_SCHEMA = {
     'type': 'dict',
     'schema': {
-        'bus_ip': {'type': 'string', 'ms_ip': True, 'nullable': True},
+        'bus_ip': {'type': 'string', 'ms_ip': 'none ipv4', 'nullable': True},
         'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536,
                      'nullable': True},
         'path': {'type': 'string'},
@@ -219,7 +219,7 @@ MODBUSSERVER_SCHEMA = {
             'type': 'dict',
             'keysrules': {
                 'type': 'string',
-                'ms_tagname': False
+                'ms_tagname': 'none'
             },
             'valuesrules': {
                 'type': 'dict',
@@ -235,7 +235,7 @@ MODBUSSERVER_SCHEMA = {
 MODBUSCLIENT_SCHEMA = {
     'type': 'dict',
     'schema': {
-        'bus_ip': {'type': 'string', 'ms_ip': True, 'nullable': True},
+        'bus_ip': {'type': 'string', 'ms_ip': 'ipv4'},
         'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536,
                      'nullable': True},
         'path': {'type': 'string'},
@@ -249,11 +249,7 @@ MODBUSCLIENT_SCHEMA = {
                     'port': {},
                     'tcp_udp': {'type': 'string', 'allowed': ['tcp', 'udp']},
                     'rate': {},
-                    'read': {
-                        'type': 'list',
-                        'schema': {}
-                    },
-                    'writeok': {
+                    'poll': {
                         'type': 'list',
                         'schema': {}
                     }
@@ -264,44 +260,132 @@ MODBUSCLIENT_SCHEMA = {
             'type': 'dict',
             'keysrules': {
                 'type': 'string',
-                'ms_tagname': False
+                'ms_tagname': 'exists'
             },
             'valuesrules': {
                 'type': 'dict',
                 'schema': {
                     'type': {},
-                    'addr': {}
-                },
+                    'read': {},
+                    'write': {}
+                }
             }
-        }           
+        }
     }
 }
 
+SNMPCLIENT_SCHEMA = {
+    'type': 'dict',
+    'schema': {
+        'bus_ip': {'type': 'string', 'ms_ip': 'ipv4'},
+        'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536,
+                     'nullable': True},
+        'path': {'type': 'string'},
+        'rtus': {
+            'type': 'list',
+            'schema': {
+                'type': 'dict',
+                'schema': {
+                    'name': {},
+                    'ip': {},
+                    'community': {},
+                    'rate': {},
+                    'poll': {
+                        'type': 'list',
+                        'schema': {}
+                    }
+                }
+            }
+        },
+        'tags': {
+            'type': 'dict',
+            'keysrules': {
+                'type': 'string',
+                'ms_tagname': 'exists'
+            },
+            'valuesrules': {
+                'type': 'dict',
+                'schema': {
+                    'type': {},
+                    'read': {}
+                }
+            }
+        }
+    }
+}
+
+LOGIXCLIENT_SCHEMA = {
+    'type': 'dict',
+    'schema': {
+        'bus_ip': {'type': 'string', 'ms_ip': 'ipv4'},
+        'bus_port': {'type': 'integer', 'min': 1024, 'max': 65536,
+                     'nullable': True},
+        'path': {'type': 'string'},
+        'rtus': {
+            'type': 'list',
+            'schema': {
+                'type': 'dict',
+                'schema': {
+                    'name': {},
+                    'ip': {},
+                    'rate': {},
+                    'poll': {
+                        'type': 'list',
+                        'schema': {}
+                    }
+                }
+            }
+        },
+        'tags': {
+            'type': 'dict',
+            'keysrules': {
+                'type': 'string',
+                'ms_tagname': 'exists'
+            },
+            'valuesrules': {
+                'type': 'dict',
+                'schema': {
+                    'type': {},
+                    'read': {},
+                    'write': {}
+                }
+            }
+        }
+    }
+}
+
+
 class MsValidator(Validator):
-    """Add additional application checks"""
+    """Additional application checks."""
+
     ms_tagnames = {}
+    ms_notagcheck = {}
 
     def _validate_ms_tagname(self, constraint, field, value):
-        """ Test tagname exists, capture when true.
+        """
+        Test tagname exists, capture when true.
 
         The rule's arguments are validated against this schema:
-        {'type': 'boolean'}
+        {'type': 'string'}
         """
         if '.' in field:
             self._error(field, "'.' invalid in tag definition.")
-        if constraint:
+        if constraint == 'save':
             if field in self.ms_tagnames:
                 self._error(field, 'attempt to redefine')
             else:
                 self.ms_tagnames[field] = {'type': None}
-        else:
+        elif constraint == 'exists':
             if value not in self.ms_tagnames:
                 self._error(field, 'tag was not defined in tags.yaml')
-            else:
-                pass
+        elif constraint == 'none':
+            pass
+        else:
+            pass
 
     def _validate_ms_tagtype(self, constraint, field, value):
-        """ Test tagname type, capture when true.
+        """
+        Test tagname type, capture when true.
 
         The rule's arguments are validated against this schema:
         {'type': 'boolean'}
@@ -318,18 +402,22 @@ class MsValidator(Validator):
             pass
 
     def _validate_ms_ip(self, constraint, field, value):
-        """ Test session.inet_aton works for the address.
+        """
+        Test session.inet_aton works for the address.
 
         The rule's arguments are validated against this schema:
-        {'type': 'boolean'}
+        {'type': 'string'}
         """
-        try:
-            inet_aton(value)
-        except (OSError, TypeError):
-            self._error(field, 'ip address fails socket.inet_aton')
+        if value is None and 'none' in constraint:
+            pass
+        elif 'ipv4' in constraint:
+            try:
+                inet_aton(value)
+            except (OSError, TypeError):
+                self._error(field, 'ip address fails socket.inet_aton')
 
 
-def validate(path: str=None):
+def validate(path: str = None):
     """Validate."""
     s = {
         'tags': TAG_SCHEMA,
@@ -338,8 +426,10 @@ def validate(path: str=None):
         'history': HISTORY_SCHEMA,
         'modbusserver': MODBUSSERVER_SCHEMA,
         'modbusclient': MODBUSCLIENT_SCHEMA,
+        'snmpclient': SNMPCLIENT_SCHEMA,
+        'logixclient': LOGIXCLIENT_SCHEMA,
     }
-    prefix = ''
+    prefix = './'
     if path is not None:
         prefix = path + '/'
     c = {
@@ -349,8 +439,10 @@ def validate(path: str=None):
         'history': dict(Config(f'{prefix}history.yaml')),
         'modbusserver': dict(Config(f'{prefix}modbusserver.yaml')),
         'modbusclient': dict(Config(f'{prefix}modbusclient.yaml')),
+        'snmpclient': dict(Config(f'{prefix}snmpclient.yaml')),
+        'logixclient': dict(Config(f'{prefix}logixclient.yaml')),
     }
     v = MsValidator(s)
     res = v.validate(c)
     wdy = dump(v.errors)  # , default_flow_style=False)
-    return res, wdy
+    return res, wdy, prefix
