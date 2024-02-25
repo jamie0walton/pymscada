@@ -109,7 +109,7 @@
             "request":"launch",
             "cwd": "/home/mscada",
             "program":"pymscada/src/pymscada/__main__.py",
-            "args": ["checkout", "--overwrite", "--verbose"],
+            "args": ["checkout", "--verbose", "--overwrite"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

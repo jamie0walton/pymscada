@@ -7,10 +7,18 @@ rtus:
   tcp_udp: tcp
   serve:
   - {unit: 1, file: 4x, start: 1, end: 100}
+  - {unit: 2, file: 4x, start: 1, end: 100}
+  - {unit: 3, file: 4x, start: 1, end: 100}
 tags:
   sim_IntSet:
     type: int16
     addr: RTU:1:4x:1
+  sim_IntSet2:
+    type: int16
+    addr: RTU:2:4x:1
+  sim_IntSet3:
+    type: int16
+    addr: RTU:3:4x:1
   sim_IntVal:
     type: int16
     addr: RTU:1:4x:2

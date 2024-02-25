@@ -1,5 +1,5 @@
 # Running on Windows
-#### [Previous](./README.md) [Up](./README.md) [Next](./debian_demo.md)
+#### [Previous](./weather.md) [Up](./README.md) [Next](./debian_demo.md)
 ## Prerequisites
 I have run this on both Windows 11 and Windows 10 at varying times with python
 versions from 3.9 to 3.11. When the ```--config``` argument is not used

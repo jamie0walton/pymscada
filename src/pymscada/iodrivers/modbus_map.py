@@ -139,7 +139,7 @@ class ModbusMaps():
         """Make the maps."""
         for tagname, v in self.tags.items():
             dtype = v['type']
-            addr = v['addr']
+            addr = v['read']
             map = ModbusMap(tagname, dtype, addr, self.data, self.value_chg)
             size = DTYPES[dtype][3]
             name, unit, file, word = addr.split(':')

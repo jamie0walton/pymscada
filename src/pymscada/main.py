@@ -1,6 +1,7 @@
 """Main server entry point."""
 import argparse
 import asyncio
+from importlib.metadata import version
 import logging
 from pymscada.bus_server import BusServer
 from pymscada.checkout import checkout
@@ -87,53 +88,59 @@ async def snmpclient(options):
     return SnmpClient(**config)
 
 
-def args():
+def add_subparser_defaults(
+        parser: argparse._SubParsersAction,
+        name: str, call, help: str):
+    """Add arguments common to all subparsers."""
+    s = parser.add_parser(name, help=help)
+    s.set_defaults(get_module=call, module=name)
+    s.add_argument('--config', metavar='file', default=None,
+                   help=f'Config file, default is "{name}.yaml".')
+    s.add_argument('--tags', metavar='file', default=None,
+                   help='Tags file, default is "tags.yaml".')
+    s.add_argument('--verbose', action='store_true',
+                   help="Set level to logging.INFO.")
+    return s
+
+
+def args(_version: str):
     """Read commandline arguments."""
     parser = argparse.ArgumentParser(
         prog='pymscada',
         description='Connect IO, logic, applications, and webpage UI',
-        epilog='Python Mobile SCADA'
+        epilog=f'Python Mobile SCADA {_version}'
     )
-    parser.add_argument('--config', metavar='file',
-                        help='Config file, default is "[module].yaml".')
-    parser.add_argument('--tags', metavar='file',
-                        help='Tags file, default is "tags.yaml".')
-    parser.add_argument('--verbose', action='store_true',
-                        help="Set level to logging.INFO.")
-    sp = parser.add_subparsers(title='module')
-    # Add individual module options, most use --config and --tags
-    s = sp.add_parser('bus', help='run the message bus')
-    s.set_defaults(get_module=bus)
-    s = sp.add_parser('wwwserver', help='serve web pages')
-    s.set_defaults(get_module=wwwserver)
-    s = sp.add_parser('history', help='collect and serve history')
-    s.set_defaults(get_module=history)
-    s = sp.add_parser('files', help='receive and send files')
-    s.set_defaults(get_module=files)
-    s = sp.add_parser('console', help='interactive bus console')
-    s.set_defaults(get_module=console)
-    s = sp.add_parser('checkout', help='create example config files')
-    s.set_defaults(get_module=_checkout)
-    s.add_argument('--overwrite', action='store_true', default=False,
-                   help='checkout may overwrite files, CARE!')
-    s = sp.add_parser('validate', help='validate config files')
-    s.set_defaults(get_module=_validate)
-    s.add_argument('--path', metavar='file',
-                   help='default is current working directory')
-    s = sp.add_parser('modbusserver', help='receive modbus commands')
-    s.set_defaults(get_module=modbusserver)
-    s = sp.add_parser('modbusclient', help='poll/write to modbus devices')
-    s.set_defaults(get_module=modbusclient)
-    s = sp.add_parser('logixclient', help='poll/write to logix devices')
-    s.set_defaults(get_module=logixclient)
-    s = sp.add_parser('snmpclient', help='poll to snmp oids')
-    s.set_defaults(get_module=snmpclient)
+    subparsers = parser.add_subparsers(title='module')
+    for module, func, help in [
+        ['bus', bus, 'run the message bus'],
+        ['wwwserver', wwwserver, 'serve web pages'],
+        ['history', history, 'collect and serve history'],
+        ['files', files, 'receive and send files'],
+        ['console', console, 'interactive bus console'],
+        ['checkout', _checkout, 'create example config files'],
+        ['validate', _validate, 'validate config files'],
+        ['modbusserver', modbusserver, 'receive modbus messages'],
+        ['modbusclient', modbusclient, 'poll/write to modbus devices'],
+        ['logixclient', logixclient, 'poll/write to logix devices'],
+        ['snmpclient', snmpclient, 'poll snmp oids'],
+    ]:
+        modparser = add_subparser_defaults(subparsers, module, func, help)
+        if module == 'checkout':
+            modparser.add_argument(
+                '--overwrite', action='store_true', default=False,
+                help='checkout may overwrite files, CARE!')
+        elif module == 'validate':
+            modparser.add_argument(
+                '--path', metavar='file',
+                help='default is current working directory')
     return parser.parse_args()
 
 
 async def run():
     """Run bus and wwwserver."""
-    options = args()
+    _version = version("pymscada")
+    logging.warning(f'pymscada {_version} starting')
+    options = args(_version)
     if options.verbose:
         logging.basicConfig(level=logging.INFO)
     if options.config is None:

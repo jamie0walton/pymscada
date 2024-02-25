@@ -1,6 +1,5 @@
 """Modbus Client."""
 import asyncio
-from itertools import chain
 import logging
 from struct import pack, unpack_from
 from pymscada.bus_client import BusClient
@@ -76,7 +75,7 @@ class ModbusClientConnector:
     """Poll Modbus device, write on change in write range."""
 
     def __init__(self, name: str, ip: str, port: int, rate: int, tcp_udp: str,
-                 read: list, writeok: list, mapping: ModbusMaps):
+                 poll: list, mapping: ModbusMaps):
         """
         Set up polling client.
 
@@ -88,13 +87,13 @@ class ModbusClientConnector:
         self.tcp_udp = tcp_udp
         self.transport = None
         self.protocol = None
-        self.read = read
-        self.writeok = writeok
+        self.read = poll
+        self.writeok = None
         self.periodic = Periodic(self.poll, rate)
         self.mapping = mapping
         self.sent = {}
         tables = {}
-        for file_range in chain(read, writeok):
+        for file_range in poll:  # chain(read, writeok):
             unit = file_range['unit']
             file = file_range['file']
             table = f'{name}:{unit}:{file}'
