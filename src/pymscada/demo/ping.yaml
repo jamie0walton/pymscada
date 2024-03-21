@@ -1,0 +1,15 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+ping:
+  rate: 60
+  retry: 1
+tags:
+  localhost_ping:
+    type: ping
+    addr: '127.0.0.1'
+  google_ping:
+    type: ping
+    addr: www.google.com
+  electronet_ping:
+    type: ping
+    addr: electronet.co.nz

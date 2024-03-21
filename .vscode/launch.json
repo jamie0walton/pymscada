@@ -85,6 +85,16 @@
             "justMyCode":true
         },
         {
+            "name":"ping",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["ping", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"logixclient",
             "type":"debugpy",
             "request":"launch",

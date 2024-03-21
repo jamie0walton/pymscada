@@ -254,3 +254,12 @@ Router_eth8_bytes_in:
 Router_eth8_bytes_out:
   desc: eth8 bytes out
   type: int
+localhost_ping:
+  desc: Ping time to localhost
+  units: ms
+google_ping:
+  desc: Ping time to google
+  units: ms
+electronet_ping:
+  desc: Ping time to electronet
+  units: ms

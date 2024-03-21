@@ -3,6 +3,7 @@ import argparse
 import asyncio
 from importlib.metadata import version
 import logging
+import sys
 from pymscada.bus_server import BusServer
 from pymscada.checkout import checkout
 from pymscada.config import Config
@@ -12,6 +13,7 @@ from pymscada.history import History
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
+from pymscada.iodrivers.ping_client import PingClient
 from pymscada.iodrivers.snmp_client import SnmpClient
 from pymscada.www_server import WwwServer
 from pymscada.validate import validate
@@ -82,6 +84,14 @@ async def logixclient(options):
     return LogixClient(**config)
 
 
+async def ping(options):
+    """Return logixclient module."""
+    if sys.platform.startswith("win"):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    config = Config(options.config)
+    return PingClient(**config)
+
+
 async def snmpclient(options):
     """Return snmpclient module."""
     config = Config(options.config)
@@ -121,6 +131,7 @@ def args(_version: str):
         ['validate', _validate, 'validate config files'],
         ['modbusserver', modbusserver, 'receive modbus messages'],
         ['modbusclient', modbusclient, 'poll/write to modbus devices'],
+        ['ping', ping, 'ping a list of addresses, return time'],
         ['logixclient', logixclient, 'poll/write to logix devices'],
         ['snmpclient', snmpclient, 'poll snmp oids'],
     ]:
