@@ -1,5 +1,4 @@
 """Map between snmp MIB and Tag."""
-import logging
 from time import time
 from pymscada.tag import Tag
 
@@ -8,7 +7,7 @@ class PingMap:
     """Do value updates for each tag."""
 
     def __init__(self, tagname: str, addr: str):
-        """initialise MIB map and Tag."""
+        """Initialise MIB map and Tag."""
         self.last_value = None
         self.tag = Tag(tagname, float)
         self.addr = addr
@@ -31,17 +30,14 @@ class PingMaps:
         # use the tagname to access the map.
         self.tag_map: dict[str, PingMap] = {}
         # use the plc_name then variable name to access a list of maps.
-        self.var_map: dict[str, dict[str, list[PingMap]]] = {}
+        self.var_map: dict[str, PingMap] = {}
         for tagname, v in tags.items():
             addr = v['addr']
             map = PingMap(tagname, addr)
             self.var_map[addr] = map
             self.tag_map[tagname] = map
 
-    def polled_data(self, plcname, polls):
+    def polled_data(self, address, latency):
         """Pass updates read from the PLC to the tags."""
         time_us = int(time() * 1e6)
-        for poll in polls:
-            oid, value = poll
-            for map in self.var_map[plcname][str(oid)]:
-                map.set_tag_value(value, time_us)
+        self.var_map[address].set_tag_value(latency, time_us)
