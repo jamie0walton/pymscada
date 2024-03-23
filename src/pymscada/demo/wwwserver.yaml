@@ -85,3 +85,449 @@ pages:
   parent: Dropdown
   items:
   - {tagname: __files__, type: files}
+- name: Temperature
+  parent: Weather
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Temperature
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-604800, 86400]  # 86400 172800 1209600
+    - scale: 'C'
+      range: [0.0, 35.0]
+      dp: 1
+    series:
+    - tagname: temperature
+      label: Current Temperature
+      scale: 'C'
+      color: black
+      width: 2
+      dp: 1
+    - tagname: temperature_01
+      label: 1h Temperature
+      scale: 'C'
+      color: darkgray
+      width: 1.5
+      dp: 1
+    - tagname: temperature_04
+      label: 4h Temperature
+      scale: 'C'
+      color: green
+      width: 1
+      dp: 1
+    - tagname: temperature_12
+      label: 12h Temperature
+      scale: 'C'
+      color: orange
+      width: 0.75
+      dp: 1
+    - tagname: temperature_24
+      label: 24h Temperature
+      scale: 'C'
+      color: red
+      width: 0.5
+      dp: 1
+- name: Wind Speed
+  parent: Weather
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Wind Speed
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-604800, 86400]  # 86400 172800 1209600
+    - scale: 'm/s'
+      range: [0.0, 20.0]
+      dp: 1
+    series:
+    - tagname: windSpeed
+      label: Current Wind Speed
+      scale: 'm/s'
+      color: black
+      width: 2
+      dp: 1
+    - tagname: windSpeed_01
+      label: 1h Wind Speed
+      scale: 'm/s'
+      color: darkgray
+      width: 1.5
+      dp: 1
+    - tagname: windSpeed_04
+      label: 4h Wind Speed
+      scale: 'm/s'
+      color: green
+      width: 1
+      dp: 1
+    - tagname: windSpeed_12
+      label: 12h Wind Speed
+      scale: 'm/s'
+      color: orange
+      width: 0.75
+      dp: 1
+    - tagname: windSpeed_24
+      label: 24h Wind Speed
+      scale: 'm/s'
+      color: red
+      width: 0.5
+      dp: 1
+- name: Wind Direction
+  parent: Weather
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Wind Direction
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-604800, 86400]  # 86400 172800 1209600
+    - scale: 'deg'
+      range: [0.0, 360.0]
+      dp: 1
+    series:
+    - tagname: windDirection
+      label: Current Wind Direction
+      scale: 'deg'
+      color: black
+      width: 2
+      dp: 1
+    - tagname: windDirection_01
+      label: 1h Wind Direction
+      scale: 'deg'
+      color: darkgray
+      width: 1.5
+      dp: 1
+    - tagname: windDirection_04
+      label: 4h Wind Direction
+      scale: 'deg'
+      color: green
+      width: 1
+      dp: 1
+    - tagname: windDirection_12
+      label: 12h Wind Direction
+      scale: 'deg'
+      color: orange
+      width: 0.75
+      dp: 1
+    - tagname: windDirection_24
+      label: 24h Wind Direction
+      scale: 'deg'
+      color: red
+      width: 0.5
+      dp: 1
+- name: Rain Accumulation
+  parent: Weather
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Rain Accumulation
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-604800, 86400]  # 86400 172800 1209600
+    - scale: 'mm'
+      range: [0.0, 10.0]
+      dp: 1
+    series:
+    - tagname: rainAccumulation
+      label: Current Rain Accumulation
+      scale: 'mm'
+      color: black
+      width: 2
+      dp: 1
+    - tagname: rainAccumulation_01
+      label: 1h Rain Accumulation
+      scale: 'mm'
+      color: darkgray
+      width: 1.5
+      dp: 1
+    - tagname: rainAccumulation_04
+      label: 4h Rain Accumulation
+      scale: 'mm'
+      color: green
+      width: 1
+      dp: 1
+    - tagname: rainAccumulation_12
+      label: 12h Rain Accumulation
+      scale: 'mm'
+      color: orange
+      width: 0.75
+      dp: 1
+    - tagname: rainAccumulation_24
+      label: 24h Rain Accumulation
+      scale: 'mm'
+      color: red
+      width: 0.5
+      dp: 1
+- name: Humidity
+  parent: Weather
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Humidity
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-604800, 86400]  # 86400 172800 1209600
+    - scale: '%'
+      range: [0.0, 100.0]
+      dp: 1
+    series:
+    - tagname: humidity
+      label: Current Humidity
+      scale: '%'
+      color: black
+      width: 2
+      dp: 1
+    - tagname: humidity_01
+      label: 1h Humidity
+      scale: '%'
+      color: darkgray
+      width: 1.5
+      dp: 1
+    - tagname: humidity_04
+      label: 4h Humidity
+      scale: '%'
+      color: green
+      width: 1
+      dp: 1
+    - tagname: humidity_12
+      label: 12h Humidity
+      scale: '%'
+      color: orange
+      width: 0.75
+      dp: 1
+    - tagname: humidity_24
+      label: 24h Humidity
+      scale: '%'
+      color: red
+      width: 0.5
+      dp: 1
+- name: Values
+  parent: Weather
+  items:
+  - {tagname: temperature, type: value}
+  - {tagname: temperature_01, type: value}
+  - {tagname: temperature_04, type: value}
+  - {tagname: temperature_12, type: value}
+  - {tagname: temperature_24, type: value}
+  - {tagname: windSpeed, type: value}
+  - {tagname: windSpeed_01, type: value}
+  - {tagname: windSpeed_04, type: value}
+  - {tagname: windSpeed_12, type: value}
+  - {tagname: windSpeed_24, type: value}
+  - {tagname: windDirection, type: value}
+  - {tagname: windDirection_01, type: value}
+  - {tagname: windDirection_04, type: value}
+  - {tagname: windDirection_12, type: value}
+  - {tagname: windDirection_24, type: value}
+  - {tagname: rainAccumulation, type: value}
+  - {tagname: rainAccumulation_01, type: value}
+  - {tagname: rainAccumulation_04, type: value}
+  - {tagname: rainAccumulation_12, type: value}
+  - {tagname: rainAccumulation_24, type: value}
+  - {tagname: humidity, type: value}
+  - {tagname: humidity_01, type: value}
+  - {tagname: humidity_04, type: value}
+  - {tagname: humidity_12, type: value}
+  - {tagname: humidity_24, type: value}
+- name: Logix
+  items:
+  - {tagname: Ani_Fin_20, type: setpoint}
+  - {tagname: Ani_Fout_20, type: value}
+  - {tagname: Ani_Iin_20, type: setpoint}
+  - {tagname: Ani_Iout_20, type: value}
+  - {tagname: InVar, type: setpoint}
+  - {tagname: OutVar, type: value}
+  - {tagname: Ani_Iin_21_0, type: setpoint}
+  - {tagname: Ani_Iout_21_0, type: value}
+  - {tagname: Ani_Iin_21_1, type: setpoint}
+  - {tagname: Ani_Iout_21_1, type: value}
+- name: Values
+  parent: SNMP
+  items:
+  - {tagname: Router_eth1_bytes_in, type: value}
+  - {tagname: Router_eth1_bytes_out, type: value}
+  - {tagname: Router_eth2_bytes_in, type: value}
+  - {tagname: Router_eth2_bytes_out, type: value}
+  - {tagname: Router_eth3_bytes_in, type: value}
+  - {tagname: Router_eth3_bytes_out, type: value}
+  - {tagname: Router_eth4_bytes_in, type: value}
+  - {tagname: Router_eth4_bytes_out, type: value}
+  - {tagname: Router_eth5_bytes_in, type: value}
+  - {tagname: Router_eth5_bytes_out, type: value}
+  - {tagname: Router_eth6_bytes_in, type: value}
+  - {tagname: Router_eth6_bytes_out, type: value}
+  - {tagname: Router_eth7_bytes_in, type: value}
+  - {tagname: Router_eth7_bytes_out, type: value}
+  - {tagname: Router_eth8_bytes_in, type: value}
+  - {tagname: Router_eth8_bytes_out, type: value}
+- name: Trend
+  parent: SNMP
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Bytes
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]
+    - scale: 'bytes'
+      range: [0, 100000]
+      dp: 0
+    series:
+    - tagname: Router_eth1_bytes_in
+      label: eth1 in
+      scale: 'bytes'
+      color: violet
+      width: 1
+      dp: 0
+    - tagname: Router_eth1_bytes_out
+      label: eth1 out
+      scale: 'bytes'
+      color: violet
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth2_bytes_in
+      label: eth2 in
+      scale: 'bytes'
+      color: blue
+      width: 1
+      dp: 0
+    - tagname: Router_eth2_bytes_out
+      label: eth2 out
+      scale: 'bytes'
+      color: blue
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth3_bytes_in
+      label: eth3 in
+      scale: 'bytes'
+      color: green
+      width: 1
+      dp: 0
+    - tagname: Router_eth3_bytes_out
+      label: eth3 out
+      scale: 'bytes'
+      color: green
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth4_bytes_in
+      label: eth4 in
+      scale: 'bytes'
+      color: gray
+      width: 1
+      dp: 0
+    - tagname: Router_eth4_bytes_out
+      label: eth4 out
+      scale: 'bytes'
+      color: gray
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth5_bytes_in
+      label: eth5 in
+      scale: 'bytes'
+      color: goldenrod
+      width: 1
+      dp: 0
+    - tagname: Router_eth5_bytes_out
+      label: eth5 out
+      scale: 'bytes'
+      color: goldenrod
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth6_bytes_in
+      label: eth6 in
+      scale: 'bytes'
+      color: brown
+      width: 1
+      dp: 0
+    - tagname: Router_eth6_bytes_out
+      label: eth6 out
+      scale: 'bytes'
+      color: brown
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth7_bytes_in
+      label: eth7 in
+      scale: 'bytes'
+      color: orange
+      width: 1
+      dp: 0
+    - tagname: Router_eth7_bytes_out
+      label: eth7 out
+      scale: 'bytes'
+      color: orange
+      width: 0.5
+      dp: 0
+    - tagname: Router_eth8_bytes_in
+      label: eth8 in
+      scale: 'bytes'
+      color: aqua
+      width: 1
+      dp: 0
+    - tagname: Router_eth8_bytes_out
+      label: eth8 out
+      scale: 'bytes'
+      color: aqua
+      width: 0.5
+      dp: 0
+- name: Ping Values
+  parent: Ping
+  items:
+  - {desc: Default tags, type: h1}
+  - {tagname: localhost_ping, type: value}
+  - {tagname: google_ping, type: value}
+  - {tagname: electronet_ping, type: value}
+- name: Ping Trend
+  parent: Ping
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Ping Trend
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]  # 86400 172800 1209600
+    - scale: mS
+      range: [0.0, 1.0]
+      dp: 1
+    series:
+    - tagname: localhost_ping
+      label: localhost
+      scale: mS
+      color: black
+      dp: 1
+    - tagname: electronet_ping
+      label: electronet
+      scale: mS
+      color: blue
+      dp: 1
+    - tagname: google_ping
+      label: google
+      scale: mS
+      color: red
+      dp: 1

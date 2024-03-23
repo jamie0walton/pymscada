@@ -1,4 +1,5 @@
 """Create base config folder and check out demo files."""
+import difflib
 from pathlib import Path
 import sys
 from pymscada.config import get_demo_files, get_pdf_files
@@ -36,7 +37,7 @@ def make_pdf():
         target.write_bytes(pdf_file.read_bytes())
 
 
-def make_config(overwrite):
+def make_config(overwrite: bool):
     """Make the config folder, if missing, and copy files in."""
     config_dir = PATH['__DIR__'].joinpath('config')
     if not config_dir.exists():
@@ -62,11 +63,43 @@ def make_config(overwrite):
             target.write_bytes(config_file.read_bytes())
 
 
-def checkout(overwrite=False):
+def read_with_subst(file: Path):
+    """Read the file and replace DIR markers."""
+    rd = file.read_bytes().decode()
+    if str(file).endswith('service'):
+        for k, v in PATH.items():
+            rd = rd.replace(k, str(v.absolute()))
+    lines = rd.splitlines()
+    return lines
+
+
+def compare_config():
+    """Compare old and new config."""
+    config_dir = PATH['__DIR__'].joinpath('config')
+    if not config_dir.exists():
+        print('No config dir, are you in the right directory')
+        return
+    for config_file in get_demo_files():
+        target = config_dir.joinpath(config_file.name)
+        if target.exists():
+            new_lines = read_with_subst(config_file)
+            old_lines = read_with_subst(target)
+            diff = list(difflib.unified_diff(old_lines, new_lines,
+                        fromfile=str(target), tofile=str(config_file)))
+            if len(diff):
+                print('\n'.join(diff), '\n')
+        else:
+            print(f'\n--- MISSING FILE\n\n+++ {config_file}')
+
+
+def checkout(overwrite=False, diff=False):
     """Do it."""
     for name in PATH:
         if not PATH[name].exists():
             raise SystemExit(f'{PATH[name]} is missing')
-    make_history()
-    make_pdf()
-    make_config(overwrite)
+    if diff:
+        compare_config()
+    else:
+        make_history()
+        make_pdf(diff)
+        make_config(overwrite, diff)
