@@ -101,5 +101,5 @@ def checkout(overwrite=False, diff=False):
         compare_config()
     else:
         make_history()
-        make_pdf(diff)
-        make_config(overwrite, diff)
+        make_pdf()
+        make_config(overwrite)
