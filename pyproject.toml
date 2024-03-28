@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.1.0a5"
+version = "0.1.0a6"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
@@ -8,7 +8,7 @@ authors = [
 dependencies = [
     "PyYAML>=6.0.1",          # all
     "aiohttp>=3.8.5",         # www_server
-    "pymscada-html<=0.1.0",   # www_server
+    "pymscada-html=0.1.0a1",   # www_server
     "cerberus>=1.3.5",        # validate
     "pycomm3>=1.2.14",        # logix_client
     "pysnmplib>=5.0.24",      # DON'T use pysnmp, dead
