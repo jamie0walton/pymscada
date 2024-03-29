@@ -129,7 +129,7 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["validate", "--path", "pymscada/src/pymscada/demo"],
+            "args": ["validate", "--path", "/home/mscada/pymscada/config"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
