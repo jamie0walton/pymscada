@@ -52,7 +52,7 @@ class SnmpMaps:
         # use the plc_name then variable name to access a list of maps.
         self.var_map: dict[str, dict[str, list[SnmpMap]]] = {}
         for tagname, v in tags.items():
-            addr = v['addr']
+            addr = v['read']
             map = SnmpMap(tagname, v['type'], addr)
             if map.plc not in self.var_map:
                 self.var_map[map.plc] = {}

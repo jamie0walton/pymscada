@@ -195,7 +195,6 @@ class _LogixClient(Module):
 
     name = 'logixclient'
     help = 'poll/write to logix devices'
-    tags = False
 
     def run_once(self, options):
         """Create the module."""

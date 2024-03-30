@@ -9,14 +9,14 @@ from pymscada.iodrivers.snmp_map import SnmpMaps
 class SnmpClientConnector:
     """Poll snmp devices, write and traps are not implemented."""
 
-    def __init__(self, name: str, ip: str, rate: float, read: list,
+    def __init__(self, name: str, ip: str, rate: float, poll: list,
                  community: str, mapping: SnmpMaps):
         """Set up polling client."""
         self.snmp_name = name
         self.ip = ip
         self.community = community
         self.read_oids = [snmp.ObjectType(snmp.ObjectIdentity(x))
-                          for x in read]
+                          for x in poll]
         self.mapping = mapping
         self.periodic = Periodic(self.poll, rate)
         self.snmp_engine = snmp.SnmpEngine()
