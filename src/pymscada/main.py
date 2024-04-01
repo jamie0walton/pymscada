@@ -263,7 +263,7 @@ async def run():
     logging.warning(f'pymscada {_version} starting')
     options = args(_version)
     if options.verbose:
-        logging.basicConfig(level=logging.INFO)
+        logging.getLogger().setLevel(logging.INFO)
     options.app.run_once(options)
     if options.app.module is not None:
         await options.app.module.start()
