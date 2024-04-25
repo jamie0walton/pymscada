@@ -1,5 +1,6 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
+path: /home/mscada/pymscada
 files:
 - path: pdf/one.pdf
   desc: PDF

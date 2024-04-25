@@ -2,11 +2,8 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 ip: 0.0.0.0
 port: 8324
-get_path:
-paths:
-- history
-- config
-- pdf
+get_path: /home/mscada/Documents/angmscada/dist/angmscada
+serve_path: /home/mscada/pymscada
 pages:
 - name: Default Main
   parent:

@@ -206,7 +206,7 @@ class WwwServer:
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
-                 tag_info: dict = {}, pages: dict = {}, paths: list[str] = []
+                 tag_info: dict = {}, pages: dict = {}, serve_path: str = None
                  ) -> None:
         """
         Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
@@ -221,11 +221,11 @@ class WwwServer:
         self.ip = ip
         self.port = port
         self.get_path = get_path
+        self.serve_path = Path(serve_path)
         for tagname, tag in tag_info.items():
             tag_for_web(tagname, tag)
         self.tag_info = tag_info
         self.pages = pages
-        self.paths = paths
 
     async def redirect_handler(self, _request: web.Request):
         """Point an empty request to the index."""
@@ -247,13 +247,12 @@ class WwwServer:
     async def path_handler(self, request: web.Request):
         """Plain files."""
         logging.info(f"path {request.match_info['path']}")
-        path = Path(request.match_info['path'])
+        path = self.serve_path.joinpath(request.match_info['path'])
         if path.is_dir():
             return web.HTTPForbidden(reason='folder not permitted')
-        if '/'.join(path.parts[:-1]) in self.paths:
-            if not path.exists():
-                return web.HTTPNotFound(reason='no such file in path')
-            return web.FileResponse(path)
+        if not path.exists():
+            return web.HTTPNotFound(reason='no such file in path')
+        return web.FileResponse(path)
         logging.warning(f"path not configured {request.match_info['path']}")
         return web.HTTPForbidden(reason='path not permitted')
 
