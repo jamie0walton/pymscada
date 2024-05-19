@@ -16,16 +16,18 @@ class BusClient:
     fails, die.
     """
 
-    def __init__(self, ip: str = '127.0.0.1', port: int = 1324, tag_info=None):
+    def __init__(self, ip: str = '127.0.0.1', port: int = 1324, tag_info=None,
+                 module: str = '_unset_'):
         """Create bus server."""
         self.ip = ip
         self.port = port
         self.read_task = None
         self.tag_info = tag_info
+        self.module = module
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
-        self.rqs_handlers: dict[str, object] = {}
+        self.rta_handlers: dict[str, object] = {}
         self.pending = {}
 
     def publish(self, tag: Tag):
@@ -61,20 +63,20 @@ class BusClient:
             return
         self.write(pc.CMD_SET, tag.id, tag.time_us, data)
 
-    def add_callback_rqs(self, tagname, handler):
+    def add_callback_rta(self, tagname, handler):
         """Collect callback handlers."""
         if callable(handler):
-            self.rqs_handlers[tagname] = handler
+            self.rta_handlers[tagname] = handler
         else:
-            logging.error(f'invalid RQS handler for {tagname}')
+            logging.error(f'invalid RTA handler for {tagname}')
 
-    def rqs(self, tagname: str, request: dict):
+    def rta(self, tagname: str, request: dict):
         """Send a Request Set message."""
         time_us = int(time.time() * 1e6)
         jsonstr = json.dumps(request).encode()
         size = len(jsonstr)
         data = struct.pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
-        self.write(pc.CMD_RQS, self.tag_by_name[tagname].id, time_us, data)
+        self.write(pc.CMD_RTA, self.tag_by_name[tagname].id, time_us, data)
 
     def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
               data: bytes):
@@ -106,6 +108,7 @@ class BusClient:
         self.reader, self.writer = await asyncio.open_connection(
             self.ip, self.port)
         self.addr = self.writer.get_extra_info('sockname')
+        self.write(pc.CMD_LOG, 0, 0, f'{self.module} connected'.encode())
         logging.info(f'connected {self.addr}')
         for tag in Tag.get_all_tags().values():
             self.add_tag(tag)
@@ -127,7 +130,8 @@ class BusClient:
             try:
                 head = await self.reader.readexactly(14)
                 _, cmd, tag_id, size, time_us = struct.unpack('>BBHHQ', head)
-            except (ConnectionResetError, asyncio.IncompleteReadError):
+            except (ConnectionResetError, asyncio.IncompleteReadError,
+                    asyncio.CancelledError):
                 break
             if size == 0:
                 self.process(cmd, tag_id, time_us, None)
@@ -200,14 +204,14 @@ class BusClient:
                 logging.warning(f'process error {tag.name} {tag.type} {value}')
                 return
             tag.value = data, time_us, id(self)
-        elif cmd == pc.CMD_RQS:
+        elif cmd == pc.CMD_RTA:
             data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
                                       )[0].decode()
             data = json.loads(data)
             try:
-                self.rqs_handlers[tag.name](data)
+                self.rta_handlers[tag.name](data)
             except KeyError:
-                logging.warning(f'unhandled RQS for {tag.name} {data}')
+                logging.warning(f'unhandled RTA for {tag.name} {data}')
         else:
             raise SystemExit(f'Invalid message {cmd}')
 

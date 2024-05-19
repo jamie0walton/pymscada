@@ -18,6 +18,28 @@ TYPES = {
 }
 
 
+def tag_for_web(tagname: str, tag: dict):
+    """Correct tag dictionary in place to be suitable for web client."""
+    tag['name'] = tagname
+    tag['id'] = None
+    if 'desc' not in tag:
+        tag['desc'] = tag.name
+    if 'multi' in tag:
+        tag['type'] = 'int'
+    else:
+        if 'type' not in tag:
+            tag['type'] = 'float'
+        else:
+            if tag['type'] not in TYPES:
+                tag['type'] = 'str'
+    if tag['type'] == 'int':
+        tag['dp'] = 0
+    elif tag['type'] == 'float' and 'dp' not in tag:
+        tag['dp'] = 2
+    elif tag['type'] == 'str' and 'dp' in tag:
+        del tag['dp']
+
+
 class UniqueTag(type):
     """Super Tag class only create unique tags for unique tag names."""
 

@@ -104,7 +104,7 @@ class PingClient:
         """
         self.busclient = None
         if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port)
+            self.busclient = BusClient(bus_ip, bus_port, module='Ping Client')
         self.mapping = PingMaps(tags)
         self.pinger = PingClientConnector(mapping=self.mapping)
 

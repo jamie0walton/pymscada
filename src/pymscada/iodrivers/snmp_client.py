@@ -57,7 +57,7 @@ class SnmpClient:
         """
         self.busclient = None
         if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port)
+            self.busclient = BusClient(bus_ip, bus_port, module='SNMP Client')
         self.mapping = SnmpMaps(tags)
         self.connections: list[SnmpClientConnector] = []
         for rtu in rtus:

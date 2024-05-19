@@ -161,7 +161,8 @@ class ModbusServer:
         """
         self.busclient = None
         if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port)
+            self.busclient = BusClient(bus_ip, bus_port,
+                                       module='Modbus Server')
         self.mapping = ModbusMaps(tags)
         self.connections: list[ModbusServerConnector] = []
         for rtu in rtus:

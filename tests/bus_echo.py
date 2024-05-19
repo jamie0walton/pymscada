@@ -11,16 +11,16 @@ def callback(a: Tag, b: Tag):
     a.value = b.value
 
 
-def rqs_handler(tag: Tag):
+def rta_handler(tag: Tag):
     """__bus_echo__."""
 
-    def rqs(data: dict):
+    def rta(data: dict):
         """Process request set."""
         nonlocal tag
         if data == 'ping':
             tag.value = 'pong'
 
-    return rqs
+    return rta
 
 
 async def main(port):
@@ -40,7 +40,7 @@ async def main(port):
     tagspi = Tag('spipein', str)
     tagspo.add_callback(partial(callback, tagspi))
     client = BusClient(port=port)
-    client.add_callback_rqs(tag.name, rqs_handler(tag))
+    client.add_callback_rta(tag.name, rta_handler(tag))
     await client.start()
     await asyncio.get_event_loop().create_future()
 

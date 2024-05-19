@@ -60,7 +60,7 @@ class LogixClient:
         """
         self.busclient = None
         if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port)
+            self.busclient = BusClient(bus_ip, bus_port, module='Logix Client')
         self.mapping = LogixMaps(tags)
         self.connections: list[LogixClientConnector] = []
         for rtu in rtus:

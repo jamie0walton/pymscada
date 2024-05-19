@@ -3,8 +3,8 @@
 ## Bus Server
 
 [Tag](./tags.md) message exchange. This serves tag values to subscribers
-and also passes tag RQS messages (ReQuest Set) to the tag author to
-provide database update commands through a tag.
+and also passes tag Request To Author (RTA) messages provide database
+update commands through a tag.
 
 _busserver_ must never stop, as any connected applications depend on
 tag values, once set, being set forever.
@@ -59,7 +59,7 @@ to read MIBs from network devices.
 
 The _history_ module creates binary event driven historical log files
 in a python binary array format. This data is directly copied to the
-RQS tag when requested by the web client in order to minimize the
+RTA tag when requested by the web client in order to minimize the
 amount of handling required to deliver history.
 
 ## Console

@@ -10,12 +10,13 @@ from pymscada.config import Config
 from pymscada.console import Console
 from pymscada.files import Files
 from pymscada.history import History
+from pymscada.opnotes import OpNotes
+from pymscada.www_server import WwwServer
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
 from pymscada.iodrivers.ping_client import PingClient
 from pymscada.iodrivers.snmp_client import SnmpClient
-from pymscada.www_server import WwwServer
 from pymscada.validate import validate
 
 
@@ -29,6 +30,7 @@ class Module():
     config = True
     tags = True
     sub = None
+    await_future = True
 
     def __init__(self, subparser: argparse._SubParsersAction):
         """Add arguments common to all subparsers."""
@@ -87,7 +89,7 @@ class _History(Module):
 
 
 class _Files(Module):
-    """Bus Module."""
+    """Files Module."""
 
     name = 'files'
     help = 'receive and send files'
@@ -99,17 +101,40 @@ class _Files(Module):
         self.module = Files(**config)
 
 
+class _OpNotes(Module):
+    """Operator Notes Module."""
+
+    name = 'opnotes'
+    help = 'present and manage operator notes'
+    tags = False
+
+    def run_once(self, options):
+        """Create the module."""
+        config = Config(options.config)
+        self.module = OpNotes(**config)
+
+
 class _Console(Module):
     """Bus Module."""
 
     name = 'console'
     help = 'interactive bus console'
     config = False
-    tags = False
+    await_future = False
 
-    def run_once(self, _options):
+    def __init__(self, subparser: argparse._SubParsersAction):
+        super().__init__(subparser)
+        self.sub.add_argument(
+            '-p', '--port', action='store', type=int, default=1324,
+            help='connect to port (default: 1324)')
+        self.sub.add_argument(
+            '-i', '--ip', action='store', default='localhost',
+            help='connect to ip address (default: locahost)')
+
+    def run_once(self, options):
         """Create the module."""
-        self.module = Console()
+        tag_info = dict(Config(options.tags))
+        self.module = Console(options.ip, options.port, tag_info)
 
 
 class _checkout(Module):
@@ -161,6 +186,18 @@ class _validate(Module):
             print(e)
 
 
+class _LogixClient(Module):
+    """Bus Module."""
+
+    name = 'logixclient'
+    help = 'poll/write to logix devices'
+
+    def run_once(self, options):
+        """Create the module."""
+        config = Config(options.config)
+        self.module = LogixClient(**config)
+
+
 class _ModbusServer(Module):
     """Bus Module."""
 
@@ -188,18 +225,6 @@ class _ModbusClient(Module):
         """Create the module."""
         config = Config(options.config)
         self.module = ModbusClient(**config)
-
-
-class _LogixClient(Module):
-    """Bus Module."""
-
-    name = 'logixclient'
-    help = 'poll/write to logix devices'
-
-    def run_once(self, options):
-        """Create the module."""
-        config = Config(options.config)
-        self.module = LogixClient(**config)
 
 
 class _PingClient(Module):
@@ -246,14 +271,15 @@ def args(_version: str):
     _WwwServer(s)
     _History(s)
     _Files(s)
+    _OpNotes(s)
     _Console(s)
     _checkout(s)
     _validate(s)
+    _LogixClient(s)
     _ModbusServer(s)
     _ModbusClient(s)
-    _LogixClient(s)
-    _SnmpClient(s)
     _PingClient(s)
+    _SnmpClient(s)
     return parser.parse_args()
 
 
@@ -267,4 +293,5 @@ async def run():
     options.app.run_once(options)
     if options.app.module is not None:
         await options.app.module.start()
-        await asyncio.get_event_loop().create_future()
+        if options.app.await_future:
+            await asyncio.get_event_loop().create_future()

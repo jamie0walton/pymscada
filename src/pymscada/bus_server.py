@@ -141,9 +141,10 @@ class BusConnection():
 class BusServer:
     """Serve Tags on ip:port, echoing changes to any subscribers."""
 
-    __slots__ = ('ip', 'port', 'server', 'connections')
+    __slots__ = ('ip', 'port', 'server', 'connections', 'bus_tag')
 
-    def __init__(self, ip: str = '127.0.0.1', port: int = 1324):
+    def __init__(self, ip: str = '127.0.0.1', port: int = 1324,
+                 bus_tag: str = '__bus__'):
         """
         Serve Tags on ip:port, echoing changes to any subscribers.
 
@@ -157,10 +158,10 @@ class BusServer:
         self.port = port
         self.server = None
         self.connections: dict[int, BusConnection] = {}
-        bus_tag = BusTag(b'__bus__')
-        bus_tag.value = b'\x03started'  # \x03 is string type
-        bus_tag.time_us = int(time.time() * 1e6)
-        bus_tag.from_bus = 0
+        self.bus_tag = BusTag(bus_tag.encode())
+        self.bus_tag.value = b'\x03started'  # \x03 is string type
+        self.bus_tag.time_us = int(time.time() * 1e6)
+        self.bus_tag.from_bus = 0
 
     def publish(self, tag: BusTag, bus_id):
         """Update subcribers with tag value change."""
@@ -184,22 +185,22 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
                     f"SET KeyError {tag_id}".encode())
-        elif cmd == pc.CMD_RQS:
+        elif cmd == pc.CMD_RTA:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"RQS KeyError {tag_id}".encode())
+                    f"RTA KeyError {tag_id}".encode())
             try:
                 self.connections[tag.from_bus].write(
-                    pc.CMD_RQS, tag_id, tag.time_us, data)
+                    pc.CMD_RTA, tag_id, tag.time_us, data)
             except KeyError:
                 logging.warning(f'likely busclient for {tag.name} is gone')
             except Exception as e:
                 self.connections[bus_id].write(
                     pc.CMD_ERR, tag_id, time_us,
-                    f"RQS {tag_id} {e}".encode())
+                    f"RTA {tag_id} {e}".encode())
             """Reply comes from another BusClient, not the Server."""
         elif cmd == pc.CMD_SUB:
             try:
@@ -260,6 +261,11 @@ class BusServer:
                         tagname_list.append(tag.name)
             self.connections[bus_id].write(
                 pc.CMD_LIST, 0, time_us, b' '.join(tagname_list))
+        elif cmd == pc.CMD_LOG:
+            if len(data) > 300:
+                logging.warning(f'process: log message too long from {bus_id}')
+            else:
+                logging.warning(data.decode())
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 

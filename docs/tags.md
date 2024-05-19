@@ -37,7 +37,7 @@ with a tuple. ```value, time_us``` is shared via the bus.
 code) it is assigned 0. Otherwise it is assigned the python ```id()```
 value for the object managing the connection.
 
-```RQS```, see big values below.
+```RTA```, see big values below.
 
 ## Methods
 ```add_callback``` allows you to registor your function to run when a
@@ -81,7 +81,7 @@ plan to do this via a leading _ in the multi text, so __Running__ would
 become ___Running__. The process you write must still filter bad state
 transitions.
 
-## Big Values and RQS
+## Big Values and RTA
 Everything is shared via a tag value. This includes historical trend
 data passed to the web display. These are passed in a packed bytes
 structure that assumes int and float will fit in 64 bits. Tag values
@@ -91,19 +91,19 @@ Tag values will also be used for database interaction. Operator notes
 (module to come) is a database that can be updated from the web client.
 To be bandwidth efficient, this should send a full display only when
 requested, and otherwise update by exception. To support this, tags
-have a ReQuest Set (RQS) function that allows a request to be set for
-the tag.
+have a Request To Author (RTA) function that asks the author to make
+an update of the tag value.
 
-RQS is passed to the bus. The bus passes the RQS to the last client
+RTA is passed to the bus. The bus passes the RTA to the last client
 that set the tag value. This __requires__ care that only one process
 is setting the tag value. It also makes it fairly simple to restart
-the process and make a new connection the bus to establish the RQS
+the process and make a new connection the bus to establish the RTA
 path.
 
-Once the process writing the tag recieves an RQS, with an embedded id,
+Once the process writing the tag recieves an RTA, with an embedded id,
 it responds accordingly. If one month worth of history for a tag is
 requested this is retrieved (memory and disk as needed), placed in
-a tag and sent with the RQS id. The RQS id allows the web server to
+a tag and sent with the RTA id. The RTA id allows the web server to
 filter the packets send so that this is only sent to the requesting
 web client.
 

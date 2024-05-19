@@ -1,0 +1,16 @@
+[Unit]
+    Description=pymscada - history
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ opnotes --config __DIR__/config/opnotes.yaml
+    Restart=always
+    RestartSec=5
+    User=mscada
+    Group=mscada
+    KillSignal=SIGINT
+
+[Install]
+    WantedBy=multi-user.target

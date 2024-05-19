@@ -1,0 +1,5 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+rta_tag: __opnotes__
+db: /home/mscada/pymscada/pymscada.sqlite
+table: opnotes

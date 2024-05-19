@@ -65,7 +65,7 @@ class TagHistory():
 
     def __init__(self, tagname: str, tagtype, path: str,
                  min=None, max=None, deadband=None):
-        """Create persistent tag store. Respond to RQS."""
+        """Create persistent tag store. Respond to RTA."""
         self.name = tagname
         if type(tagtype) is type:
             self.type = tagtype
@@ -189,17 +189,18 @@ class History():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = 'history', tag_info: dict = {}) -> None:
+                 path: str = 'history', tag_info: dict = {},
+                 rta_tag: str = '__history__') -> None:
         """
         Connect to bus_ip:bus_port, store and provide a value history.
 
         History files are binary files named <tagname>_<time_us>.dat. On
-        receipt of a request via RQS message, History will send the data
-        via __history__.value which you can watch with a tag.add_callback.
+        receipt of a request via RTA message, History will send the data
+        via rta_tag.value which you can watch with a tag.add_callback.
 
         Event loop must be running.
         """
-        self.busclient = BusClient(bus_ip, bus_port)
+        self.busclient = BusClient(bus_ip, bus_port, module='History')
         self.path = path
         self.tags: dict[str, Tag] = {}
         self.hist_tags: dict[str, TagHistory] = {}
@@ -212,24 +213,24 @@ class History():
                 deadband=tag['deadband'])
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].add_callback(self.hist_tags[tagname].callback)
-        self.rqs = Tag('__history__', bytes)
-        self.rqs.value = b'\x00\x00\x00\x00\x00\x00'
-        self.busclient.add_callback_rqs('__history__', self.rqs_cb)
+        self.rta = Tag(rta_tag, bytes)
+        self.rta.value = b'\x00\x00\x00\x00\x00\x00'
+        self.busclient.add_callback_rta(rta_tag, self.rta_cb)
 
-    def rqs_cb(self, request):
-        """Respond to bus requests for data to publish on rqs."""
+    def rta_cb(self, request):
+        """Respond to bus requests for data to publish on rta."""
         if 'start_ms' in request:
             request['start_us'] = request['start_ms'] * 1000
             request['end_us'] = request['end_ms'] * 1000
-        rqs_id = 0
-        if '__rqs_id__' in request:
-            rqs_id = request['__rqs_id__']
+        rta_id = 0
+        if '__rta_id__' in request:
+            rta_id = request['__rta_id__']
         tagname = request['tagname']
         start_time = time.asctime(time.localtime(
             request['start_us'] / 1000000))
         end_time = time.asctime(time.localtime(
             request['end_us'] / 1000000))
-        logging.info(f"RQS {tagname} {start_time} {end_time}")
+        logging.info(f"RTA {tagname} {start_time} {end_time}")
         try:
             data = self.hist_tags[request['tagname']].read_bytes(
                 request['start_us'], request['end_us'])
@@ -240,11 +241,11 @@ class History():
                 packtype = 1
             elif tagtype == float:
                 packtype = 2
-            self.rqs.value = pack('>HHH', rqs_id, tagid, packtype) + data
+            self.rta.value = pack('>HHH', rta_id, tagid, packtype) + data
             logging.info(f'sent {len(data)} bytes for {request["tagname"]}')
-            self.rqs.value = b'\x00\x00\x00\x00\x00\x00'
+            self.rta.value = b'\x00\x00\x00\x00\x00\x00'
         except Exception as e:
-            logging.error(f'history rqs_cb {e}')
+            logging.error(f'history rta_cb {e}')
 
     async def start(self):
         """Async startup."""

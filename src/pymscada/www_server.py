@@ -7,30 +7,20 @@ from struct import pack, unpack_from
 import time
 from pymscada.bus_client import BusClient
 import pymscada.protocol_constants as pc
-from pymscada.tag import Tag, TYPES
+from pymscada.tag import Tag, tag_for_web, TYPES
 from pymscada_html import get_html_file
 
 
-def tag_for_web(tagname: str, tag: dict):
-    """Correct tag dictionary in place to be suitable for web client."""
-    tag['name'] = tagname
-    tag['id'] = None
-    if 'desc' not in tag:
-        tag['desc'] = tag.name
-    if 'multi' in tag:
-        tag['type'] = 'int'
-    else:
-        if 'type' not in tag:
-            tag['type'] = 'float'
-        else:
-            if tag['type'] not in TYPES:
-                tag['type'] = 'str'
-    if tag['type'] == 'int':
-        tag['dp'] = 0
-    elif tag['type'] == 'float' and 'dp' not in tag:
-        tag['dp'] = 2
-    elif tag['type'] == 'str' and 'dp' in tag:
-        del tag['dp']
+class Interface():
+    """Provide an interface between web client rta and the action."""
+
+    def __init__(self, tagname: str) -> None:
+        """Return path tagname for rta requests."""
+        self.tag = Tag(tagname, dict)
+
+    def ask(self, message):
+        """Process the message."""
+        logging.warning(message)
 
 
 class WSHandler():
@@ -44,7 +34,7 @@ class WSHandler():
     ids = set(range(1, 100))
 
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
-                 tag_info: dict[str, Tag], do_rqs):
+                 tag_info: dict[str, Tag], do_rta, interface: Interface):
         """Create callbacks to monitor tag values."""
         self.ws = ws
         self.pages = pages
@@ -52,13 +42,14 @@ class WSHandler():
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
-        self.do_rqs = do_rqs
-        self.rqs_id = self.ids.pop()
-        logging.info(f'weksocket id {self.rqs_id}')
+        self.do_rta = do_rta
+        self.rta_id = self.ids.pop()
+        logging.info(f'websocket id {self.rta_id}')
+        self.interface = interface
 
     def __del__(self):
         """Depends on garbage collector. Is OK."""
-        self.ids.add(self.rqs_id)
+        self.ids.add(self.rta_id)
 
     async def send_queue(self):
         """Run forever, write from queue."""
@@ -70,7 +61,7 @@ class WSHandler():
                 else:
                     await self.ws.send_json(message)
         except asyncio.CancelledError:
-            logging.warn(f'{self.rqs_id}: send queue error, close '
+            logging.warn(f'{self.rta_id}: send queue error, close '
                          f'{self.ws.exception()}')
             return
 
@@ -91,7 +82,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQq',            # Network big-endian
                 tag.id,             # Uint16
-                pc.TYPE_INT,           # Uint16
+                pc.TYPE_INT,        # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Int64
             )))
@@ -99,7 +90,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQd',            # Network big-endian
                 tag.id,             # Uint16
-                pc.TYPE_FLOAT,         # Uint16
+                pc.TYPE_FLOAT,      # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Float64
             )))
@@ -113,17 +104,17 @@ class WSHandler():
                 asbytes             # Char as needed
             )))
         elif tag.type == bytes:
-            rqs_id = unpack_from('>H', tag.value)[0]
-            if rqs_id in [0, self.rqs_id]:
+            rta_id = unpack_from('>H', tag.value)[0]
+            if rta_id in [0, self.rta_id]:
                 self.queue.put_nowait((True, pack(
                     f'!HHQ{len(tag.value)}s',  # Network big-endian
                     tag.id,             # Uint16
-                    pc.TYPE_BYTES,        # Uint16
+                    pc.TYPE_BYTES,      # Uint16
                     tag.time_us,        # Uint64
                     tag.value           # Char as needed
                 )))
             else:
-                logging.info(f'{self.rqs_id}: {tag.name} bytes mismatch id')
+                logging.info(f'{self.rta_id}: {tag.name} bytes mismatch id')
         elif tag.type in [dict, list]:
             self.queue.put_nowait((False, {
                 'type': 'tag',
@@ -136,7 +127,7 @@ class WSHandler():
 
     def notify_id(self, tag: Tag):
         """Must be done here."""
-        logging.info(f'{self.rqs_id}: send id to webclient for {tag.name}')
+        logging.info(f'{self.rta_id}: send id to webclient for {tag.name}')
         self.tag_info[tag.name]['id'] = tag.id
         self.tag_by_id[tag.id] = tag
         self.tag_by_name[tag.name] = tag
@@ -151,7 +142,7 @@ class WSHandler():
             tag = self.tag_by_name[tagname]
         except KeyError:
             if tagname not in self.tag_info:
-                logging.warning(f'{self.rqs_id}: no {tagname} in tag_info')
+                logging.warning(f'{self.rta_id}: no {tagname} in tag_info')
                 return
             tag = Tag(tagname, TYPES[self.tag_info[tagname]['type']])
         if tag.id is None:
@@ -168,7 +159,7 @@ class WSHandler():
             (False, {'type': 'pages', 'payload': self.pages}))
         async for msg in self.ws:
             if msg.type == WSMsgType.TEXT:
-                logging.info(f'{self.rqs_id}: websocket recv {msg.json()}')
+                logging.info(f'{self.rta_id}: websocket recv {msg.json()}')
                 command = msg.json()
                 action = command['type']
                 tagname = command['tagname']
@@ -177,23 +168,25 @@ class WSHandler():
                 bus = None
                 if action == 'set':  # pc.CMD_SET
                     self.tag_by_name[tagname].value = value, time_us, bus
-                elif action == 'rqs':  # pc.CMD_RQS
+                elif action == 'rta':  # pc.CMD_RTA
                     if 'File' in value:
                         file = await anext(self.ws)
                         value['_file_data'] = file.data
-                    value['__rqs_id__'] = self.rqs_id
-                    self.do_rqs(tagname, value)
+                    value['__rta_id__'] = self.rta_id
+                    self.do_rta(tagname, value)
+                elif action == 'request_to_author':
+                    self.interface.ask(command)
                 elif action == 'sub':  # pc.CMD_SUB
                     self.do_sub(tagname)
                 elif action == 'get':  # pc.CMD_GET
-                    logging.warning(f'{self.rqs_id}: CMD_GET not implemented.')
+                    logging.warning(f'{self.rta_id}: CMD_GET not implemented.')
                 elif action == 'unsub':  # pc.CMD_UNSUB
-                    logging.warning(f'{self.rqs_id}: CMD_UNSUB not '
+                    logging.warning(f'{self.rta_id}: CMD_UNSUB not '
                                     'implemented.')
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')
             elif msg.type == WSMsgType.ERROR:
-                logging.warn(f'{self.rqs_id}: ws closing error '
+                logging.warn(f'{self.rta_id}: ws closing error '
                              f'{self.ws.exception()}')
         send_queue.cancel()
         for tag in self.tag_by_id.values():
@@ -206,7 +199,8 @@ class WwwServer:
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
-                 tag_info: dict = {}, pages: dict = {}, serve_path: str = None
+                 tag_info: dict = {}, pages: dict = {}, serve_path: str = None,
+                 www_tag: str = '__wwwserver__'
                  ) -> None:
         """
         Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
@@ -217,7 +211,8 @@ class WwwServer:
 
         Event loop must be running.
         """
-        self.busclient = BusClient(bus_ip, bus_port, tag_info)
+        self.busclient = BusClient(bus_ip, bus_port, tag_info,
+                                   module='WWW Server')
         self.ip = ip
         self.port = port
         self.get_path = get_path
@@ -226,6 +221,7 @@ class WwwServer:
             tag_for_web(tagname, tag)
         self.tag_info = tag_info
         self.pages = pages
+        self.interface = Interface(www_tag)
 
     async def redirect_handler(self, _request: web.Request):
         """Point an empty request to the index."""
@@ -262,8 +258,8 @@ class WwwServer:
         logging.info(f"WS from {peer}")
         ws = web.WebSocketResponse(max_msg_size=0)  # disables max message size
         await ws.prepare(request)
-        await WSHandler(ws, self.pages, self.tag_info, self.busclient.rqs
-                        ).connection_active()
+        await WSHandler(ws, self.pages, self.tag_info, self.busclient.rta,
+                        self.interface).connection_active()
         await ws.close()
         logging.info(f"WS closed {peer}")
         return ws

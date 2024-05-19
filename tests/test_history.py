@@ -115,27 +115,27 @@ async def test_deadband_write_history():
 
 
 READ_TESTS = [
-    ({'__rqs_id__': 12345, 'tagname': 'hist_tag_0', 'start_us': 55,
+    ({'__rta_id__': 12345, 'tagname': 'hist_tag_0', 'start_us': 55,
       'end_us': -1},
-     {'rqs_id': 12345, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
+     {'rta_id': 12345, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
       'end': (59, 59)}),
-    ({'__rqs_id__': 255, 'tagname': 'hist_tag_0', 'start_us': 55,
+    ({'__rta_id__': 255, 'tagname': 'hist_tag_0', 'start_us': 55,
       'end_us': 80},
-     {'rqs_id': 255, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
+     {'rta_id': 255, 'tagid': 2, 'packtype': 1, 'start': (55, 55),
       'end': (59, 59)}),
-    ({'__rqs_id__': 303, 'tagname': 'hist_tag_0', 'start_us': 20,
+    ({'__rta_id__': 303, 'tagname': 'hist_tag_0', 'start_us': 20,
       'end_us': 55},
-     {'rqs_id': 303, 'tagid': 2, 'packtype': 1, 'start': (20, 10),
+     {'rta_id': 303, 'tagid': 2, 'packtype': 1, 'start': (20, 10),
       'end': (54, 54)}),
-    ({'__rqs_id__': 305, 'tagname': 'hist_tag_0', 'start_us': -1,
+    ({'__rta_id__': 305, 'tagname': 'hist_tag_0', 'start_us': -1,
      'end_us': 30},
-     {'rqs_id': 305, 'tagid': 2, 'packtype': 1, 'start': (0, 255),
+     {'rta_id': 305, 'tagid': 2, 'packtype': 1, 'start': (0, 255),
       'end': (29, 19)}),
 ]
 
 
-def test_read_rqs_cb(t0: TagHistory):
-    """Test the RQS request data."""
+def test_read_rta_cb(t0: TagHistory):
+    """Test the RTA request data."""
     history = History(path='tests/test_assets',
                       tag_info={'hist_tag_0': {'type': 'int'}})
     history_tag = Tag('__history__', bytes)
@@ -153,9 +153,9 @@ def test_read_rqs_cb(t0: TagHistory):
 
     def decode(results):
         size = len(results)
-        rqs_id, tagid, packtype = unpack_from('>HHH', results)
+        rta_id, tagid, packtype = unpack_from('>HHH', results)
         result = {
-            'rqs_id': rqs_id,
+            'rta_id': rta_id,
             'tagid': tagid,
             'packtype': packtype,
             'dat': []
@@ -167,9 +167,9 @@ def test_read_rqs_cb(t0: TagHistory):
     history_tag.add_callback(history_cb, 999)  # fake non-local bus
     """Read in middle of range crossing two files."""
     for test, resp in READ_TESTS:
-        history.rqs_cb(test)
+        history.rta_cb(test)
         decoded = decode(results.pop(0))
-        assert decoded['rqs_id'] == resp['rqs_id']
+        assert decoded['rta_id'] == resp['rta_id']
         assert decoded['tagid'] == resp['tagid']  # as set above
         assert decoded['packtype'] == resp['packtype']  # is integer
         assert decoded['dat'][0] == resp['start']

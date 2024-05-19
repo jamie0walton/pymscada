@@ -25,6 +25,16 @@
             "justMyCode":true
         },
         {
+            "name":"opnotes",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["opnotes", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wwwserver",
             "type":"debugpy",
             "request":"launch",
@@ -51,6 +61,16 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["simulate", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"console",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["console", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
