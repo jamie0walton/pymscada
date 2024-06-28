@@ -22,12 +22,24 @@ class EC:
     home = b'\x1b[H'
     cr_clr = b'\x1b[2K\x1b[G'  # clear line and move start
     clear_line = b'\x1b[2K'
+    mv_start = b'\x1b[G'
     mv_left = b'\x1b[1000D'
-    move_cursor_up = b'\x1b[1A'
-    insert_line = b'\x1b[1L'
 
 
-class KeypressReaderProtocol(asyncio.Protocol):
+class CustomHandler(logging.StreamHandler):
+    """Control the cursor position."""
+
+    def emit(self, record):
+        """Write to the console adding a carriage return."""
+        try:
+            msg = self.format(record)
+            self.stream.write(msg + '\r\n')
+            self.stream.flush()
+        except Exception:
+            self.handleError(record)
+
+
+class KeypressProtocol(asyncio.Protocol):
     """Handle key presses, one at a time."""
 
     def __init__(self, edit_line, process_command):
@@ -39,6 +51,7 @@ class KeypressReaderProtocol(asyncio.Protocol):
         self.line = None  # not editing a line (yet)
         self.cursor = 0  # cursor position in line
         self.stash = None  # nothing stashed
+        self.connection_lost_future = asyncio.Future()
 
     def data_received(self, data):
         """Got keypress, update edit line, send to writer."""
@@ -98,26 +111,9 @@ class KeypressReaderProtocol(asyncio.Protocol):
             self.cursor = len(self.line)
         self.edit_line(self.line, self.cursor)
 
-
-class ConsoleReader:
-    """Read key presses for console."""
-
-    def __init__(self):
-        """Save terminal state and init stdin."""
-        self.fd = sys.stdin.fileno()
-        self.old_attr = termios.tcgetattr(self.fd)
-        tty.setraw(self.fd)
-
-    async def start_connection(self, edit_line, process):
-        """Connect protocol."""
-        self.transport, self.protocol = \
-            await asyncio.get_event_loop().connect_read_pipe(
-                lambda: KeypressReaderProtocol(edit_line, process),
-                sys.stdin)
-
-    def __del__(self):
-        """Reset the terminal."""
-        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_attr)
+    def connection_lost(self, exc):
+        """Let parent know protocol transport has disconnected."""
+        self.connection_lost_future.set_result(True)
 
 
 class ConsoleWriter:
@@ -127,8 +123,6 @@ class ConsoleWriter:
         """Init."""
         self.edit = None
         self.cursor = 0
-        self.fd = sys.stdout.fileno()
-        self.old_attr = termios.tcgetattr(self.fd)
 
     def write(self, data: bytes):
         """Stream writer, primarily for logging."""
@@ -154,10 +148,6 @@ class ConsoleWriter:
         sys.stdout.buffer.write(ln)
         sys.stdout.flush()
 
-    def __del__(self):
-        """Reset the terminal."""
-        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_attr)
-
 
 class Console:
     """Provide a text console to interact with a Bus."""
@@ -169,15 +159,26 @@ class Console:
 
         Event loop must be running.
         """
-        self.reader = ConsoleReader()
+        self.fdin = sys.stdin.fileno()
+        self.fdout = sys.stdout.fileno()
+        self.fdin_attr = termios.tcgetattr(self.fdin)
+        self.fdout_attr = termios.tcgetattr(self.fdout)
+        tty.setraw(self.fdin)
         self.writer = ConsoleWriter()
-        logging.basicConfig(stream=self.writer)
+        self.protocol = None
+        self.transport = None
+        # all to add '\r\n' to the logging output
+        logger = logging.getLogger()
+        handler = CustomHandler()
+        handler.setFormatter(logging.Formatter(
+            '%(levelname)s:%(name)s:%(message)s'))
+        logger.handlers.clear()
+        logger.addHandler(handler)
         self.busclient = BusClient(bus_ip, bus_port, module='Console')
         self.tags: dict[str, Tag] = {}
         for tagname, tag in tag_info.items():
             tag_for_web(tagname, tag)
             self.tags[tagname] = Tag(tagname, tag['type'])
-        self.quit = asyncio.Event()
 
     def write_tag(self, tag: Tag):
         """Append or insert tag value through writer."""
@@ -186,20 +187,24 @@ class Console:
 
     def process(self, command: bytes):
         """Execute command."""
+        if command is None:
+            return
         cmd, var, val = (command.split(b' ') + [None] * 3)[:3]
+        tagnames = self.tags.keys()
         if var is not None:
-            var = var.decode()
-        if var is None:
-            tagnames = self.tags.keys()
-        else:
-            tagnames = [x for x in self.tags.keys() if var in x]
+            tagname = var.decode()
+            tagnames = [x for x in self.tags.keys() if tagname in x]
         if cmd in [b'q', b'quit']:
-            self.quit.set()  # does not close connection tidily
+            self.transport.close()
         elif cmd in [b'g', b'get']:
             for tagname in tagnames:
                 self.write_tag(self.tags[tagname])
-        elif cmd == b'set':
-            pass
+        elif cmd == b'set' and tagname in self.tags:
+            try:
+                typed_val = self.tags[tagname].type(val.decode())
+                self.tags[tagname].value = typed_val
+            except ValueError as e:
+                logging.warning(f'error setting {tagname}: {e}')
         elif cmd in [b's', b'sub']:
             for tagname in tagnames:
                 self.tags[tagname].add_callback(self.write_tag)
@@ -226,5 +231,13 @@ class Console:
     async def start(self):
         """Start polling, does not return until finished."""
         await self.busclient.start()
-        await self.reader.start_connection(self.writer.edit_line, self.process)
-        await self.quit.wait()  # Idle wait until user quits the console
+        try:
+            self.protocol = \
+                KeypressProtocol(self.writer.edit_line, self.process)
+            self.transport, _ = \
+                await asyncio.get_event_loop().connect_read_pipe(
+                    lambda: self.protocol, sys.stdin)
+            await self.protocol.connection_lost_future
+        finally:
+            termios.tcsetattr(self.fdout, termios.TCSADRAIN, self.fdout_attr)
+            termios.tcsetattr(self.fdin, termios.TCSADRAIN, self.fdin_attr)

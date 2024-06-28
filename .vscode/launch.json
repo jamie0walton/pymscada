@@ -72,7 +72,7 @@
             "program":"src/pymscada/__main__.py",
             "args": ["console", "--verbose"],
             "console":"integratedTerminal",
-            "justMyCode":true
+            "justMyCode":false
         },
         {
             "name":"mbserver",
@@ -161,6 +161,13 @@
             "purpose": ["debug-test"],
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
         }
     ]
 }
