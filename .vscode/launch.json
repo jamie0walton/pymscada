@@ -40,7 +40,10 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["wwwserver", "--verbose"],
+            "args": ["wwwserver", "--verbose",
+                "--config", "/home/mscada/pymscada/config/wwwserver.yaml",
+                "--tags", "/home/mscada/pymscada/config/tags.yaml",
+            ],
             "console":"integratedTerminal",
             "justMyCode":true
         },

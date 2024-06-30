@@ -1,9 +1,12 @@
 """Poll SNMP OIDs from devices."""
 import logging
-import pysnmp.hlapi.asyncio as snmp
 from pymscada.bus_client import BusClient
 from pymscada.periodic import Periodic
 from pymscada.iodrivers.snmp_map import SnmpMaps
+try:
+    import pysnmp.hlapi.asyncio as snmp
+except ModuleNotFoundError:
+    logging.error('snmp_client not available.')
 
 
 class SnmpClientConnector:

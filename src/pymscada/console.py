@@ -2,10 +2,13 @@
 import asyncio
 import logging
 import sys
-import termios
-import tty
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag, tag_for_web
+try:
+    import termios
+    import tty
+except ModuleNotFoundError:
+    logging.error('console not available')
 
 
 class EC:

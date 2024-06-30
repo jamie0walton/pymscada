@@ -174,8 +174,8 @@ class WSHandler():
                         value['_file_data'] = file.data
                     value['__rta_id__'] = self.rta_id
                     self.do_rta(tagname, value)
-                elif action == 'request_to_author':
-                    self.interface.ask(command)
+                # elif action == 'request_to_author':
+                #     self.interface.ask(command)
                 elif action == 'sub':  # pc.CMD_SUB
                     self.do_sub(tagname)
                 elif action == 'get':  # pc.CMD_GET

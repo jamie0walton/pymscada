@@ -27,15 +27,16 @@ class OpNotes:
         self.cursor = self.connection.cursor()
         query = (
             'CREATE TABLE IF NOT EXISTS ' + self.table +
-            '(oid INTEGER PRIMARY KEY ASC, '
-            'datetime INTEGER, '
+            '(id INTEGER PRIMARY KEY ASC, '
+            'date INTEGER, '
             'site TEXT, '
-            'operator TEXT, '
+            'by TEXT, '
             'note TEXT)'
         )
         self.cursor.execute(query)
         self.busclient = BusClient(bus_ip, bus_port, module='OpNotes')
         self.rta = Tag(rta_tag, dict)
+        self.rta.value = {}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
 
     def rta_cb(self, request):
@@ -46,16 +47,15 @@ class OpNotes:
             try:
                 with self.connection:
                     self.cursor.execute(
-                        f'INSERT INTO {self.table} (datetime, site, operator, '
-                        'note) VALUES(:datetime, :site, :operator, :note) '
-                        'RETURNING *;',
+                        f'INSERT INTO {self.table} (date, site, by, note) '
+                        'VALUES(:date, :site, :by, :note) RETURNING *;',
                         request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
-                        'oid': res[0],
-                        'datetime': res[1],
+                        'id': res[0],
+                        'date': res[1],
                         'site': res[2],
-                        'operator': res[3],
+                        'by': res[3],
                         'note': res[4]
                     }
             except sqlite3.IntegrityError as error:
@@ -64,14 +64,14 @@ class OpNotes:
             try:
                 with self.connection:
                     self.cursor.execute(
-                        f'REPLACE INTO {self.table} VALUES(:oid, :datetime, '
-                        ':site, :operator, :note) RETURNING *;', request)
+                        f'REPLACE INTO {self.table} VALUES(:id, :date, '
+                        ':site, :by, :note) RETURNING *;', request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
-                        'oid': res[0],
-                        'datetime': res[1],
+                        'id': res[0],
+                        'date': res[1],
                         'site': res[2],
-                        'operator': res[3],
+                        'by': res[3],
                         'note': res[4]
                     }
             except sqlite3.IntegrityError as error:
@@ -80,8 +80,8 @@ class OpNotes:
             try:
                 with self.connection:
                     self.cursor.execute(
-                        f'DELETE FROM {self.table} WHERE oid = :oid;', request)
-                    self.rta.value = {'oid': request['oid']}
+                        f'DELETE FROM {self.table} WHERE id = :id;', request)
+                    self.rta.value = {'id': request['id']}
             except sqlite3.IntegrityError as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'HISTORY':
@@ -89,15 +89,14 @@ class OpNotes:
             try:
                 with self.connection:
                     self.cursor.execute(
-                        f'SELECT * FROM {self.table} WHERE datetime < '
-                        ':datetime ORDER BY ABS(datetime - :datetime) '
-                        'LIMIT 2;', request)
+                        f'SELECT * FROM {self.table} WHERE date < :date '
+                        'ORDER BY ABS(date - :date) LIMIT 2;', request)
                     for res in self.cursor.fetchall():
                         tag.value = {
-                            'oid': res[0],
-                            'datetime': res[1],
+                            'id': res[0],
+                            'date': res[1],
                             'site': res[2],
-                            'operator': res[3],
+                            'by': res[3],
                             'note': res[4]
                         }
             except sqlite3.IntegrityError as error:

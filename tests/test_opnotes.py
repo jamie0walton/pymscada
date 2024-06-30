@@ -33,24 +33,24 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
     tag = opnotes_tag  # OpNotes sets the tag value for www clients.
     record = {
         'action': 'ADD',
-        'oid': 15,
+        'id': 15,
         'site': 'Aniwhenua',
-        'operator': 'Jamie Walton',
-        'datetime': 1234567890123,
+        'by': 'Jamie Walton',
+        'date': 1234567890123,
         'note': 'Note °±²³😖.'
     }
     db.rta_cb(record)
-    assert tag.value['oid'] == 1
+    assert tag.value['id'] == 1
     assert tag.value['note'] == 'Note °±²³😖.'
-    record['oid'] = tag.value['oid']
+    record['id'] = tag.value['id']
     record['action'] = 'MODIFY'
     record['note'] = 'hi'
     db.rta_cb(record)
-    assert tag.value['oid'] == 1
+    assert tag.value['id'] == 1
     assert tag.value['note'] == 'hi'
     record['action'] = 'DELETE'
     db.rta_cb(record)
-    assert tag.value == {'oid': 1}
+    assert tag.value == {'id': 1}
 
 
 def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
@@ -70,20 +70,20 @@ def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
     o_tag.add_callback(o_cb, 999)
     r_tag.add_callback(r_cb, 999)
     record = {'action': 'ADD',
-              'datetime': 12345,
+              'date': 12345,
               'site': 'Site',
-              'operator': 'Me',
+              'by': 'Me',
               'note': 'hi'}
     for i in range(10):
-        record['datetime'] -= 1
-        db.rta_cb(record)  # oid 1-10
-    assert o_values[9]['oid'] == 10
+        record['date'] -= 1
+        db.rta_cb(record)  # id 1-10
+    assert o_values[9]['id'] == 10
     rq = {'action': 'HISTORY',
-          'datetime': 12345 - 3,
+          'date': 12345 - 3,
           'reply_tag': '__wwwserver__'}
     db.rta_cb(rq)
-    assert r_values[1]['datetime'] == 12340
-    for i in range(1, 11):  # sqlite3 oid counts from 1
-        rq = {'action': 'DELETE', 'oid': i}
+    assert r_values[1]['date'] == 12340
+    for i in range(1, 11):  # sqlite3 id counts from 1
+        rq = {'action': 'DELETE', 'id': i}
         db.rta_cb(rq)
-    o_values[19] == {'oid': 10}
+    o_values[19] == {'id': 10}

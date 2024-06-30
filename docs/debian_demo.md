@@ -22,7 +22,7 @@ for each one. It's set up to work well in Debian with systemd but does run in Wi
 ```shell
 mkdir MyDir
 cd MyDir
-pmscada checkout  # required to get modbus_plc.py
+pymscada checkout  # required to get modbus_plc.py
 nohup pymscada bus --config config/wwwserver.yaml --tags config/tags.yaml &
 nohup pymscada wwwserver --config config/simulate.yaml --tags config/tags.yaml &
 nohup pymscada history --config config/files.yaml &
