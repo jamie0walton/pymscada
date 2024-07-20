@@ -105,7 +105,7 @@ class WSHandler():
                 tag.time_us,        # Uint64
                 asbytes             # Char as needed
             )))
-        elif tag.type == bytes:
+        elif tag.type is bytes:
             rta_id = unpack_from('>H', tag.value)[0]
             if rta_id in [0, self.rta_id]:
                 self.queue.put_nowait((True, pack(
@@ -117,7 +117,19 @@ class WSHandler():
                 )))
             else:
                 logging.info(f'{self.rta_id}: {tag.name} bytes mismatch id')
-        elif tag.type in [dict, list]:
+        elif tag.type is list:
+            self.queue.put_nowait((False, {
+                'type': 'tag',
+                'payload': {
+                    'tagid': tag.id,
+                    'time_us': tag.time_us,
+                    'value': tag.value
+                }
+            }))
+        elif tag.type is dict:
+            if '__rta_id__' in tag.value:
+                if tag.value['__rta_id__'] != self.rta_id:
+                    return
             self.queue.put_nowait((False, {
                 'type': 'tag',
                 'payload': {
