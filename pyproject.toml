@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.1.3"
+version = "0.1.4a0"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},

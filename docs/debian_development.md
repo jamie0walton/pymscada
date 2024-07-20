@@ -1,7 +1,55 @@
-# Development Environment - Debian
+# Debian Development
 #### [Previous](./modbus_plc_demo.md) [Up](./README.md) [Next](./apache.md)
 
+## Notes
+
+With the venv prefix as ```(.venv)``` its not obvious which venv is running :(.
+```bash
+python -c "import sys; print(sys.prefix)"
+git clone https://github.com/jamie0walton/pymscada.git
+cd pymscada
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pdm
+pdm install
+```
+
+In VS code over a remote ssh session, open a python file. With any luck VS code will
+notice and prompt for the correct venv.
+
+Best for the debian user to be dedicated to the development. That way the directory
+structure can be consistent. Go with:
+```ini
+/home/username/
+            # run - pymscada checkout
+            # run - git clone pymscada
+            # run - git glone angmscada
+    config/
+            # systemd and yaml config files are here
+            # edit as needed
+    history/
+            # history files are created if the logger is run
+    pdf/
+            # convenience for serving pdf files
+    pymscada/
+            # dev folder for python, uses a DIFFERENT .venv
+    angmscada/
+            # dev folder for angular
+        dist/angmscada/
+            # dev web pages are created here
+```
+
 ## Prerequisites
+
+Start with the description in [Quickstart](./debian_quickstart.md). I'm uncertain
+what impact having the right version of [PDM](https://pdm-project.org/en/latest/) is so
+I don't install it in the OS. Rather:
+
+```bash
+cd ~
+git clone https
+```
+
 You will need a linux install with support for ```systemd```, you should
 select Apache and ssh, I normally don't install any form of x windows as
 the idea is to never need to log on to the SCADA server as a desktop

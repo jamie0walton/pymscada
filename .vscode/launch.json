@@ -28,9 +28,10 @@
             "name":"opnotes",
             "type":"debugpy",
             "request":"launch",
-            "cwd": "",
+            "cwd":"",
             "program":"src/pymscada/__main__.py",
-            "args": ["opnotes", "--verbose"],
+            "args": ["opnotes", "--verbose",
+                "--config", "../config/opnotes.yaml"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -41,8 +42,8 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["wwwserver", "--verbose",
-                "--config", "/home/mscada/pymscada/config/wwwserver.yaml",
-                "--tags", "/home/mscada/pymscada/config/tags.yaml",
+                "--config", "../config/wwwserver.yaml",
+                "--tags", "../config/tags.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -140,12 +141,13 @@
             "name":"checkout",
             "type":"debugpy",
             "request":"launch",
-            "cwd": "/home/mscada/pymscada",
-            "program":"/home/mscada/Documents/pymscada/src/pymscada/__main__.py",
+            "cwd":"${workspaceFolder}/..",
+            "program":"pymscada/src/pymscada/__main__.py",
             "args": ["checkout", "--verbose", "--diff"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
+
         {
             "name":"validate",
             "type":"debugpy",

@@ -8,8 +8,8 @@
     ExecStart=__PYMSCADA__ modbusserver --config __DIR__/config/modbusserver.yaml
     Restart=always
     RestartSec=5
-    User=mscada
-    Group=mscada
+    User=__USER__
+    Group=__USER__
 
 [Install]
     WantedBy=multi-user.target

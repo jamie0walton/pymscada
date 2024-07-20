@@ -31,7 +31,7 @@ class WSHandler():
     This are transitory, lasting for a given web browser client.
     """
 
-    ids = set(range(1, 100))
+    ids = set(range(1, 1000))
 
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
                  tag_info: dict[str, Tag], do_rta, interface: Interface):
@@ -57,8 +57,10 @@ class WSHandler():
             while True:
                 as_bytes, message = await self.queue.get()
                 if as_bytes:
+                    # logging.debug(f'{self.rta_id} as bytes {message}')
                     await self.ws.send_bytes(message)
                 else:
+                    # logging.debug(f'{self.rta_id} as json {message}')
                     await self.ws.send_json(message)
         except asyncio.CancelledError:
             logging.warn(f'{self.rta_id}: send queue error, close '

@@ -3,6 +3,8 @@
 
 #### [@Github](https://github.com/jamie0walton/pymscada/blob/main/README.md)
 
+<span style='color:aqua'>WIP: Presently updating documentation and deployment.</span>
+
 ## Python Mobile SCADA
 
 ```pymscada``` read / write to Modbus and Logix PLCs. Read SNMP OIDs.
@@ -24,44 +26,13 @@ procedurally built.
 
 ```pymscada``` is distributed under the GPLv3 [license](./LICENSE).
 
-# Use
-Checkout the example files.
-```bash
-mscada@raspberrypi:~/test $ pymscada checkout
-making 'history' folder
-making pdf dir
-making config dir
-Creating  /home/mscada/test/config/modbusclient.yaml
-Creating  /home/mscada/test/config/pymscada-history.service
-Creating  /home/mscada/test/config/wwwserver.yaml
-Creating  /home/mscada/test/config/pymscada-demo-modbus_plc.service
-Creating  /home/mscada/test/config/files.yaml
-Creating  /home/mscada/test/config/pymscada-modbusserver.service
-Creating  /home/mscada/test/config/pymscada-wwwserver.service
-Creating  /home/mscada/test/config/simulate.yaml
-Creating  /home/mscada/test/config/tags.yaml
-Creating  /home/mscada/test/config/history.yaml
-Creating  /home/mscada/test/config/pymscada-files.service
-Creating  /home/mscada/test/config/bus.yaml
-Creating  /home/mscada/test/config/modbusserver.yaml
-Creating  /home/mscada/test/config/modbus_plc.py
-Creating  /home/mscada/test/config/pymscada-modbusclient.service
-Creating  /home/mscada/test/config/pymscada-bus.service
-Creating  /home/mscada/test/config/README.md
-mscada@raspberrypi:~/test $ pymscada validate
-WARNING:root:pymscada 0.1.0 starting
-Config files in ./ valid.
-``` 
+# Running
 
-Runs on a Raspberry Pi and includes preconfigured systemd files to
-automate running the services. Mostly works on Windows, works better
-on linux.
+While many parts of ```pymscada``` will run in windows, this is not intentional.
 
-Modules can be run from the command line, although you need
-a terminal for each running module (better with systemd).
-```bash
-pymscada bus --config bus.yaml
-pymscada wwwserver --config wwwserver.yaml --tags tags.yaml
-pymscada history --config history.yaml --tags tags.yaml
-python weather.py
-```
+Running a useful subset requires quite a lot of steps, you have to choose the services
+you want and providing meaningful configuation. ```pymscada checkout``` will create
+templates of all of these for you that allows
+[Debian Quickstart](./docs/debian_quickstart.md) to get you to a working web page,
+however to connect to a PLC, trend data, read data and write setpoints, requires
+knowledge of typical SCADA and PLC functionality.

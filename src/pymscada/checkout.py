@@ -1,5 +1,6 @@
 """Create base config folder and check out demo files."""
 import difflib
+import getpass
 from pathlib import Path
 import sys
 from pymscada.config import get_demo_files, get_pdf_files
@@ -8,15 +9,18 @@ from pymscada.config import get_demo_files, get_pdf_files
 PATH = {
     '__PYTHON__': Path(f'{sys.exec_prefix}/bin/python').absolute(),
     '__PYMSCADA__': Path(sys.argv[0]).absolute(),
-    '__DIR__': Path('.').absolute()
+    '__DIR__': Path('.').absolute(),
+    '__HOME__': Path.home().absolute(),
+    '__USER__': getpass.getuser()
 }
 if sys.platform == "win32":
     PATH = {
         '__PYTHON__': Path(f'{sys.exec_prefix}/python.exe').absolute(),
         '__PYMSCADA__': Path(sys.argv[0]).absolute(),
-        '__DIR__': Path('.').absolute()
+        '__DIR__': Path('.').absolute(),
+        '__HOME__': Path.home(),
+        '__USER__': getpass.getuser()
     }
-
 
 def make_history():
     """Make the history folder if missing."""
@@ -56,8 +60,7 @@ def make_config(overwrite: bool):
         if str(target).endswith('service'):
             rd_bytes = config_file.read_bytes()
             for k, v in PATH.items():
-                rd_bytes = rd_bytes.replace(k.encode(),
-                                            str(v.absolute()).encode())
+                rd_bytes = rd_bytes.replace(k.encode(),str(v).encode())
             target.write_bytes(rd_bytes)
         else:
             target.write_bytes(config_file.read_bytes())
@@ -68,7 +71,7 @@ def read_with_subst(file: Path):
     rd = file.read_bytes().decode()
     if str(file).endswith('service'):
         for k, v in PATH.items():
-            rd = rd.replace(k, str(v.absolute()))
+            rd = rd.replace(k, str(v))
     lines = rd.splitlines()
     return lines
 
@@ -94,7 +97,7 @@ def compare_config():
 
 def checkout(overwrite=False, diff=False):
     """Do it."""
-    for name in PATH:
+    for name in ['__PYTHON__', '__PYMSCADA__', '__DIR__', '__HOME__']:
         if not PATH[name].exists():
             raise SystemExit(f'{PATH[name]} is missing')
     if diff:

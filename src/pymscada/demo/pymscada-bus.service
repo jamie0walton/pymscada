@@ -6,8 +6,8 @@
     ExecStart=__PYMSCADA__ bus --config __DIR__/config/bus.yaml
     Restart=always
     RestartSec=5
-    User=mscada
-    Group=mscada
+    User=__USER__
+    Group=__USER__
 
 [Install]
     WantedBy=multi-user.target

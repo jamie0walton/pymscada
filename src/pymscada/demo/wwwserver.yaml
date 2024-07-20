@@ -2,8 +2,8 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 ip: 0.0.0.0
 port: 8324
-get_path: /home/mscada/Documents/angmscada/dist/angmscada
-serve_path: /home/mscada/pymscada
+get_path: __HOME__/angmscada/dist/angmscada
+serve_path: __HOME__/pymscada
 pages:
 - name: Default Main
   parent:
@@ -35,6 +35,12 @@ pages:
       - Four
       - Five
   - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
+- name: Notes
+  parent:
+  items:
+  - type: opnote
+    site: [Site 1, Site 2]
+    by: [B1, B2]
 - name: Trends
   parent: Dropdown
   items:
@@ -81,7 +87,7 @@ pages:
 - name: Files
   parent: Dropdown
   items:
-  - {tagname: __files__, type: files}
+  - type: files
 - name: Temperature
   parent: Weather
   items:

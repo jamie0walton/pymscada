@@ -8,8 +8,8 @@
     ExecStart=__PYMSCADA__ opnotes --config __DIR__/config/opnotes.yaml
     Restart=always
     RestartSec=5
-    User=mscada
-    Group=mscada
+    User=__USER__
+    Group=__USER__
     KillSignal=SIGINT
 
 [Install]

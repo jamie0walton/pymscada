@@ -8,8 +8,8 @@
     ExecStart=__PYMSCADA__ wwwserver --config __DIR__/config/wwwserver.yaml --tags __DIR__/config/tags.yaml
     Restart=always
     RestartSec=5
-    User=mscada
-    Group=mscada
+    User=__USER__
+    Group=__USER__
 
 [Install]
     WantedBy=multi-user.target
