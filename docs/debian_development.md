@@ -8,7 +8,7 @@ With the venv prefix as ```(.venv)``` its not obvious which venv is running :(.
 python -c "import sys; print(sys.prefix)"
 git clone https://github.com/jamie0walton/pymscada.git
 cd pymscada
-python3 -m venv .venv
+python3 -m venv .venv   # TODO this later proved to be a problem and I deleted it
 source .venv/bin/activate
 pip install pdm
 pdm install

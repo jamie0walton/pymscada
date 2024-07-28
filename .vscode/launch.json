@@ -124,7 +124,10 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["logixclient", "--verbose"],
+            "args": ["logixclient", "--verbose",
+                "--config", "../config/logixclient.yaml",
+                "--tags", "../config/tags.yaml",
+            ],
             "console":"integratedTerminal",
             "justMyCode":true
         },
