@@ -79,6 +79,19 @@
             "justMyCode":false
         },
         {
+            "name":"accuweather",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["accuweatherclient", "--verbose",
+                "--config", "../config/accuweather.yaml",
+                "--tags", "../config/tags.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"mbserver",
             "type":"debugpy",
             "request":"launch",

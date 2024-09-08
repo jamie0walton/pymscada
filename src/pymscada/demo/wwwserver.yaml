@@ -5,6 +5,12 @@ port: 8324
 get_path: __HOME__/angmscada/dist/angmscada
 serve_path: __HOME__/pymscada
 pages:
+- name: Notes
+  parent:
+  items:
+  - type: opnote
+    site: [Site 1, Site 2]
+    by: [B1, B2]
 - name: Default Main
   parent:
   items:
@@ -35,12 +41,6 @@ pages:
       - Four
       - Five
   - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
-- name: Notes
-  parent:
-  items:
-  - type: opnote
-    site: [Site 1, Site 2]
-    by: [B1, B2]
 - name: Trends
   parent: Dropdown
   items:

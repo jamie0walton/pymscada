@@ -12,6 +12,7 @@ from pymscada.files import Files
 from pymscada.history import History
 from pymscada.opnotes import OpNotes
 from pymscada.www_server import WwwServer
+from pymscada.iodrivers.accuweather import AccuWeatherClient
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
@@ -186,6 +187,18 @@ class _validate(Module):
             print(e)
 
 
+class _AccuWeatherClient(Module):
+    """Bus Module."""
+
+    name = 'accuweatherclient'
+    help = 'poll weather information'
+
+    def run_once(self, options):
+        """Create the module."""
+        config = Config(options.config)
+        self.module = AccuWeatherClient(**config)
+
+
 class _LogixClient(Module):
     """Bus Module."""
 
@@ -275,6 +288,7 @@ def args(_version: str):
     _Console(s)
     _checkout(s)
     _validate(s)
+    _AccuWeatherClient(s)
     _LogixClient(s)
     _ModbusServer(s)
     _ModbusClient(s)

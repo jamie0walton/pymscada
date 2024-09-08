@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - AccuWeather client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ accuweatherclient --config __DIR__/config/accuweather.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+
+[Install]
+    WantedBy=multi-user.target

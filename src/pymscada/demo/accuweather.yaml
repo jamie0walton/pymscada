@@ -1,0 +1,16 @@
+bus_ip: 127.0.0.1
+bus_port: 1325
+proxy: 'http://127.0.0.1:3128'
+api:
+  url: http://dataservice.accuweather.com/forecasts/v1/hourly/12hour/
+  query:
+    apikey: <your key>
+    details: 'true'
+    metric: 'true'
+  locations:
+    Murupara: 246970
+  times: [1, 3, 12]
+tags:
+- MuruparaTemp_1
+- MuruparaTemp_3
+- MuruparaTemp_12

@@ -240,7 +240,7 @@ class Tag(metaclass=UniqueTag):
     def time_us(self, time_us: int):
         """Make sure this is int, should _always_ be. TODO remove."""
         if type(time_us) is not int:
-            logging.warning(f"{self.name} was not an int, FIX.")
+            logging.warning(f"{self.name} time_us was not an int, FIX.")
             self.__time_us = int(time_us)
         else:
             self.__time_us = time_us
