@@ -109,7 +109,7 @@ class BusClient:
             self.ip, self.port)
         self.addr = self.writer.get_extra_info('sockname')
         self.write(pc.CMD_LOG, 0, 0, f'{self.module} connected'.encode())
-        logging.info(f'connected {self.addr}')
+        logging.warning(f'connected {self.addr} {self.port}')
         for tag in Tag.get_all_tags().values():
             self.add_tag(tag)
         Tag.set_notify(self.add_tag)

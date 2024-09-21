@@ -29,6 +29,7 @@ class AccuWeatherClient:
                      for x in api['locations'].values()]
         self.session = aiohttp.ClientSession()
         self.queue = asyncio.Queue()
+        self.init_run = True
 
     async def handle_response(self):
         """Unpack the weather values from the json response."""
@@ -65,15 +66,19 @@ class AccuWeatherClient:
     async def fetch_data(self, location, url, query):
         """HTTP get."""
         logging.warning(f'poll {location} {url}')
-        async with self.session.get(url, params=query,
-                                    proxy=self.proxy) as resp:
-            self.queue.put_nowait([location, await resp.json()])
+        try:
+            async with self.session.get(url, params=query,
+                                        proxy=self.proxy) as resp:
+                self.queue.put_nowait([location, await resp.json()])
+        except asyncio.TimeoutError as e:
+            logging.warning('AccuWeather {e}')
 
     async def poll(self):
         """Poll the weather site near the start of each hour."""
         now = int(time())
-        if now % 3600 != 120:
+        if now % 3600 != 120 and not self.init_run:
             return
+        self.init_run = False
         if not self.queue.empty():
             return
         # Get the weather forecasts
