@@ -42,7 +42,7 @@ class AccuWeatherClient:
             for record in json:
                 epoch = record['EpochDateTime']
                 hour = int((epoch - time_mod) / 3600)
-                logging.warning(f'epoch {epoch} time_s {time_s} hour {hour}')
+                logging.info(f'epoch {epoch} time_s {time_s} hour {hour}')
                 if hour not in self.api['times']:
                     continue
                 suffix = ''
@@ -55,11 +55,13 @@ class AccuWeatherClient:
                     ['Rain', 'Rain', None, 'Value'],
                     ['Snow', 'Snow', None, 'Value']
                 ]:
-                    tag = self.tags[f'{site}{parm}{suffix}']
+                    tagname = f'{site}{parm}{suffix}'
+                    tag = self.tags[tagname]
                     if key2 is None:
                         value = record[key1][key]
                     else:
                         value = record[key1][key2][key]
+                    logging.info(f'{tagname} was {tag.value} new {value}')
                     if tag.value != value:
                         tag.value = value, int(epoch * 1e6), self.map_bus
 
