@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.1.10"
+version = "0.1.11"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
@@ -46,3 +46,7 @@ omit = [
 
 [project.scripts]
 pymscada = "pymscada.__main__:cmd_line"
+
+[project.urls]
+"Homepage" = "https://github.com/jamie0walton/pymscada"
+"Bug Tracker" = "https://github.com/jamie0walton/pymscada/issues"

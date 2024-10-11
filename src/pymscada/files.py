@@ -6,9 +6,6 @@ from pymscada.periodic import Periodic
 from pymscada.tag import Tag
 
 
-RATE = 10
-
-
 class Files():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
@@ -23,7 +20,6 @@ class Files():
 
         Event loop must be running.
         """
-        self.busclient = BusClient(bus_ip, bus_port, module='Files')
         self.path = Path(path)
         self.files = files
         for file in self.files:
@@ -33,11 +29,19 @@ class Files():
                 file['mode'] = 'ro'
             file['_path'] = self.path.joinpath(file['path'])
             file['st_mtime_ns'] = 0
+        self.busclient = BusClient(bus_ip, bus_port, module='Files')
         self.rta = Tag(rta_tag, dict)
+        self.rta.value = {}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
-        self.scan_files()
 
-    def scan_files(self):
+    def rta_cb(self, request):
+        """Respond to Request to Author and publish on rta_tag as needed."""
+        if 'action' not in request:
+            logging.warning(f'rta_cb malformed {request}')
+        logging.info(f'files rta_cb {request}')
+        pass
+
+    async def scan_files(self):
         """Scan folders for files."""
         update = False
         for file in self.files:
@@ -57,19 +61,10 @@ class Files():
                              'name': fn.name,
                              'desc': file['desc'],
                              'mode': file['mode']})
-        self.rta.value = {'__rta_id__': 0, 'dat': info}
-
-    def rta_cb(self, tag):
-        """Respond to bus requests for data to publish on rta."""
-        logging.info(f'files rta_cb {tag.name} {tag.value}')
-        pass
-
-    async def check_files(self):
-        """Check to see if any files have changed."""
-        self.scan_files()
+        self.rta.value = {'dat': info}
 
     async def start(self):
         """Async startup."""
         await self.busclient.start()
-        self.periodic = Periodic(self.check_files, RATE)
+        self.periodic = Periodic(self.scan_files, 10.0)
         await self.periodic.start()

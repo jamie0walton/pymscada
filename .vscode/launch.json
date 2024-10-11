@@ -20,7 +20,8 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["files", "--verbose"],
+            "args": ["files", "--verbose",
+                "--config", "../config/files.yaml"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

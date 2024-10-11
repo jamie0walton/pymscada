@@ -63,9 +63,8 @@ class WSHandler():
                     # logging.debug(f'{self.rta_id} as json {message}')
                     await self.ws.send_json(message)
         except asyncio.CancelledError:
-            logging.warn(f'{self.rta_id}: send queue error, close '
-                         f'{self.ws.exception()}')
-            return
+            logging.warning(f'{self.rta_id}: send queue error, close '
+                            f'{self.ws.exception()}')
 
     def publish(self, tag: Tag):
         """
@@ -200,8 +199,8 @@ class WSHandler():
             elif msg.type == WSMsgType.BINARY:
                 logging.info(f'{msg.data}')
             elif msg.type == WSMsgType.ERROR:
-                logging.warn(f'{self.rta_id}: ws closing error '
-                             f'{self.ws.exception()}')
+                logging.warning(f'{self.rta_id}: ws closing error '
+                                f'{self.ws.exception()}')
         send_queue.cancel()
         for tag in self.tag_by_id.values():
             tag.del_callback_id(self.notify_id)
@@ -263,8 +262,8 @@ class WwwServer:
         if not path.exists():
             return web.HTTPNotFound(reason='no such file in path')
         return web.FileResponse(path)
-        logging.warning(f"path not configured {request.match_info['path']}")
-        return web.HTTPForbidden(reason='path not permitted')
+        # logging.warning(f"path not configured {request.match_info['path']}")
+        # return web.HTTPForbidden(reason='path not permitted')
 
     async def websocket_handler(self, request: web.Request):
         """Wait for connections. Create a new one each time."""
