@@ -16,6 +16,7 @@ from pymscada.iodrivers.accuweather import AccuWeatherClient
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
+from pymscada.iodrivers.openweather import OpenWeatherClient
 from pymscada.iodrivers.ping_client import PingClient
 from pymscada.iodrivers.snmp_client import SnmpClient
 from pymscada.validate import validate
@@ -199,6 +200,18 @@ class _AccuWeatherClient(Module):
         self.module = AccuWeatherClient(**config)
 
 
+class _OpenWeatherClient(Module):
+    """Bus Module."""
+
+    name = 'openweatherclient'
+    help = 'poll OpenWeather current and forecast data'
+
+    def run_once(self, options):
+        """Create the module."""
+        config = Config(options.config)
+        self.module = OpenWeatherClient(**config)
+
+
 class _LogixClient(Module):
     """Bus Module."""
 
@@ -289,6 +302,7 @@ def args(_version: str):
     _checkout(s)
     _validate(s)
     _AccuWeatherClient(s)
+    _OpenWeatherClient(s)
     _LogixClient(s)
     _ModbusServer(s)
     _ModbusClient(s)

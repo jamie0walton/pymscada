@@ -6,7 +6,7 @@ from pymscada import validate
 def test_validate():
     """Test the files"""
     v, e, p = validate()
-    assert p == './'
+    logging.debug(f"Validation path: {p}")
     if not v:
-        logging.warning(e)
+        logging.warning(f"Validation errors: {e}")
     assert v

@@ -16,17 +16,17 @@ rarely.
 - data size of 8-bit char
 
 command
-- CMD_ID data is tagname
+- CMD.ID data is tagname
   - reply: CMD_ID with tag_id and data as tagname
-- CMD_SET id, data is typed or json packed
+- CMD.SET id, data is typed or json packed
   - no reply
-- CMD_UNSUB id
+- CMD.UNSUB id
   - no reply
-- CMD_GET id
-- CMD_RTA id, data is request to author
-- CMD_SUB id
+- CMD.GET id
+- CMD.RTA id, data is request to author
+- CMD.SUB id
   - reply: SET id and value, value may be None
-- CMD_LIST
+- CMD.LIST
   - size == 0x00
     - tags with values newer than time_us
   - size > 0x00
@@ -34,43 +34,33 @@ command
     - text$ matches start of tagname
     - text matches anywhere in tagname
   - reply: LIST data as space separated tagnames
-- CMD_LOG data to logging.warning
+- CMD.LOG data to logging.warning
 """
 
 # Tuning constants
 MAX_LEN = 65535 - 14  # TODO fix server(?) when 3
 
-# Network protocol commands
-CMD_ID = 1  # query / inform tag ID - data is tagname bytes string
-CMD_SET = 2  # set a tag
-CMD_GET = 3  # get a tag
-CMD_RTA = 4  # request to author
-CMD_SUB = 5  # subscribe to a tag
-CMD_UNSUB = 6  # unsubscribe from a tag
-CMD_LIST = 7  # bus list tags
-CMD_ERR = 8  # action failed
-CMD_LOG = 9  # bus print a logging message
+from enum import IntEnum
 
-CMD_TEXT = {
-    1: 'CMD_ID',
-    2: 'CMD_SET',
-    3: 'CMD_GET',
-    4: 'CMD_RTA',
-    5: 'CMD_SUB',
-    6: 'CMD_UNSUB',
-    7: 'CMD_LIST',
-    8: 'CMD_ERR',
-    9: 'CMD_LOG'
-}
+class COMMAND(IntEnum):
+    ID = 1     # query / inform tag ID - data is tagname bytes string
+    SET = 2    # set a tag
+    GET = 3    # get a tag
+    RTA = 4    # request to author
+    SUB = 5    # subscribe to a tag
+    UNSUB = 6  # unsubscribe from a tag
+    LIST = 7   # bus list tags
+    ERR = 8    # action failed
+    LOG = 9    # bus print a logging message
 
-COMMANDS = [CMD_ID, CMD_SET, CMD_GET, CMD_RTA, CMD_SUB, CMD_UNSUB, CMD_LIST,
-            CMD_ERR, CMD_LOG]
+    @staticmethod
+    def text(cmd) -> str:
+        """Return command text description for enum or int."""
+        return COMMAND(cmd).name
 
-# data types
-TYPE_INT = 1  # 64 bit signed integer
-TYPE_FLOAT = 2  # 64 bit IEEE float
-TYPE_STR = 3  # string
-TYPE_BYTES = 4
-TYPE_JSON = 5
-
-TYPES = [TYPE_INT, TYPE_FLOAT, TYPE_STR, TYPE_BYTES, TYPE_JSON]
+class TYPE(IntEnum):
+    INT = 1    # 64 bit signed integer
+    FLOAT = 2  # 64 bit IEEE float
+    STR = 3    # string
+    BYTES = 4  # raw bytes
+    JSON = 5   # JSON encoded data

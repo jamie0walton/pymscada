@@ -50,3 +50,6 @@ pymscada = "pymscada.__main__:cmd_line"
 [project.urls]
 "Homepage" = "https://github.com/jamie0walton/pymscada"
 "Bug Tracker" = "https://github.com/jamie0walton/pymscada/issues"
+
+[tool.pytest.ini_options]
+addopts = "-v -s"

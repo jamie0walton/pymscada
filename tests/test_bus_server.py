@@ -69,24 +69,24 @@ async def bus_echo(bus_server):
 
 PROTOCOL_TESTS = [
     {'desc': 'create a new bus tag with ID request',
-     'send': (pc.CMD_ID, 170, 18_446_744_073_709_551_615, b't_0'),
-     'recv': [(pc.CMD_ERR, None, None, b"ID b't_0' undefined"),
-              (pc.CMD_ID, 'ID', None, b'')]},
+     'send': (pc.COMMAND.ID, 170, 18_446_744_073_709_551_615, b't_0'),
+     'recv': [(pc.COMMAND.ERR, None, None, b"ID b't_0' undefined"),
+              (pc.COMMAND.ID, 'ID', None, b'')]},
     {'desc': 'SET the value of an existing tag',
-     'send': (pc.CMD_SET, 'ID', 6_744_073_709_551_615, b'VAL'),
+     'send': (pc.COMMAND.SET, 'ID', 6_744_073_709_551_615, b'VAL'),
      'recv': [None]},
     {'desc': 'GET the value just SET',
-     'send': (pc.CMD_GET, 'ID', 0, b''),
-     'recv': [(pc.CMD_SET, 'ID', 6_744_073_709_551_615, b'VAL')]},
+     'send': (pc.COMMAND.GET, 'ID', 0, b''),
+     'recv': [(pc.COMMAND.SET, 'ID', 6_744_073_709_551_615, b'VAL')]},
     {'desc': 'SUB to the created tag',
-     'send': (pc.CMD_SUB, 'ID', 0, b''),
-     'recv': [(pc.CMD_SET, 'ID', 6_744_073_709_551_615, b'VAL')]},
+     'send': (pc.COMMAND.SUB, 'ID', 0, b''),
+     'recv': [(pc.COMMAND.SET, 'ID', 6_744_073_709_551_615, b'VAL')]},
     {'desc': 'SET the subscribed tag',
-     'send': (pc.CMD_SET, 'ID', 615, b'New value'),
+     'send': (pc.COMMAND.SET, 'ID', 615, b'New value'),
      'recv': [None]},  # SUB does not return as this is sending bus
     {'desc': 'LIST bus tags',
-     'send': (pc.CMD_LIST, 0, 0, b'^t_0'),
-     'recv': [(pc.CMD_LIST, 0, None, b't_0')]},
+     'send': (pc.COMMAND.LIST, 0, 0, b'^t_0'),
+     'recv': [(pc.COMMAND.LIST, 0, None, b't_0')]},
 ]
 
 
@@ -125,7 +125,7 @@ async def test_protocol_message(bus_server):
             _v, cmd, tag_id, size, time_us = unpack_from(
                 '!BBHHQ', data, offset=0)
             data = data[14:]
-            if cmd == pc.CMD_ID:
+            if cmd == pc.COMMAND.ID:
                 t_id = tag_id
             if r_tag_id == 'ID':
                 r_tag_id = t_id
@@ -170,7 +170,7 @@ async def test_client_init(bus_server):
     global queue
     # Hack the tag value straight into the bus
     mybustag = BusTag(b'myinit')
-    mybustag.value = pack('!B4s', pc.TYPE_STR, b'init')
+    mybustag.value = pack('!B4s', pc.TYPE.STR, b'init')
     # standard bus client tag setup
     mytag = Tag('myinit', str)
     # callback to see when the tag updates

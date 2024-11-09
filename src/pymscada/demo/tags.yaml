@@ -256,10 +256,13 @@ Router_eth8_bytes_out:
   type: int
 localhost_ping:
   desc: Ping time to localhost
+  type: int
   units: ms
 google_ping:
   desc: Ping time to google
+  type: int
   units: ms
 electronet_ping:
   desc: Ping time to electronet
+  type: int
   units: ms
