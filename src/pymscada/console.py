@@ -13,7 +13,6 @@ except ModuleNotFoundError:
 
 class EC:
     """Escape codes."""
-
     backspace = b'\x7f'
     enter = b'\r'
     tab = b'\t'
@@ -59,17 +58,14 @@ class KeypressProtocol(asyncio.Protocol):
     def data_received(self, data):
         """Got keypress, update edit line, send to writer."""
         if len(data) == 1:
-            if data == EC.backspace:
+            if data == EC.backspace and self.cursor > 0:
                 self.line = self.line[:self.cursor-1] + self.line[self.cursor:]
-                if self.cursor > 0:
-                    self.cursor -= 1
+                self.cursor -= 1
             elif data == EC.enter:
-                self.stash = None
-                if self.lines:
-                    if self.line != self.lines[-1]:
-                        self.lines.append(self.line)
-                else:
+                if self.line and (not self.lines or
+                                  self.line != self.lines[-1]):
                     self.lines.append(self.line)
+                self.stash = None
                 self.edit_line(None, 0)
                 self.process_command(self.line)
                 self.line = None
@@ -129,11 +125,12 @@ class ConsoleWriter:
 
     def write(self, data: bytes):
         """Stream writer, primarily for logging."""
+        cursor_str = b''
+        if self.edit is not None and self.cursor > 0:
+            cursor_str = b'\x1b[' + str(self.cursor).encode() + b'C'
         ln = EC.cr_clr + data + b'\r\n'
         if self.edit is not None:
-            ln += EC.cr_clr + self.edit + EC.mv_left
-            if self.cursor > 0:
-                ln += b'\x1b[' + str(self.cursor).encode() + b'C'
+            ln += EC.cr_clr + self.edit + EC.mv_left + cursor_str
         sys.stdout.buffer.write(ln)
         sys.stdout.flush()
 
@@ -173,8 +170,8 @@ class Console:
         # all to add '\r\n' to the logging output
         logger = logging.getLogger()
         handler = CustomHandler()
-        handler.setFormatter(logging.Formatter(
-            '%(levelname)s:%(name)s:%(message)s'))
+        handler.setFormatter(logging.Formatter('%(levelname)s:console: '
+                                               '%(message)s'))
         logger.handlers.clear()
         logger.addHandler(handler)
         self.busclient = BusClient(bus_ip, bus_port, module='Console')
