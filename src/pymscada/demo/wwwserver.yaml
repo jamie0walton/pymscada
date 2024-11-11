@@ -2,13 +2,13 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 ip: 0.0.0.0
 port: 8324
-get_path: __HOME__/angmscada/dist/angmscada
-serve_path: __HOME__/pymscada
+get_path:
+serve_path: __HOME__
 pages:
 - name: Notes
   parent:
   items:
-  - type: opnote
+  - type: opnotes
     site: [Site 1, Site 2]
     by: [B1, B2]
 - name: Default Main
@@ -41,206 +41,18 @@ pages:
       - Four
       - Five
   - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
-- name: Trends
-  parent: Dropdown
-  items:
-  - type: uplot  # Do all times in seconds, which uplot uses.
-    ms:
-      desc: Sample Trend
-      age: 172800
-      legend_pos: left
-      time_pos: left
-      time_res: m
-    axes:
-    - scale: x
-      range: [-86400, 0]  # 86400 172800 1209600
-    - scale: '°C'
-      range: [0.0, 100.0]
-      dp: 1
-    - scale: '%'
-      range: [0.0, 100.0]
-      dp: 1
-      # side: 1
-    # bands:  # TODO
-    # - series: [I_Transpower_Limit_Hi, I_Transpower_Limit_Lo]
-    #   fill: [red, 0.2]
-    #   dir: -1
-    series:
-    - tagname: cpu_load
-      label: CPU Load
-      scale: '%'
-      color: black
-      width: 1.5
-      dp: 1
-    - tagname: disk_use
-      label: Disk Use
-      scale: '%'
-      color: blue
-      width: 1
-      dp: 1
-    - tagname: cpu_temp
-      label: CPU Temp
-      scale: '°C'
-      color: red
-      width: 1
-      dp: 1
 - name: Files
-  parent: Dropdown
+  parent:
   items:
   - type: files
-- name: Logix
-  items:
-  - {tagname: Ani_Fin_20, type: setpoint}
-  - {tagname: Ani_Fout_20, type: value}
-  - {tagname: Ani_Iin_20, type: setpoint}
-  - {tagname: Ani_Iout_20, type: value}
-  - {tagname: InVar, type: setpoint}
-  - {tagname: OutVar, type: value}
-  - {tagname: Ani_Iin_21_0, type: setpoint}
-  - {tagname: Ani_Iout_21_0, type: value}
-  - {tagname: Ani_Iin_21_1, type: setpoint}
-  - {tagname: Ani_Iout_21_1, type: value}
-- name: Values
-  parent: SNMP
-  items:
-  - {tagname: Router_eth1_bytes_in, type: value}
-  - {tagname: Router_eth1_bytes_out, type: value}
-  - {tagname: Router_eth2_bytes_in, type: value}
-  - {tagname: Router_eth2_bytes_out, type: value}
-  - {tagname: Router_eth3_bytes_in, type: value}
-  - {tagname: Router_eth3_bytes_out, type: value}
-  - {tagname: Router_eth4_bytes_in, type: value}
-  - {tagname: Router_eth4_bytes_out, type: value}
-  - {tagname: Router_eth5_bytes_in, type: value}
-  - {tagname: Router_eth5_bytes_out, type: value}
-  - {tagname: Router_eth6_bytes_in, type: value}
-  - {tagname: Router_eth6_bytes_out, type: value}
-  - {tagname: Router_eth7_bytes_in, type: value}
-  - {tagname: Router_eth7_bytes_out, type: value}
-  - {tagname: Router_eth8_bytes_in, type: value}
-  - {tagname: Router_eth8_bytes_out, type: value}
-- name: Trend
-  parent: SNMP
-  items:
-  - type: uplot  # Do all times in seconds, which uplot uses.
-    ms:
-      desc: Bytes
-      age: 172800
-      legend_pos: left
-      time_pos: left
-      time_res: m
-    axes:
-    - scale: x
-      range: [-86400, 0]
-    - scale: 'bytes'
-      range: [0, 100000]
-      dp: 0
-    series:
-    - tagname: Router_eth1_bytes_in
-      label: eth1 in
-      scale: 'bytes'
-      color: violet
-      width: 1
-      dp: 0
-    - tagname: Router_eth1_bytes_out
-      label: eth1 out
-      scale: 'bytes'
-      color: violet
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth2_bytes_in
-      label: eth2 in
-      scale: 'bytes'
-      color: blue
-      width: 1
-      dp: 0
-    - tagname: Router_eth2_bytes_out
-      label: eth2 out
-      scale: 'bytes'
-      color: blue
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth3_bytes_in
-      label: eth3 in
-      scale: 'bytes'
-      color: green
-      width: 1
-      dp: 0
-    - tagname: Router_eth3_bytes_out
-      label: eth3 out
-      scale: 'bytes'
-      color: green
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth4_bytes_in
-      label: eth4 in
-      scale: 'bytes'
-      color: gray
-      width: 1
-      dp: 0
-    - tagname: Router_eth4_bytes_out
-      label: eth4 out
-      scale: 'bytes'
-      color: gray
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth5_bytes_in
-      label: eth5 in
-      scale: 'bytes'
-      color: goldenrod
-      width: 1
-      dp: 0
-    - tagname: Router_eth5_bytes_out
-      label: eth5 out
-      scale: 'bytes'
-      color: goldenrod
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth6_bytes_in
-      label: eth6 in
-      scale: 'bytes'
-      color: brown
-      width: 1
-      dp: 0
-    - tagname: Router_eth6_bytes_out
-      label: eth6 out
-      scale: 'bytes'
-      color: brown
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth7_bytes_in
-      label: eth7 in
-      scale: 'bytes'
-      color: orange
-      width: 1
-      dp: 0
-    - tagname: Router_eth7_bytes_out
-      label: eth7 out
-      scale: 'bytes'
-      color: orange
-      width: 0.5
-      dp: 0
-    - tagname: Router_eth8_bytes_in
-      label: eth8 in
-      scale: 'bytes'
-      color: aqua
-      width: 1
-      dp: 0
-    - tagname: Router_eth8_bytes_out
-      label: eth8 out
-      scale: 'bytes'
-      color: aqua
-      width: 0.5
-      dp: 0
 - name: Ping Values
-  parent: Ping
+  parent:
   items:
   - {desc: Default tags, type: h1}
   - {tagname: localhost_ping, type: value}
   - {tagname: google_ping, type: value}
-  - {tagname: electronet_ping, type: value}
 - name: Ping Trend
-  parent: Ping
+  parent:
   items:
   - type: uplot  # Do all times in seconds, which uplot uses.
     ms:
@@ -253,18 +65,13 @@ pages:
     - scale: x
       range: [-86400, 0]  # 86400 172800 1209600
     - scale: mS
-      range: [0.0, 1.0]
+      range: [0.0, 100.0]
       dp: 1
     series:
     - tagname: localhost_ping
       label: localhost
       scale: mS
       color: black
-      dp: 1
-    - tagname: electronet_ping
-      label: electronet
-      scale: mS
-      color: blue
       dp: 1
     - tagname: google_ping
       label: google

@@ -1,6 +1,7 @@
 """Module configuration and factory system."""
 from typing import Any, Optional, Type
 import argparse
+from textwrap import dedent
 from importlib.metadata import version
 import logging
 from pymscada.config import Config
@@ -49,12 +50,14 @@ def create_module_registry():
         ModuleDefinition(
             name='files',
             help='serve files',
-            module_class='pymscada.files:Files'
+            module_class='pymscada.files:Files',
+            tags=False
         ),
         ModuleDefinition(
             name='opnotes',
             help='operator notes',
-            module_class='pymscada.opnotes:OpNotes'
+            module_class='pymscada.opnotes:OpNotes',
+            tags=False
         ),
         ModuleDefinition(
             name='validate',
@@ -75,8 +78,13 @@ def create_module_registry():
             module_class='pymscada.checkout:checkout',
             config=False,
             tags=False,
-            epilog="""To add to systemd `f="pymscada-bus" && cp config/$f.service
-                     /lib/systemd/system && systemctl enable $f && systemctl start $f`""",
+            epilog=dedent("""
+                To add to systemd:
+                  su -
+                  cd /lib/systemd/system
+                  cp config/pymscada-bus.service .
+                  systemctl enable pymscada-bus
+                  systemctl start pymscada-bus"""),
             extra_args=[
                 ModuleArgument(
                     ('--overwrite',),
@@ -93,37 +101,49 @@ def create_module_registry():
         ModuleDefinition(
             name='accuweatherclient',
             help='poll weather information',
-            module_class='pymscada.iodrivers.accuweather:AccuWeatherClient'
+            module_class='pymscada.iodrivers.accuweather:AccuWeatherClient',
+            tags=False
         ),
         ModuleDefinition(
             name='logixclient',
             help='poll/write to logix devices',
-            module_class='pymscada.iodrivers.logix_client:LogixClient'
+            module_class='pymscada.iodrivers.logix_client:LogixClient',
+            tags=False
         ),
         ModuleDefinition(
             name='modbusclient',
             help='poll/write modbus devices',
-            module_class='pymscada.iodrivers.modbus_client:ModbusClient'
+            module_class='pymscada.iodrivers.modbus_client:ModbusClient',
+            tags=False
         ),
         ModuleDefinition(
             name='modbusserver',
             help='serve modbus devices',
-            module_class='pymscada.iodrivers.modbus_server:ModbusServer'
+            module_class='pymscada.iodrivers.modbus_server:ModbusServer',
+            tags=False
         ),
         ModuleDefinition(
             name='openweatherclient',
             help='poll OpenWeather current and forecast data',
-            module_class='pymscada.iodrivers.openweather:OpenWeatherClient'
+            module_class='pymscada.iodrivers.openweather:OpenWeatherClient',
+            tags=False,
+            epilog=dedent("""
+                OPENWEATHERMAP_API_KEY can be set in the openweathermap.yaml
+                or as an environment variable:
+                  vi ~/.bashrc
+                  export OPENWEATHERMAP_API_KEY='1234567890'""")
         ),
         ModuleDefinition(
             name='pingclient',
             help='ping network devices',
-            module_class='pymscada.iodrivers.ping_client:PingClient'
+            module_class='pymscada.iodrivers.ping_client:PingClient',
+            tags=False
         ),
         ModuleDefinition(
             name='snmpclient',
             help='poll SNMP devices',
-            module_class='pymscada.iodrivers.snmp_client:SnmpClient'
+            module_class='pymscada.iodrivers.snmp_client:SnmpClient',
+            tags=False
         ),
         ModuleDefinition(
             name='console',
@@ -131,6 +151,9 @@ def create_module_registry():
             module_class='pymscada.console:Console',
             config=False,
             await_future=False,
+            epilog=dedent("""
+                --tags tag.yaml is not strictly necessary, unless you'd
+                like to see correctly typed values and set values."""),
             extra_args=[
                 ModuleArgument(
                     ('-p', '--port'),
@@ -158,7 +181,8 @@ class ModuleFactory:
         parser = subparser.add_parser(
             module_def.name,
             help=module_def.help,
-            epilog=module_def.epilog
+            epilog=module_def.epilog,
+            formatter_class=argparse.RawDescriptionHelpFormatter
         )
         if module_def.config:
             parser.add_argument(
