@@ -117,3 +117,59 @@ google_ping:
   desc: Ping time to google
   type: float
   units: ms
+Murupara_Temp:
+  desc: Murupara Temperature
+  type: float
+  units: '°C'
+  dp: 1
+  min: -50
+  max: 50
+Murupara_WindSpeed:
+  desc: Murupara Wind Speed
+  type: float
+  units: 'm/s'
+  dp: 1
+  min: 0
+  max: 200
+Murupara_WindDir:
+  desc: Murupara Wind Direction
+  type: float
+  units: '°'
+  dp: 0
+  min: 0
+  max: 360
+Murupara_Rain:
+  desc: Murupara Rainfall
+  type: float
+  units: 'mm'
+  dp: 1
+  min: 0
+  max: 1000
+Murupara_Temp_03:
+  desc: Murupara Temperature 3-Hour Forecast
+  type: float
+  units: '°C'
+  dp: 1
+  min: -50
+  max: 50
+Murupara_WindSpeed_03:
+  desc: Murupara Wind Speed 3-Hour Forecast
+  type: float
+  units: 'm/s'
+  dp: 1
+  min: 0
+  max: 200
+Murupara_WindDir_03:
+  desc: Murupara Wind Direction 3-Hour Forecast
+  type: float
+  units: '°'
+  dp: 0
+  min: 0
+  max: 360
+Murupara_Rain_03:
+  desc: Murupara Rainfall 3-Hour Forecast
+  type: float
+  units: 'mm'
+  dp: 1
+  min: 0
+  max: 1000

@@ -265,7 +265,11 @@ class BusServer:
             if len(data) > 300:
                 logging.warning(f'process: log message too long from {bus_id}')
             else:
-                logging.warning(data.decode())
+                log_msg = data.decode()
+                logging.warning(log_msg)
+                client_addr = self.connections[bus_id].addr
+                self.bus_tag.value = f'\x03{client_addr}: {log_msg}'.encode()
+                self.bus_tag.time_us = int(time.time() * 1e6)
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 

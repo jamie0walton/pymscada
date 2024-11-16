@@ -78,3 +78,49 @@ pages:
       scale: mS
       color: red
       dp: 1
+- name: Weather
+  parent:
+  items:
+  - type: uplot
+    ms:
+      desc: Weather
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]  # 24 hours of data
+    - scale: temp
+      range: [-10, 40]    # Temperature in Celsius
+      dp: 1
+    - scale: wind
+      range: [0, 100]     # Wind speed in km/h
+      dp: 1
+    - scale: dir
+      range: [0, 360]     # Wind direction in degrees
+      dp: 0
+    - scale: rain
+      range: [0, 50]      # Rain in mm
+      dp: 1
+    series:
+    - tagname: Murupara_Temp
+      label: Temperature
+      scale: temp
+      color: red
+      dp: 1
+    - tagname: Murupara_WindSpeed
+      label: Wind Speed
+      scale: wind
+      color: blue
+      dp: 1
+    - tagname: Murupara_WindDir
+      label: Wind Direction
+      scale: dir
+      color: green
+      dp: 0
+    - tagname: Murupara_Rain
+      label: Rainfall
+      scale: rain
+      color: lightblue
+      dp: 1

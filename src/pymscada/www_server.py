@@ -56,27 +56,15 @@ class WSHandler():
         try:
             while True:
                 as_bytes, message = await self.queue.get()
-                if self.ws.closed:
-                    logging.debug(f'{self.rta_id}: WebSocket closed, stopping send_queue')
-                    break
-                try:
-                    if as_bytes:
-                        await self.ws.send_bytes(message)
-                    else:
-                        await self.ws.send_json(message)
-                except ConnectionResetError:
-                    logging.debug(f'{self.rta_id}: Connection reset, stopping send_queue')
-                    break
-                except Exception as e:
-                    logging.warning(f'{self.rta_id}: Error sending message: {e}')
-                    break
+                if as_bytes:
+                    # logging.debug(f'{self.rta_id} as bytes {message}')
+                    await self.ws.send_bytes(message)
+                else:
+                    # logging.debug(f'{self.rta_id} as json {message}')
+                    await self.ws.send_json(message)
         except asyncio.CancelledError:
-            logging.debug(f'{self.rta_id}: Send queue cancelled')
-        finally:
-            # Clean up subscriptions when the connection ends
-            for tag in self.tag_by_id.values():
-                tag.del_callback_id(self.notify_id)
-                tag.del_callback(self.publish)
+            logging.warning(f'{self.rta_id}: send queue error, close '
+                            f'{self.ws.exception()}')
 
     def publish(self, tag: Tag):
         """

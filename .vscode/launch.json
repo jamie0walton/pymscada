@@ -43,8 +43,8 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["wwwserver", "--verbose",
-                "--config", "../config/wwwserver.yaml",
-                "--tags", "../config/tags.yaml",
+                "--config", "../wwwserver.yaml",
+                "--tags", "../tags.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -88,6 +88,18 @@
             "args": ["accuweatherclient", "--verbose",
                 "--config", "../config/accuweather.yaml",
                 "--tags", "../config/tags.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"openweather",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["openweatherclient", "--verbose",
+                "--config", "../config/openweather.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
