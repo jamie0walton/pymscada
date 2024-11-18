@@ -1,5 +1,5 @@
 bus_ip: 127.0.0.1
-bus_port: 1325
+bus_port: 1324
 proxy: 'http://127.0.0.1:3128'
 api:
   url: http://dataservice.accuweather.com/forecasts/v1/hourly/12hour/

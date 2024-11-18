@@ -99,7 +99,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["openweatherclient", "--verbose",
-                "--config", "../config/openweather.yaml"
+                "--config", "/home/jamie/openweather.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true

@@ -73,6 +73,7 @@ class OpenWeatherClient:
 
     async def fetch_current_data(self):
         """Fetch current weather data for all locations."""
+        logging.info('fetching current')
         if self.session is None:
             self.session = aiohttp.ClientSession()
         for location, coords in self.locations.items():
@@ -92,6 +93,7 @@ class OpenWeatherClient:
 
     async def fetch_forecast_data(self):
         """Fetch forecast weather data for all locations."""
+        logging.info('fetching forecast')
         if self.session is None:
             self.session = aiohttp.ClientSession()
         for location, coords in self.locations.items():
@@ -113,9 +115,9 @@ class OpenWeatherClient:
         """Poll OpenWeather APIs every 10 minutes."""
         now = int(time())
         if now % 600 == 0:  # Every 10 minutes
-            await self.fetch_current_data()
+            asyncio.create_task(self.fetch_current_data())
         if now % 10800 == 60:  # Every 3 hours, offset by 1 minute
-            await self.fetch_forecast_data()
+            asyncio.create_task(self.fetch_forecast_data())
 
     async def start(self):
         """Start bus connection and API polling."""
