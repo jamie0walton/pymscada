@@ -1,0 +1,24 @@
+# pymscada Architecture
+
+## Core Pattern
+- BusServer acts as a central hub for distributing tag values
+- Multiple BusClients connect to a single BusServer
+- Each tag value change is broadcast to all subscribed clients (except sender)
+
+## Tags
+- Tags are unique by name
+- Tags are automatically registered with the server and assigned IDs
+- Value updates flow through bus, never direct reads
+- Update loops are prevented by tracking source
+
+## Special Features
+- RTA (Request-To-Application) allows client-to-client messaging
+- RTA messages trigger an update of the RTA tag value
+- Update of the RTA tag value depends on the particular module requirements
+
+## Change rules
+- When analyzing code usage assess actual usage and not just imports
+- Keep the length of lines to a maximum of 80 characters
+- Favor shorter indentation levels
+- Simpler is better than complex
+- Avoid nesting more than 3 levels deep

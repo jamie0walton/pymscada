@@ -83,7 +83,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQq',            # Network big-endian
                 tag.id,             # Uint16
-                pc.TYPE_INT,        # Uint16
+                pc.TYPE.INT,        # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Int64
             )))
@@ -91,7 +91,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 '!HHQd',            # Network big-endian
                 tag.id,             # Uint16
-                pc.TYPE_FLOAT,      # Uint16
+                pc.TYPE.FLOAT,      # Uint16
                 tag.time_us,        # Uint64
                 tag.value           # Float64
             )))
@@ -100,7 +100,7 @@ class WSHandler():
             self.queue.put_nowait((True, pack(
                 f'!HHQ{len(asbytes)}s',  # Network big-endian
                 tag.id,             # Uint16
-                pc.TYPE_STR,        # Uint16
+                pc.TYPE.STR,        # Uint16
                 tag.time_us,        # Uint64
                 asbytes             # Char as needed
             )))
@@ -110,7 +110,7 @@ class WSHandler():
                 self.queue.put_nowait((True, pack(
                     f'!HHQ{len(tag.value)}s',  # Network big-endian
                     tag.id,             # Uint16
-                    pc.TYPE_BYTES,      # Uint16
+                    pc.TYPE.BYTES,      # Uint16
                     tag.time_us,        # Uint64
                     tag.value           # Char as needed
                 )))

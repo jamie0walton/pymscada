@@ -42,26 +42,26 @@ class BusClient:
             self.to_publish[tag.name] = tag
             return
         if tag.type is float:
-            data = struct.pack('!Bd', pc.TYPE_FLOAT, tag.value)
+            data = struct.pack('!Bd', pc.TYPE.FLOAT, tag.value)
         elif tag.type is int:
-            data = struct.pack('!Bq', pc.TYPE_INT, tag.value)
+            data = struct.pack('!Bq', pc.TYPE.INT, tag.value)
         elif tag.type is bytes:
             size = len(tag.value)
             try:
-                data = struct.pack(f'!B{size}s', pc.TYPE_BYTES, tag.value)
+                data = struct.pack(f'!B{size}s', pc.TYPE.BYTES, tag.value)
             except struct.error as e:
                 logging.error(f'bus_client {tag.name} {e}')
         elif tag.type is str:
             size = len(tag.value)
-            data = struct.pack(f'!B{size}s', pc.TYPE_STR, tag.value.encode())
+            data = struct.pack(f'!B{size}s', pc.TYPE.STR, tag.value.encode())
         elif tag.type in [list, dict]:
             jsonstr = json.dumps(tag.value).encode()
             size = len(jsonstr)
-            data = struct.pack(f'!B{size}s', pc.TYPE_JSON, jsonstr)
+            data = struct.pack(f'!B{size}s', pc.TYPE.JSON, jsonstr)
         else:
             logging.warning(f'publish {tag.name} unhandled {tag.type}')
             return
-        self.write(pc.CMD_SET, tag.id, tag.time_us, data)
+        self.write(pc.COMMAND.SET, tag.id, tag.time_us, data)
 
     def add_callback_rta(self, tagname, handler):
         """Collect callback handlers."""
@@ -75,10 +75,10 @@ class BusClient:
         time_us = int(time.time() * 1e6)
         jsonstr = json.dumps(request).encode()
         size = len(jsonstr)
-        data = struct.pack(f'>B{size}s', pc.TYPE_JSON, jsonstr)
-        self.write(pc.CMD_RTA, self.tag_by_name[tagname].id, time_us, data)
+        data = struct.pack(f'>B{size}s', pc.TYPE.JSON, jsonstr)
+        self.write(pc.COMMAND.RTA, self.tag_by_name[tagname].id, time_us, data)
 
-    def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
+    def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
               data: bytes):
         """Write a message."""
         if data is None:
@@ -101,14 +101,14 @@ class BusClient:
         self.tag_by_name[tag.name] = tag
         if tag.value is not None:
             self.to_publish[tag.name] = tag
-        self.write(pc.CMD_ID, 0, 0, tag.name.encode())
+        self.write(pc.COMMAND.ID, 0, 0, tag.name.encode())
 
     async def open_connection(self):
         """Establish connection and callbacks."""
         self.reader, self.writer = await asyncio.open_connection(
             self.ip, self.port)
         self.addr = self.writer.get_extra_info('sockname')
-        self.write(pc.CMD_LOG, 0, 0, f'{self.module} connected'.encode())
+        self.write(pc.COMMAND.LOG, 0, 0, f'{self.module} connected'.encode())
         logging.warning(f'connected {self.addr} {self.port}')
         for tag in Tag.get_all_tags().values():
             self.add_tag(tag)
@@ -157,14 +157,15 @@ class BusClient:
 
     def process(self, cmd, tag_id, time_us, value):
         """Process bus message, updating the local tag value."""
-        if cmd == pc.CMD_ERR:
-            logging.warning(f'Bus server error {tag_id} {value}')
+        if cmd == pc.COMMAND.ERR:
+            logging.warning(f'Bus server error {tag_id} '
+                            f'{pc.COMMAND.text(cmd)} {value}')
             return
-        if cmd == pc.CMD_ID:
+        if cmd == pc.COMMAND.ID:
             tag = self.tag_by_name[value.decode()]
             tag.id = tag_id
             self.tag_by_id[tag_id] = tag
-            self.write(pc.CMD_SUB, tag.id, 0, b'')
+            self.write(pc.COMMAND.SUB, tag.id, 0, b'')
             if tag.name in self.tag_by_name:
                 self.tag_by_id[tag.id] = tag
             if tag.name in self.to_publish:
@@ -172,7 +173,7 @@ class BusClient:
                 del self.to_publish[tag.name]
             return
         tag = self.tag_by_id[tag_id]
-        if cmd == pc.CMD_SET:
+        if cmd == pc.COMMAND.SET:
             if value is None:
                 try:
                     if self.tag_info is None:
@@ -186,17 +187,17 @@ class BusClient:
                     pass
                 return
             data_type = struct.unpack_from('!B', value, offset=0)[0]
-            if data_type == pc.TYPE_FLOAT:
+            if data_type == pc.TYPE.FLOAT:
                 data = struct.unpack_from('!d', value, offset=1)[0]
-            elif data_type == pc.TYPE_INT:
+            elif data_type == pc.TYPE.INT:
                 data = struct.unpack_from('!q', value, offset=1)[0]
-            elif data_type == pc.TYPE_BYTES:
+            elif data_type == pc.TYPE.BYTES:
                 data = struct.unpack_from(f'!{len(value) - 1}s', value,
                                           offset=1)[0]
-            elif data_type == pc.TYPE_STR:
+            elif data_type == pc.TYPE.STR:
                 data = struct.unpack_from(f'!{len(value) - 1}s', value,
                                           offset=1)[0].decode()
-            elif data_type == pc.TYPE_JSON:
+            elif data_type == pc.TYPE.JSON:
                 data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
                                                      value, offset=1
                                                      )[0].decode())
@@ -204,7 +205,7 @@ class BusClient:
                 logging.warning(f'process error {tag.name} {tag.type} {value}')
                 return
             tag.value = data, time_us, id(self)
-        elif cmd == pc.CMD_RTA:
+        elif cmd == pc.COMMAND.RTA:
             data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
                                       )[0].decode()
             data = json.loads(data)

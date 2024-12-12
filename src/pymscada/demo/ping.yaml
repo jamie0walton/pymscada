@@ -4,9 +4,6 @@ tags:
   localhost_ping:
     type: ping
     addr: '127.0.0.1'
-  electronet_ping:
-    type: ping
-    addr: electronet.co.nz
   google_ping:
     type: ping
     addr: www.google.com

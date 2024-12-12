@@ -36,7 +36,7 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
         'id': 15,
         'site': 'Aniwhenua',
         'by': 'Jamie Walton',
-        'date': 1234567890123,
+        'date_ms': 1234567890123,
         'note': 'Note °±²³😖.'
     }
     db.rta_cb(record)
@@ -55,35 +55,31 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
 
 def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
     """Bigger queries."""
+    BUSID = 999
     db = opnotes_db
     o_tag: Tag = opnotes_tag
-    r_tag: Tag = reply_tag
     o_values = []
-    r_values = []
 
     def o_cb(tag):
         o_values.append(tag.value)
 
-    def r_cb(tag):
-        r_values.append(tag.value)
-
-    o_tag.add_callback(o_cb, 999)
-    r_tag.add_callback(r_cb, 999)
+    o_tag.add_callback(o_cb, BUSID)
     record = {'action': 'ADD',
-              'date': 12345,
+              'date_ms': 12345,
               'site': 'Site',
               'by': 'Me',
               'note': 'hi'}
     for i in range(10):
-        record['date'] -= 1
+        record['date_ms'] -= 1
         db.rta_cb(record)  # id 1-10
     assert o_values[9]['id'] == 10
-    rq = {'action': 'HISTORY',
-          'date': 12345 - 3,
+    rq = {'__rta_id__': BUSID,
+          'action': 'HISTORY',
+          'date_ms': 12345 - 5.1,
           'reply_tag': '__wwwserver__'}
     db.rta_cb(rq)
-    assert r_values[1]['date'] == 12340
+    assert o_values[10]['date_ms'] == 12340
     for i in range(1, 11):  # sqlite3 id counts from 1
         rq = {'action': 'DELETE', 'id': i}
         db.rta_cb(rq)
-    o_values[19] == {'id': 10}
+    assert o_values[-1] == {'id': 10}

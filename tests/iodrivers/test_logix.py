@@ -63,6 +63,18 @@ def tag_callback(tag: Tag):
 @pytest.mark.asyncio
 async def test_connect():
     """Test Logix."""
+    # Check if PLC is reachable
+    ip = CLIENT['rtus'][0]['ip']
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            'ping', '-c', '1', '-W', '1', ip,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL)
+        await proc.communicate()
+        if proc.returncode != 0:
+            pytest.skip(f"PLC at {ip} not reachable")
+    except Exception:
+        pytest.skip(f"Error checking connectivity to PLC at {ip}")
     global queue
     lc = LogixClient(**CLIENT)
     # PLC code maps 'in' tags to 'out' tags to close the loop

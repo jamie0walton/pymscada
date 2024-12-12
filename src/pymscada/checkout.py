@@ -57,21 +57,18 @@ def make_config(overwrite: bool):
             else:
                 continue
         print(f'{rt} {target}')
-        if str(target).endswith('service'):
-            rd_bytes = config_file.read_bytes()
+        rd_bytes = config_file.read_bytes()
+        if target.name.lower() != 'readme.md':
             for k, v in PATH.items():
-                rd_bytes = rd_bytes.replace(k.encode(),str(v).encode())
-            target.write_bytes(rd_bytes)
-        else:
-            target.write_bytes(config_file.read_bytes())
+                rd_bytes = rd_bytes.replace(k.encode(), str(v).encode())
+        target.write_bytes(rd_bytes)
 
 
 def read_with_subst(file: Path):
     """Read the file and replace DIR markers."""
     rd = file.read_bytes().decode()
-    if str(file).endswith('service'):
-        for k, v in PATH.items():
-            rd = rd.replace(k, str(v))
+    for k, v in PATH.items():
+        rd = rd.replace(k, str(v))
     lines = rd.splitlines()
     return lines
 

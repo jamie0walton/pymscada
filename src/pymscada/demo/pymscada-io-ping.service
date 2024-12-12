@@ -5,11 +5,11 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ ping --config __DIR__/config/ping.yaml
+    ExecStart=__PYMSCADA__ pingclient --config __DIR__/config/ping.yaml
     Restart=always
     RestartSec=5
-    User=__USER__
-    Group=__USER__
+    User=root
+    Group=root
 
 [Install]
     WantedBy=multi-user.target

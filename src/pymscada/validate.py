@@ -1,5 +1,6 @@
 """Config file validation."""
 from cerberus import Validator
+import logging
 from yaml import dump
 from pymscada import Config
 from socket import inet_aton
@@ -106,17 +107,15 @@ SELECTDICT_LIST = {
         'required': False
     }
 }
+OPNOTE_LIST = {
+    'type': {'type': 'string', 'allowed': ['opnote']},
+    'site': {'type': 'list'},
+    'by': {'type': 'list'}
+}
 UPLOT_LIST = {
     'type': {'type': 'string', 'allowed': ['uplot']},
     'ms': {
         'type': 'dict',
-        # 'schema': {
-        #     'type': 'dict',
-        #     # 'schema': {
-        #     #     'type': {'type': 'string', 'required': False},
-        #     #     'multi': {'type': 'list', 'required': False},
-        #     # }
-        # },
         'required': False
     },
     'axes': {
@@ -160,7 +159,7 @@ LIST_WWWSERVER = {
                 'type': 'dict',
                 'oneof_schema': [
                     BRHR_LIST, H123P_LIST, VALUESETFILES_LIST,
-                    SELECTDICT_LIST, UPLOT_LIST
+                    SELECTDICT_LIST, OPNOTE_LIST, UPLOT_LIST
                 ]
             }
         },
@@ -175,6 +174,7 @@ WWWSERVER_SCHEMA = {
         'ip': {'type': 'string', 'ms_ip': 'none ipv4'},
         'port': {'type': 'integer', 'min': 1024, 'max': 65536},
         'get_path': {'nullable': True},
+        'serve_path': {'nullable': True},
         'paths': {'type': 'list', 'allowed': ['history', 'config', 'pdf']},
         'pages': {
             'type': 'list',
@@ -361,6 +361,13 @@ class MsValidator(Validator):
     ms_tagnames = {}
     ms_notagcheck = {}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.context = {
+            'current_file': None,
+            'current_section': None
+        }
+
     def _validate_ms_tagname(self, constraint, field, value):
         """
         Test tagname exists, capture when true.
@@ -369,15 +376,15 @@ class MsValidator(Validator):
         {'type': 'string'}
         """
         if '.' in field:
-            self._error(field, "'.' invalid in tag definition.")
+            self._error(field, f"'.' invalid in tag definition in {self.context['current_file']}")
         if constraint == 'save':
             if field in self.ms_tagnames:
-                self._error(field, 'attempt to redefine')
+                self._error(field, f"attempt to redefine in {self.context['current_file']}")
             else:
                 self.ms_tagnames[field] = {'type': None}
         elif constraint == 'exists':
             if value not in self.ms_tagnames:
-                self._error(field, 'tag was not defined in tags.yaml')
+                self._error(field, f"tag '{value}' was not defined in tags.yaml")
         elif constraint == 'none':
             pass
         else:
@@ -429,20 +436,16 @@ def validate(path: str = None):
         'snmpclient': SNMPCLIENT_SCHEMA,
         'logixclient': LOGIXCLIENT_SCHEMA,
     }
-    prefix = './'
-    if path is not None:
-        prefix = path + '/'
-    c = {
-        'tags': dict(Config(f'{prefix}tags.yaml')),
-        'bus': dict(Config(f'{prefix}bus.yaml')),
-        'wwwserver': dict(Config(f'{prefix}wwwserver.yaml')),
-        'history': dict(Config(f'{prefix}history.yaml')),
-        'modbusserver': dict(Config(f'{prefix}modbusserver.yaml')),
-        'modbusclient': dict(Config(f'{prefix}modbusclient.yaml')),
-        'snmpclient': dict(Config(f'{prefix}snmpclient.yaml')),
-        'logixclient': dict(Config(f'{prefix}logixclient.yaml')),
-    }
     v = MsValidator(s)
+    c = {}
+    prefix = './' if path is None else f"{path}/"
+    for name in s.keys():
+        try:
+            v.context['current_file'] = f'{name}.yaml'
+            v.context['current_section'] = name
+            c[name] = dict(Config(f'{prefix}{name}.yaml'))
+        except Exception as e:
+            v._error(name, f'Failed to load {name}.yaml: {str(e)}')
+            return False, dump(v.errors), prefix
     res = v.validate(c)
-    wdy = dump(v.errors)  # , default_flow_style=False)
-    return res, wdy, prefix
+    return res, dump(v.errors), prefix

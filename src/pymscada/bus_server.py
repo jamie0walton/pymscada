@@ -85,12 +85,12 @@ class BusConnection():
         del self.addr
         del self.pending
 
-    def write(self, command: pc.COMMANDS, tag_id: int, time_us: int,
+    def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
               data: bytes):
         """Write a message."""
         if data is None:
             data = b''
-        logging.info(f'write {pc.CMD_TEXT[command]} {tag_id}')
+        logging.info(f'write {command.text} {tag_id}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
@@ -168,78 +168,78 @@ class BusServer:
         if tag.from_bus == bus_id:
             return
         try:
-            self.connections[bus_id].write(pc.CMD_SET, tag.id, tag.time_us,
+            self.connections[bus_id].write(pc.COMMAND.SET, tag.id, tag.time_us,
                                            tag.value)
         except KeyError:
             tag.del_callback(self.publish, bus_id)
 
-    def process(self, bus_id, cmd, tag_id, time_us, data):
+    def process(self, bus_id, cmd: int, tag_id, time_us, data):
         """Process bus message, updating the local tag value."""
-        logging.info(f'write {pc.CMD_TEXT[cmd]} {tag_id} '
+        logging.info(f'write {pc.COMMAND.text(cmd)} {tag_id} '
                      f'{"None" if data is None else data[:20]}')
-        if cmd == pc.CMD_SET:
+        if cmd == pc.COMMAND.SET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
                 tag.update(data, time_us, bus_id)
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"SET KeyError {tag_id}".encode())
-        elif cmd == pc.CMD_RTA:
+        elif cmd == pc.COMMAND.RTA:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"RTA KeyError {tag_id}".encode())
             try:
                 self.connections[tag.from_bus].write(
-                    pc.CMD_RTA, tag_id, tag.time_us, data)
+                    pc.COMMAND.RTA, tag_id, tag.time_us, data)
             except KeyError:
                 logging.warning(f'likely busclient for {tag.name} is gone')
             except Exception as e:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"RTA {tag_id} {e}".encode())
             """Reply comes from another BusClient, not the Server."""
-        elif cmd == pc.CMD_SUB:
+        elif cmd == pc.COMMAND.SUB:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"SUBscribe KeyError {tag_id}".encode())
-            self.connections[bus_id].write(pc.CMD_SET, tag_id, tag.time_us,
+            self.connections[bus_id].write(pc.COMMAND.SET, tag_id, tag.time_us,
                                            tag.value)
             tag.add_callback(self.publish, bus_id)
-        elif cmd == pc.CMD_ID:
+        elif cmd == pc.COMMAND.ID:
             try:
                 tag = BusTags._tag_by_name[data]
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"ID {data} undefined".encode())
                 tag = BusTag(data)
-            self.connections[bus_id].write(pc.CMD_ID, tag.id, tag.time_us,
+            self.connections[bus_id].write(pc.COMMAND.ID, tag.id, tag.time_us,
                                            tag.name)
-        elif cmd == pc.CMD_GET:
+        elif cmd == pc.COMMAND.GET:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"GET KeyError for {tag_id}".encode())
-            self.connections[bus_id].write(pc.CMD_SET, tag.id, tag.time_us,
+            self.connections[bus_id].write(pc.COMMAND.SET, tag.id, tag.time_us,
                                            tag.value)
-        elif cmd == pc.CMD_UNSUB:
+        elif cmd == pc.COMMAND.UNSUB:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
                 self.connections[bus_id].write(
-                    pc.CMD_ERR, tag_id, time_us,
+                    pc.COMMAND.ERR, tag_id, time_us,
                     f"UNSubscribe KeyError for {tag_id}".encode())
             tag.del_callback(self.publish, bus_id)
-        elif cmd == pc.CMD_LIST:
+        elif cmd == pc.COMMAND.LIST:
             tagname_list = []
             if len(data) == 0:
                 for _, tag in BusTags._tag_by_id.items():
@@ -260,12 +260,16 @@ class BusServer:
                     if data in tag.name:
                         tagname_list.append(tag.name)
             self.connections[bus_id].write(
-                pc.CMD_LIST, 0, time_us, b' '.join(tagname_list))
-        elif cmd == pc.CMD_LOG:
+                pc.COMMAND.LIST, 0, time_us, b' '.join(tagname_list))
+        elif cmd == pc.COMMAND.LOG:
             if len(data) > 300:
                 logging.warning(f'process: log message too long from {bus_id}')
             else:
-                logging.warning(data.decode())
+                log_msg = data.decode()
+                logging.warning(log_msg)
+                client_addr = self.connections[bus_id].addr
+                self.bus_tag.value = f'\x03{client_addr}: {log_msg}'.encode()
+                self.bus_tag.time_us = int(time.time() * 1e6)
         else:  # consider disconnecting
             logging.warn(f'invalid message {cmd}')
 
@@ -273,6 +277,9 @@ class BusServer:
         """Process read messages, delete broken connections."""
         bus_id, cmd, tag_id, time_us, data = command
         if cmd is None:
+            # Clean up tag subscriptions before deleting it
+            for tag in BusTags._tag_by_id.values():
+                tag.del_callback(self.publish, bus_id)
             self.connections[bus_id].delete()
             del self.connections[bus_id]
             return
