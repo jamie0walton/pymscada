@@ -44,8 +44,7 @@ CLIENT = {
             'port': 1512,
             'tcp_udp': 'tcp',
             'rate': 0.1,
-            'read': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}],
-            'writeok': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
+            'poll': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
         },
         {
             'name': 'RTU_UDP',
@@ -53,20 +52,55 @@ CLIENT = {
             'port': 1513,
             'tcp_udp': 'udp',
             'rate': 0.1,
-            'read': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}],
-            'writeok': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
+            'poll': [{'unit': 1, 'file': '4x', 'start': 1, 'end': 30}]
         }
     ],
     'tags': {
-        'c_int16Tag': {'type': 'int16', 'addr': 'RTU:1:4x:1'},
-        'c_uint16Tag': {'type': 'uint16', 'addr': 'RTU:1:4x:2'},
-        'c_int32Tag': {'type': 'int32', 'addr': 'RTU:1:4x:3'},
-        'c_uint32Tag': {'type': 'uint32', 'addr': 'RTU:1:4x:5'},
-        'c_int64Tag': {'type': 'int64', 'addr': 'RTU:1:4x:7'},
-        'c_uint64Tag': {'type': 'uint64', 'addr': 'RTU:1:4x:11'},
-        'c_float32Tag': {'type': 'float32', 'addr': 'RTU:1:4x:15'},
-        'c_float64Tag': {'type': 'float64', 'addr': 'RTU:1:4x:17'},
-        'c_udp_int16Tag': {'type': 'int16', 'addr': 'RTU_UDP:1:4x:1'}
+        'c_int16Tag': {
+            'type': 'int16',
+            'read': 'RTU:1:4x:1',
+            'write': 'RTU:1:4x:1'
+        },
+        'c_uint16Tag': {
+            'type': 'uint16',
+            'read': 'RTU:1:4x:2',
+            'write': 'RTU:1:4x:2'
+        },
+        'c_int32Tag': {
+            'type': 'int32',
+            'read': 'RTU:1:4x:3',
+            'write': 'RTU:1:4x:3'
+        },
+        'c_uint32Tag': {
+            'type': 'uint32',
+            'read': 'RTU:1:4x:5',
+            'write': 'RTU:1:4x:5'
+        },
+        'c_int64Tag': {
+            'type': 'int64',
+            'read': 'RTU:1:4x:7',
+            'write': 'RTU:1:4x:7'
+        },
+        'c_uint64Tag': {
+            'type': 'uint64',
+            'read': 'RTU:1:4x:11',
+            'write': 'RTU:1:4x:11'
+        },
+        'c_float32Tag': {
+            'type': 'float32',
+            'read': 'RTU:1:4x:15',
+            'write': 'RTU:1:4x:15'
+        },
+        'c_float64Tag': {
+            'type': 'float64',
+            'read': 'RTU:1:4x:17',
+            'write': 'RTU:1:4x:17'
+        },
+        'c_udp_int16Tag': {
+            'type': 'int16',
+            'read': 'RTU_UDP:1:4x:1',
+            'write': 'RTU_UDP:1:4x:1'
+        }
     }
 }
 queue = asyncio.Queue()

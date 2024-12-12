@@ -7,9 +7,9 @@ from pymscada.iodrivers.openweather import OpenWeatherClient
 @pytest.mark.asyncio
 async def test_openweather_temperature():
     """Test reading current temperature from OpenWeather API."""
-    api_key = os.getenv('OPENWEATHER_API_KEY')
+    api_key = os.getenv('OPENWEATHERMAP_API_KEY')
     if not api_key:
-        pytest.skip("OPENWEATHER_API_KEY environment variable not set")
+        pytest.skip("OPENWEATHERMAP_API_KEY environment variable not set")
     api_config = {
         'api_key': api_key,
         'locations': {'London': {'lat': 51.5074,'lon': -0.1278}},
