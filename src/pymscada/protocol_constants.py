@@ -1,44 +1,62 @@
 """
 Protocol description and protocol constants.
 
-Bus holds a tag forever, assigns a tag id forever, holds a tag value with len
-< 1000 forever, otherwise wipes periodically. So assign tagnames once, at the
-start of your program; use RTA as an update messenger, share whole structures
-rarely.
+Bus holds a tag forever, assigning a new ID for each new tagname.
 
-- version 16-bit unsigned int == 0x01
-- command 16-bit unsigned int
-- tag_id 32-bit unsigned int     0 is not a valid tag_id
-- size 32-bit unsigned int
-  - if size == 0xff  continuation mandatory
-  - size 0x00 completes an empty continuation
-- time_us 128-bit unsigned int, UTC microseconds
-- data size of 8-bit char
+Bus protocol message format:
+- version: 8-bit unsigned int == 0x01
+- command: 8-bit unsigned int
+- tag_id: 16-bit unsigned int (0 is valid for ID requests)
+- size: 16-bit unsigned int
+- time_us: 64-bit unsigned int, UTC microseconds
+- data: variable length bytes of size
 
-command
-- CMD.ID data is tagname
-  - reply: CMD_ID with tag_id and data as tagname
-- CMD.SET id, data is typed or json packed
-  - no reply
-- CMD.UNSUB id
-  - no reply
-- CMD.GET id
-- CMD.RTA id, data is request to author
-- CMD.SUB id
-  - reply: SET id and value, value may be None
-- CMD.LIST
-  - size == 0x00
-    - tags with values newer than time_us
-  - size > 0x00
-    - ^text matches start of tagname
-    - text$ matches start of tagname
-    - text matches anywhere in tagname
-  - reply: LIST data as space separated tagnames
-- CMD.LOG data to logging.warning
+Commands:
+- CMD.ID: Query/inform tag ID
+  - Request: data is tagname as bytes
+  - Reply: CMD.ID with assigned tag_id and tagname as data
+  - Error: CMD.ERR if tagname undefined
+  
+- CMD.SET: Set a tag value
+  - Data format: TYPE byte + typed value
+  - No reply
+  - Error: CMD.ERR if tag_id invalid
+  
+- CMD.GET: Get a tag value
+  - Request: empty data
+  - Reply: CMD.SET with current value
+  - Error: CMD.ERR if tag_id invalid
+  
+- CMD.RTA: Request to author
+  - Request: JSON encoded request
+  - Reply: Comes from target client, not server
+  - Error: CMD.ERR if tag_id invalid or target gone
+  
+- CMD.SUB: Subscribe to tag updates
+  - Request: empty data
+  - Reply: CMD.SET with current value
+  - Error: CMD.ERR if tag_id invalid
+  
+- CMD.UNSUB: Unsubscribe from tag
+  - No reply
+  - Error: CMD.ERR if tag_id invalid
+  
+- CMD.LIST: List tags
+  - Empty data: tags newer than time_us
+  - ^text: tags starting with text
+  - text$: tags ending with text 
+  - text: tags containing text
+  - Reply: CMD.LIST with space-separated tagnames
+  
+- CMD.LOG: Log message
+  - Data: Message to log (max 300 bytes)
+  - Updates __bus__ tag with client address and message
+
+Large messages are split into MAX_LEN chunks. Final chunk size < MAX_LEN.
 """
 
 # Tuning constants
-MAX_LEN = 65535 - 14  # TODO fix server(?) when 3
+MAX_LEN = 65535 - 14  # Maximum data size per message
 
 from enum import IntEnum
 

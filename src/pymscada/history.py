@@ -1,17 +1,49 @@
-"""Store and provide history."""
+"""Store and provide history.
+
+History File Structure
+---------------------
+History files are binary files stored as <tagname>_<time_us>.dat where time_us
+is the microsecond timestamp of the first entry in that file.
+
+Each file contains a series of fixed-size records (16 bytes each):
+- For integer tags: 8 bytes timestamp (uint64) + 8 bytes value (int64)
+- For float tags: 8 bytes timestamp (uint64) + 8 bytes value (double)
+
+Files are organized in chunks:
+- Each chunk is 1024 records (16KB)
+- Each file contains up to 64 chunks (1MB)
+- New files are created when:
+  1. Current file reaches max size (64 chunks)
+  2. Manual flush() is called
+  3. Application shutdown
+
+Timestamps are stored as microseconds since epoch in network byte order (big-endian).
+Values are also stored in network byte order.
+"""
 import atexit
 import logging
 from pathlib import Path
 from struct import pack, pack_into, unpack_from, error
 import time
+from typing import TypedDict, Optional
 from pymscada.bus_client import BusClient
-from pymscada.tag import Tag, TYPES
+from pymscada.tag import Tag, TagInfo, TYPES
 
 
 ITEM_SIZE = 16  # Q + q, Q or d
 ITEM_COUNT = 1024
 CHUNK_SIZE = ITEM_COUNT * ITEM_SIZE
 FILE_CHUNKS = 64
+
+
+class Request(TypedDict, total=False):
+    """Type definition for request dictionary."""
+    tagname: str 
+    start_ms: Optional[int]  # Allow web client to use native ms
+    start_us: Optional[int]  # Native for pymscada server
+    end_ms: Optional[int]
+    end_us: Optional[int]
+    __rta_id__: Optional[int]  # Empty for a change that must be broadcast
 
 
 def tag_for_history(tagname: str, tag: dict):
@@ -189,7 +221,7 @@ class History():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = 'history', tag_info: dict = {},
+                 path: str = 'history', tag_info: TagInfo = {},
                  rta_tag: str = '__history__') -> None:
         """
         Connect to bus_ip:bus_port, store and provide a value history.
@@ -217,7 +249,7 @@ class History():
         self.rta.value = b'\x00\x00\x00\x00\x00\x00'
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
 
-    def rta_cb(self, request):
+    def rta_cb(self, request: Request):
         """Respond to bus requests for data to publish on rta."""
         if 'start_ms' in request:
             request['start_us'] = request['start_ms'] * 1000
