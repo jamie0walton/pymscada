@@ -2,7 +2,7 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 proxy:
 api:
-  api_key: ${OPENWEATHER_API_KEY}
+  api_key: ${OPENWEATHERMAP_API_KEY}
   units: metric
   locations:
     Murupara:
