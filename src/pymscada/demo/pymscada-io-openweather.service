@@ -1,5 +1,5 @@
 [Unit]
-    Description=pymscada - OpenWeather client
+    Description=pymscada - Open Weather client
     BindsTo=pymscada-bus.service
     After=pymscada-bus.service
 
