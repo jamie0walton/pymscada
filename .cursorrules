@@ -16,6 +16,10 @@
 - RTA messages trigger an update of the RTA tag value
 - Update of the RTA tag value depends on the particular module requirements
 
+## Style rules
+- Don't add documentation when the code is self-explanatory
+- Don't add extra newlines where the linter won't complain
+
 ## Change rules
 - When analyzing code usage assess actual usage and not just imports
 - Keep the length of lines to a maximum of 80 characters

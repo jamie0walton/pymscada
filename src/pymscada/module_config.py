@@ -75,9 +75,10 @@ def create_module_registry():
         ModuleDefinition(
             name='checkout',
             help='create example config files',
-            module_class='pymscada.checkout:checkout',
+            module_class='pymscada.checkout:Checkout',
             config=False,
             tags=False,
+            await_future=False,
             epilog=dedent("""
                 To add to systemd:
                   su -
@@ -156,12 +157,12 @@ def create_module_registry():
                 like to see correctly typed values and set values."""),
             extra_args=[
                 ModuleArgument(
-                    ('-p', '--port'),
+                    ('-p', '--bus-port'),
                     {'action': 'store', 'type': int, 'default': 1324,
                      'help': 'connect to port (default: 1324)'}
                 ),
                 ModuleArgument(
-                    ('-i', '--ip'),
+                    ('-i', '--bus-ip'),
                     {'action': 'store', 'default': 'localhost',
                      'help': 'connect to ip address (default: localhost)'}
                 )
@@ -208,9 +209,11 @@ class ModuleFactory:
                 parser.add_argument(*arg.args, **arg.kwargs)
         return parser
 
-    def create_module(self, module_name: str, options: argparse.Namespace):
+    def create_module(self, options: argparse.Namespace):
         """Create a module instance based on configuration and options."""
-        module_def = self.modules[module_name]
+        if options.module_name not in self.modules:
+            raise ValueError(f'{options.module_name} does not exist')
+        module_def = self.modules[options.module_name]
         logging.info(f'Python Mobile SCADA {version("pymscada")} '
                      f'starting {module_def.name}')
         # Import the module class only when needed
@@ -220,13 +223,14 @@ class ModuleFactory:
             actual_class = getattr(module, class_name)
         else:
             actual_class = module_def.module_class
-            
         kwargs = {}
         if module_def.config:
-            kwargs.update(Config(options.config))  
+            kwargs.update(Config(options.config))
         if module_def.tags:
             kwargs['tag_info'] = dict(Config(options.tags))
-        if module_name == 'console':
-            return Console(options.ip, options.port,
-                         kwargs.get('tag_info',{}))
+        if module_def.extra_args:
+            for arg in module_def.extra_args:
+                arg_name = arg.args[-1].lstrip('-').replace('-', '_')
+                if hasattr(options, arg_name):
+                    kwargs[arg_name] = getattr(options, arg_name)
         return actual_class(**kwargs)

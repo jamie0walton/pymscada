@@ -39,7 +39,7 @@ async def run():
     if not options.verbose:
         root_logger.setLevel(logging.WARNING)
     factory = ModuleFactory()
-    module = factory.create_module(options.module_name, options)
+    module = factory.create_module(options)
     if module is not None:
         if hasattr(module, 'start'):
             await module.start()

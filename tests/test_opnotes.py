@@ -37,7 +37,8 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
         'site': 'Aniwhenua',
         'by': 'Jamie Walton',
         'date_ms': 1234567890123,
-        'note': 'Note °±²³😖.'
+        'note': 'Note °±²³😖.',
+        'abnormal': 0
     }
     db.rta_cb(record)
     assert tag.value['id'] == 1
@@ -68,7 +69,8 @@ def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
               'date_ms': 12345,
               'site': 'Site',
               'by': 'Me',
-              'note': 'hi'}
+              'note': 'hi',
+              'abnormal': 0}
     for i in range(10):
         record['date_ms'] -= 1
         db.rta_cb(record)  # id 1-10

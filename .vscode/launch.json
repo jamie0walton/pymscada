@@ -75,7 +75,11 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["console", "--verbose"],
+            "args": ["console", "--verbose",
+                "--tags", "../config/tags.yaml",
+                "-i", "127.0.0.1",
+                "-p", "1325",
+            ],
             "console":"integratedTerminal",
             "justMyCode":false
         },
