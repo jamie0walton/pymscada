@@ -3,6 +3,7 @@ import asyncio
 from struct import pack, unpack
 import time
 import logging
+import socket
 import pymscada.protocol_constants as pc
 
 
@@ -143,8 +144,12 @@ class BusServer:
 
     __slots__ = ('ip', 'port', 'server', 'connections', 'bus_tag')
 
-    def __init__(self, ip: str = '127.0.0.1', port: int = 1324,
-                 bus_tag: str = '__bus__'):
+    def __init__(
+        self,
+        ip: str = '127.0.0.1',
+        port: int = 1324,
+        bus_tag: str = '__bus__'
+    ) -> None:
         """
         Serve Tags on ip:port, echoing changes to any subscribers.
 
@@ -154,6 +159,13 @@ class BusServer:
 
         Event loop must be running.
         """
+        try:
+            socket.gethostbyname(ip)
+        except socket.gaierror as e:
+            raise ValueError(f'Cannot resolve IP/hostname: {e}')
+        if not isinstance(bus_tag, str):
+            raise ValueError('bus_tag must be a string')
+
         self.ip = ip
         self.port = port
         self.server = None

@@ -1,6 +1,7 @@
 """Operator Notes."""
 import logging
 import sqlite3  # note that sqlite3 has blocking calls
+import socket
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag
 
@@ -8,9 +9,14 @@ from pymscada.tag import Tag
 class OpNotes:
     """Connect to bus_ip:bus_port, store and provide Operator Notes."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 db: str = None, rta_tag: str = '__opnotes__',
-                 table: str = 'opnotes') -> None:
+    def __init__(
+        self,
+        bus_ip: str = '127.0.0.1',
+        bus_port: int = 1324,
+        db: str | None = None,
+        table: str = 'opnotes',
+        rta_tag: str = '__opnotes__'
+    ) -> None:
         """
         Connect to bus_ip:bus_port, serve and update operator notes database.
 
@@ -21,6 +27,19 @@ class OpNotes:
         """
         if db is None:
             raise SystemExit('OpNotes db must be defined')
+        try:
+            socket.gethostbyname(bus_ip)
+        except socket.gaierror as e:
+            raise ValueError(f'Cannot resolve IP/hostname: {e}')
+        if not isinstance(bus_port, int):
+            raise TypeError('bus_port must be an integer')
+        if not 1024 <= bus_port <= 65535:
+            raise ValueError('bus_port must be between 1024 and 65535')
+        if not isinstance(rta_tag, str) or not rta_tag:
+            raise ValueError('rta_tag must be a non-empty string')
+        if not isinstance(table, str) or not table:
+            raise ValueError('table must be a non-empty string')
+
         logging.warning(f'OpNotes {bus_ip} {bus_port} {db} {rta_tag}')
         self.connection = sqlite3.connect(db)
         self.table = table

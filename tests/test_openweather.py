@@ -19,8 +19,7 @@ async def test_openweather_temperature():
     }
     tags = ['London_Temp', 'London_Temp_01', 'London_Temp_02',
             'London_Temp_03']
-    client = OpenWeatherClient(bus_ip=None, bus_port=None, api=api_config,
-                               tags=tags)
+    client = OpenWeatherClient(bus_ip=None, api=api_config, tags=tags)
     try:
         handle_task = asyncio.create_task(client.handle_response())
         await client.fetch_current_data()

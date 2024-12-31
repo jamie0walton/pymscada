@@ -2,6 +2,7 @@
 import asyncio
 import aiohttp
 import logging
+import socket
 from time import time
 from pymscada.bus_client import BusClient
 from pymscada.periodic import Periodic
@@ -10,8 +11,14 @@ from pymscada.tag import Tag
 class OpenWeatherClient:
     """Get weather data from OpenWeather Current and Forecast APIs."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 proxy: str = None, api: dict = {}, tags: dict = {}) -> None:
+    def __init__(
+        self,
+        bus_ip: str | None = '127.0.0.1',
+        bus_port: int = 1324,
+        proxy: str | None = None,
+        api: dict = {},
+        tags: list = []
+    ) -> None:
         """
         Connect to bus on bus_ip:bus_port.
 
@@ -21,6 +28,18 @@ class OpenWeatherClient:
         - times: list of hours ahead to fetch forecast data for
         - units: optional units (standard, metric, imperial)
         """
+        if bus_ip is not None:
+            try:
+                socket.gethostbyname(bus_ip)
+            except socket.gaierror:
+                raise ValueError(f"Invalid bus_ip: {bus_ip}")
+        if not isinstance(proxy, str) and proxy is not None:
+            raise ValueError("proxy must be a string or None")
+        if not isinstance(api, dict):
+            raise ValueError("api must be a dictionary")
+        if not isinstance(tags, list):
+            raise ValueError("tags must be a list")
+
         self.busclient = None
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='OpenWeather')

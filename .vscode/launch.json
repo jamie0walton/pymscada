@@ -43,8 +43,8 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["wwwserver", "--verbose",
-                "--config", "../wwwserver.yaml",
-                "--tags", "../tags.yaml",
+                "--config", "../config/wwwserver.yaml",
+                "--tags", "../config/tags.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true

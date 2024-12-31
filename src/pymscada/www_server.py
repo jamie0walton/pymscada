@@ -4,6 +4,7 @@ from aiohttp import web, WSMsgType
 import logging
 from pathlib import Path
 from struct import pack, unpack_from
+import socket
 import time
 from pymscada.bus_client import BusClient
 import pymscada.protocol_constants as pc
@@ -34,11 +35,13 @@ class WSHandler():
     ids = set(range(1, 1000))
 
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
-                 tag_info: dict[str, Tag], do_rta, interface: Interface):
+                 tag_info: dict[str, Tag], do_rta, interface: Interface,
+                 webclient: dict):
         """Create callbacks to monitor tag values."""
         self.ws = ws
         self.pages = pages
         self.tag_info = tag_info
+        self.webclient = webclient
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
@@ -169,6 +172,8 @@ class WSHandler():
         """Run while the connection is active and don't return."""
         send_queue = asyncio.create_task(self.send_queue())
         self.queue.put_nowait(
+            (False, {'type': 'webclient', 'payload': self.webclient}))
+        self.queue.put_nowait(
             (False, {'type': 'pages', 'payload': self.pages}))
         async for msg in self.ws:
             if msg.type == WSMsgType.TEXT:
@@ -210,11 +215,19 @@ class WSHandler():
 class WwwServer:
     """Connect to bus on bus_ip:bus_port, serve on ip:port for webclient."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 ip: str = '127.0.0.1', port: int = 8324, get_path: str = None,
-                 tag_info: dict = {}, pages: dict = {}, serve_path: str = None,
-                 www_tag: str = '__wwwserver__'
-                 ) -> None:
+    def __init__(
+        self,
+        bus_ip: str = '127.0.0.1',
+        bus_port: int = 1324,
+        ip: str = '127.0.0.1',
+        port: int = 8324,
+        get_path: str | None = None,
+        tag_info: dict = {},
+        pages: dict = {},
+        webclient: dict = {},
+        serve_path: str | None = None,
+        www_tag: str = '__wwwserver__'
+    ) -> None:
         """
         Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
 
@@ -224,16 +237,36 @@ class WwwServer:
 
         Event loop must be running.
         """
+        try:
+            socket.gethostbyname(bus_ip)
+        except socket.gaierror as e:
+            raise ValueError(f'Cannot resolve bus IP/hostname: {e}')
+        if not isinstance(bus_port, int):
+            raise TypeError('bus_port must be an integer')
+        if not 1024 <= bus_port <= 65535:
+            raise ValueError('bus_port must be between 1024 and 65535')
+        try:
+            socket.gethostbyname(ip)
+        except socket.gaierror as e:
+            raise ValueError(f'Cannot resolve IP/hostname: {e}')
+        if not isinstance(port, int):
+            raise TypeError('port must be an integer')
+        if not 1024 <= port <= 65535:
+            raise ValueError('port must be between 1024 and 65535')
+        if not isinstance(www_tag, str) or not www_tag:
+            raise ValueError('www_tag must be a non-empty string')
+
         self.busclient = BusClient(bus_ip, bus_port, tag_info,
                                    module='WWW Server')
         self.ip = ip
         self.port = port
         self.get_path = get_path
-        self.serve_path = Path(serve_path)
+        self.serve_path = Path(serve_path) if serve_path else None
         for tagname, tag in tag_info.items():
             tag_for_web(tagname, tag)
         self.tag_info = tag_info
         self.pages = pages
+        self.webclient = webclient
         self.interface = Interface(www_tag)
 
     async def redirect_handler(self, _request: web.Request):
@@ -256,14 +289,14 @@ class WwwServer:
     async def path_handler(self, request: web.Request):
         """Plain files."""
         logging.info(f"path {request.match_info['path']}")
+        if self.serve_path is None:
+            return web.HTTPForbidden(reason='path not configured')
         path = self.serve_path.joinpath(request.match_info['path'])
         if path.is_dir():
             return web.HTTPForbidden(reason='folder not permitted')
         if not path.exists():
             return web.HTTPNotFound(reason='no such file in path')
         return web.FileResponse(path)
-        # logging.warning(f"path not configured {request.match_info['path']}")
-        # return web.HTTPForbidden(reason='path not permitted')
 
     async def websocket_handler(self, request: web.Request):
         """Wait for connections. Create a new one each time."""
@@ -272,7 +305,7 @@ class WwwServer:
         ws = web.WebSocketResponse(max_msg_size=0)  # disables max message size
         await ws.prepare(request)
         await WSHandler(ws, self.pages, self.tag_info, self.busclient.rta,
-                        self.interface).connection_active()
+                        self.interface, self.webclient).connection_active()
         await ws.close()
         logging.info(f"WS closed {peer}")
         return ws

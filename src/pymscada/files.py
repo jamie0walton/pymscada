@@ -10,13 +10,13 @@ class Files():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = '', files: list = None,
+                 path: str = '', files: list[dict] = [],
                  rta_tag: str = '__files__') -> None:
         """
         Connect to bus_ip:bus_port, serve and update files.
 
-        TODO
-        Write something.
+        Scans paths in files at the root defined by path. These should
+        be readable by wwwserver so that download links work.
 
         Event loop must be running.
         """

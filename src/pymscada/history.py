@@ -25,6 +25,7 @@ import logging
 from pathlib import Path
 from struct import pack, pack_into, unpack_from, error
 import time
+import socket
 from typing import TypedDict, Optional
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag, TagInfo, TYPES
@@ -220,9 +221,14 @@ class TagHistory():
 class History():
     """Connect to bus_ip:bus_port, store and provide a value history."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 path: str = 'history', tag_info: TagInfo = {},
-                 rta_tag: str = '__history__') -> None:
+    def __init__(
+        self,
+        bus_ip: str = '127.0.0.1',
+        bus_port: int = 1324,
+        path: str = 'history',
+        tag_info: TagInfo = {},
+        rta_tag: str | None = '__history__'
+    ) -> None:
         """
         Connect to bus_ip:bus_port, store and provide a value history.
 
@@ -232,6 +238,23 @@ class History():
 
         Event loop must be running.
         """
+        if not isinstance(bus_ip, str):
+            raise ValueError("bus_ip must be a string")
+        try:
+            socket.gethostbyname(bus_ip)
+        except socket.gaierror:
+            raise ValueError(f"Invalid bus_ip: {bus_ip}")
+        if not isinstance(bus_port, int):
+            raise ValueError("bus_port must be an integer")
+        if not 1024 <= bus_port <= 65535:
+            raise ValueError(f"bus_port must be between 1024 and 65535")
+        if not isinstance(path, str):
+            raise ValueError("path must be a string")
+        if not isinstance(tag_info, dict):
+            raise ValueError("tag_info must be a dictionary")
+        if not isinstance(rta_tag, (str, type(None))):
+            raise ValueError("rta_tag must be a string or None")
+
         self.busclient = BusClient(bus_ip, bus_port, module='History')
         self.path = path
         self.tags: dict[str, Tag] = {}

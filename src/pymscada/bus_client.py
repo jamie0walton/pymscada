@@ -12,8 +12,9 @@ class BusClient:
     """
     Connects to a Bus Server.
 
-    await client.connect() to make the connection. If bus server connection
-    fails, die.
+    The client is created without a connection. client.start() creates the
+    connection and checks the tags at that time. When the connection fails
+    the client dies. A connection is mandatory for the client to run.
     """
 
     def __init__(self, ip: str = '127.0.0.1', port: int = 1324, tag_info=None,
@@ -125,7 +126,6 @@ class BusClient:
 
     async def read(self):
         """Read forever."""
-        await self.open_connection()
         while True:
             try:
                 head = await self.reader.readexactly(14)
@@ -223,4 +223,5 @@ class BusClient:
 
     async def start(self):
         """Start async."""
+        await self.open_connection()
         self.read_task = asyncio.create_task(self.read())
