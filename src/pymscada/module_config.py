@@ -5,7 +5,6 @@ from textwrap import dedent
 from importlib.metadata import version
 import logging
 from pymscada.config import Config
-from pymscada.console import Console
 
 class ModuleArgument:
     def __init__(self, args: tuple[str, ...], kwargs: dict[str, Any]):
@@ -58,6 +57,11 @@ def create_module_registry():
             help='operator notes',
             module_class='pymscada.opnotes:OpNotes',
             tags=False
+        ),
+        ModuleDefinition(
+            name='alarms',
+            help='alarms',
+            module_class='pymscada.alarms:Alarms'
         ),
         ModuleDefinition(
             name='validate',

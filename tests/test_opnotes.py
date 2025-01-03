@@ -11,8 +11,7 @@ from pymscada.tag import Tag
 def opnotes_db():
     """Create a fixture for DB access."""
     Path('tests/test_assets/db.sqlite').unlink(missing_ok=True)
-    return OpNotes(bus_ip=None, bus_port=None,
-                   db='tests/test_assets/db.sqlite')
+    return OpNotes(bus_ip=None, db='tests/test_assets/db.sqlite')
 
 
 @pytest.fixture(scope='module')

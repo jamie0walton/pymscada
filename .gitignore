@@ -1,6 +1,7 @@
 # Custom Jamie
 history/
 nohup.out
+*.sqlite
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

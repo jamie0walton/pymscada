@@ -24,7 +24,7 @@ def tag_for_web(tagname: str, tag: dict):
     tag['name'] = tagname
     tag['id'] = None
     if 'desc' not in tag:
-        tag['desc'] = tag.name
+        tag['desc'] = tagname
     if 'multi' in tag:
         tag['type'] = 'int'
     else:

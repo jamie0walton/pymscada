@@ -1,0 +1,16 @@
+[Unit]
+    Description=pymscada - alarms
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ alarms --config __DIR__/config/alarms.yaml --tags __DIR__/config/tags.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+    KillSignal=SIGINT
+
+[Install]
+    WantedBy=multi-user.target

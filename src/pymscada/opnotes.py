@@ -24,17 +24,22 @@ class OpNotes:
         updates, deletions and history requests via the rta_tag.
 
         Event loop must be running.
+
+        For testing only: bus_ip can be None to skip connection.
         """
         if db is None:
             raise SystemExit('OpNotes db must be defined')
-        try:
-            socket.gethostbyname(bus_ip)
-        except socket.gaierror as e:
-            raise ValueError(f'Cannot resolve IP/hostname: {e}')
-        if not isinstance(bus_port, int):
-            raise TypeError('bus_port must be an integer')
-        if not 1024 <= bus_port <= 65535:
-            raise ValueError('bus_port must be between 1024 and 65535')
+        if bus_ip is None:
+            logging.warning('OpNotes has bus_ip=None, only use for testing')
+        else:
+            try:
+                socket.gethostbyname(bus_ip)
+            except socket.gaierror as e:
+                raise ValueError(f'Cannot resolve IP/hostname: {e}')
+            if not isinstance(bus_port, int):
+                raise TypeError('bus_port must be an integer')
+            if not 1024 <= bus_port <= 65535:
+                raise ValueError('bus_port must be between 1024 and 65535')
         if not isinstance(rta_tag, str) or not rta_tag:
             raise ValueError('rta_tag must be a non-empty string')
         if not isinstance(table, str) or not table:

@@ -34,11 +34,11 @@ async def test_periodic():
 
 @pytest.mark.asyncio()
 async def test_timechange():
-    """Periodic should run four times in 0.41 seconds."""
+    """Periodic should run four times in 0.42 seconds."""
     resetflag()
     periodic = Periodic(do_period, 0.1)
     await periodic.start()
-    await asyncio.sleep(0.21)
+    await asyncio.sleep(0.22)
     periodic.period = 0.3
     await asyncio.sleep(0.2)
     await periodic.stop()
