@@ -12,6 +12,9 @@ RTN = 1
 ACT = 2
 INF = 3
 
+NORMAL = 0
+ALARM = 1
+
 
 def standardise_tag_info(tagname: str, tag: dict):
     """Correct tag dictionary in place to be suitable for modules."""
@@ -37,6 +40,51 @@ def standardise_tag_info(tagname: str, tag: dict):
             tag['dp'] = 2
     if 'units' not in tag:
         tag['units'] = ''
+
+
+class Alarm:
+    """Manages multiple alarm conditions for a single tag."""
+    def __init__(self, tag: Tag, conditions: str | list[str]):
+        """Initialize alarm with tag and condition(s)."""
+        if tag.type not in (int, float):
+            raise ValueError(f"Alarms only supported for numeric types, not {tag.type}")
+            
+        self.tag = tag
+        self.tests: list[tuple[str, callable, float]] = []
+        
+        # Handle both string and list conditions
+        if isinstance(conditions, str):
+            conditions = [conditions]
+            
+        for condition in conditions:
+            operator_str, value = condition.split(' ')
+            self.tests.append((
+                condition,
+                {
+                    '==': (lambda x, y: x == y),
+                    '<': (lambda x, y: x < y),
+                    '>': (lambda x, y: x > y),
+                    '<=': (lambda x, y: x <= y),
+                    '>=': (lambda x, y: x >= y)
+                }[operator_str],
+                float(value)
+            ))
+            
+    def check_conditions(self, in_alarm: set[str]) -> list[tuple[str, bool, float, int]]:
+        """Check all conditions and return list of changes.
+        Returns list of (alarm_ref, is_in_alarm, value, timestamp) for changed states."""
+        changes = []
+        for condition_str, test, value in self.tests:
+            alarm_ref = f"{self.tag.name} {condition_str}"
+            is_in_alarm = test(self.tag.value, value)
+            
+            if is_in_alarm and alarm_ref not in in_alarm:
+                changes.append((alarm_ref, True, self.tag.value, self.tag.time_us))
+                
+            elif not is_in_alarm and alarm_ref in in_alarm:
+                changes.append((alarm_ref, False, self.tag.value, self.tag.time_us))
+                
+        return changes
 
 
 class Alarms:
@@ -82,28 +130,18 @@ class Alarms:
         logging.warning(f'Alarms {bus_ip} {bus_port} {db} {rta_tag}')
         self.connection = sqlite3.connect(db)
         self.tags: dict[str, Tag] = {}
-        self.alarm_test: dict[str, dict] = {}
-        self.in_alarm: set[str] = set()
+        self.alarms: dict[str, Alarm] = {}
+        self.in_alarm: dict[str, int] = {}
         for tagname, tag in tag_info.items():
             standardise_tag_info(tagname, tag)
-            if 'alarm' not in tag:
+            if 'alarm' not in tag or tag['type'] not in (int, float):
                 continue
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].desc = tag['desc']
             self.tags[tagname].dp = tag['dp']
             self.tags[tagname].units = tag['units']
             self.tags[tagname].add_callback(self.alarm_cb)
-            operator, value = tag['alarm'].split(' ')
-            self.alarm_test[tagname] = [
-                {
-                    '==': (lambda x, y: x == y),
-                    '<': (lambda x, y: x < y),
-                    '>': (lambda x, y: x > y),
-                    '<=': (lambda x, y: x <= y),
-                    '>=': (lambda x, y: x >= y)
-                }[operator],
-                float(value)
-            ]
+            self.alarms[tagname] = Alarm(self.tags[tagname], tag['alarm'])
         self.table = table
         self.cursor = self.connection.cursor()
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
@@ -112,31 +150,59 @@ class Alarms:
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
         atexit.register(self.close)
 
-    def alarm_cb(self, tag):
+    def alarm_cb(self, tag: Tag):
         """Callback for alarm tags."""
-        operator, value = self.alarm_test[tag.name]
-        if operator(tag.value, value) and tag.name not in self.in_alarm:
-            logging.warning(f'Alarm {tag.name} {tag.value}')
+        if tag.name not in self.alarms:
+            return
+        changes = self.alarms[tag.name].check_conditions(self.in_alarm)
+        for alarm_ref, is_in_alarm, value, time_us in changes:
+            self._handle_alarm_change(
+                alarm_ref, 
+                is_in_alarm, 
+                tag, 
+                value, 
+                time_us
+            )
+
+    def _handle_alarm_change(self, alarm_ref: str, is_in_alarm: bool, 
+                           tag: Tag, value: float, time_us: int):
+        """Handle alarm state changes and database updates."""
+        if is_in_alarm:
+            logging.warning(f'Alarm {alarm_ref} {value}')
+            kind = ALM
+            state = ALARM
             alarm_record = {
                 'action': 'ADD',
-                'date_ms': int(tag.time_us / 1000),
-                'tagname': tag.name,
-                'kind': ALM,
-                'desc': f'{tag.desc} {tag.value:.{tag.dp}f} {tag.units}'
+                'date_ms': int(time_us / 1000),
+                'tag_alm': alarm_ref,
+                'kind': kind,
+                'desc': f'{tag.desc} {value:.{tag.dp}f} {tag.units}',
+                'in_alm': state
             }
             self.rta_cb(alarm_record)
-            self.in_alarm.add(tag.name)
-        elif not operator(tag.value, value) and tag.name in self.in_alarm:
-            logging.info(f'No alarm {tag.name} {tag.value}')
-            alarm_record = {
-                'action': 'ADD',
-                'date_ms': int(tag.time_us / 1000),
-                'tagname': tag.name,
-                'kind': RTN,
-                'desc': f'{tag.desc} {tag.value:.{tag.dp}f} {tag.units}'
-            }
-            self.rta_cb(alarm_record)
-            self.in_alarm.remove(tag.name)
+            self.in_alarm[alarm_ref] = self.rta.value['id']
+        else:
+            logging.info(f'No alarm {alarm_ref} {value}')
+            if alarm_ref in self.in_alarm:
+                # First update the existing alarm record to NORMAL
+                update_record = {
+                    'action': 'UPDATE',
+                    'id': self.in_alarm[alarm_ref],
+                    'in_alm': NORMAL
+                }
+                self.rta_cb(update_record)
+                
+                # Then add the RTN record
+                rtn_record = {
+                    'action': 'ADD',
+                    'date_ms': int(time_us / 1000),
+                    'tag_alm': alarm_ref,
+                    'kind': RTN,
+                    'desc': f'{tag.desc} {value:.{tag.dp}f} {tag.units}',
+                    'in_alm': NORMAL
+                }
+                self.rta_cb(rtn_record)
+                del self.in_alarm[alarm_ref]
 
     def _init_table(self):
         """Initialize the database table schema."""
@@ -144,19 +210,39 @@ class Alarms:
             'CREATE TABLE IF NOT EXISTS ' + self.table +
             '(id INTEGER PRIMARY KEY ASC, '
             'date_ms INTEGER, '
-            'tagname TEXT, '
+            'tag_alm TEXT, '
             'kind INTEGER, '
-            'desc TEXT)'
+            'desc TEXT, '
+            'in_alm INTEGER)'
         )
         self.cursor.execute(query)
+        
+        # Clear any existing ALARM states
+        try:
+            with self.connection:
+                # Update all alarm records to NORMAL
+                self.cursor.execute(
+                    f'SELECT id, tag_alm FROM {self.table} WHERE in_alm = ?',
+                    (ALARM,))
+                alarm_records = self.cursor.fetchall()
+                for record_id, tag_alm in alarm_records:
+                    update_record = {
+                        'action': 'UPDATE',
+                        'id': record_id,
+                        'in_alm': NORMAL
+                    }
+                    self.rta_cb(update_record)
+        except sqlite3.Error as e:
+            logging.error(f'Error clearing alarm states during startup: {e}')
         
         # Add startup record using existing ADD functionality
         startup_record = {
             'action': 'ADD',
             'date_ms': int(time.time() * 1000),
-            'tagname': self.rta.name,
+            'tag_alm': self.rta.name,
             'kind': INF,
-            'desc': 'Alarm logging started'
+            'desc': 'Alarm logging started',
+            'in_alm': NORMAL
         }
         self.rta_cb(startup_record)
 
@@ -170,20 +256,41 @@ class Alarms:
                 with self.connection:
                     self.cursor.execute(
                         f'INSERT INTO {self.table} '
-                        '(date_ms, tagname, kind, desc) '
-                        'VALUES(:date_ms, :tagname, :kind, :desc) '
+                        '(date_ms, tag_alm, kind, desc, in_alm) '
+                        'VALUES(:date_ms, :tag_alm, :kind, :desc, :in_alm) '
                         'RETURNING *;',
                         request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
                         'id': res[0],
                         'date_ms': res[1],
-                        'tagname': res[2],
+                        'tag_alm': res[2],
                         'kind': res[3],
-                        'desc': res[4]
+                        'desc': res[4],
+                        'in_alm': res[5]
                     }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
+        elif request['action'] == 'UPDATE':
+            try:
+                logging.info(f'update {request}')
+                with self.connection:
+                    self.cursor.execute(
+                        f'UPDATE {self.table} SET in_alm = :in_alm '
+                        'WHERE id = :id RETURNING *;',
+                        request)
+                    res = self.cursor.fetchone()
+                    if res:
+                        self.rta.value = {
+                            'id': res[0],
+                            'date_ms': res[1],
+                            'tag_alm': res[2],
+                            'kind': res[3],
+                            'desc': res[4],
+                            'in_alm': res[5]
+                        }
+            except sqlite3.IntegrityError as error:
+                logging.warning(f'Alarms rta_cb update {error}')
         elif request['action'] == 'HISTORY':
             try:
                 logging.info(f'history {request}')
@@ -196,9 +303,10 @@ class Alarms:
                             '__rta_id__': request['__rta_id__'],
                             'id': res[0],
                             'date_ms': res[1],
-                            'tagname': res[2],
+                            'tag_alm': res[2],
                             'kind': res[3],
-                            'desc': res[4]
+                            'desc': res[4],
+                            'in_alm': res[5]
                         }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
@@ -225,12 +333,24 @@ class Alarms:
 
     def close(self):
         """Clean shutdown of alarms logging."""
+        for alarm_ref, record_id in self.in_alarm.items():
+            update_record = {
+                'action': 'UPDATE',
+                'id': record_id,
+                'in_alm': NORMAL
+            }
+            try:
+                self.rta_cb(update_record)
+            except sqlite3.Error as e:
+                logging.error(f'Error clearing alarm {alarm_ref}: {e}')
+        
         shutdown_record = {
             'action': 'ADD',
             'date_ms': int(time.time() * 1000),
-            'tagname': self.rta.name,
+            'tag_alm': self.rta.name,
             'kind': INF,
-            'desc': 'Alarm logging stopped'
+            'desc': 'Alarm logging stopped',
+            'in_alm': NORMAL
         }
         try:
             self.rta_cb(shutdown_record)
