@@ -28,7 +28,7 @@ import time
 import socket
 from typing import TypedDict, Optional
 from pymscada.bus_client import BusClient
-from pymscada.tag import Tag, TagInfo, TYPES
+from pymscada.tag import Tag, TYPES
 
 
 ITEM_SIZE = 16  # Q + q, Q or d
@@ -37,21 +37,12 @@ CHUNK_SIZE = ITEM_COUNT * ITEM_SIZE
 FILE_CHUNKS = 64
 
 
-class Request(TypedDict, total=False):
-    """Type definition for request dictionary."""
-    tagname: str 
-    start_ms: Optional[int]  # Allow web client to use native ms
-    start_us: Optional[int]  # Native for pymscada server
-    end_ms: Optional[int]
-    end_us: Optional[int]
-    __rta_id__: Optional[int]  # Empty for a change that must be broadcast
-
-
-def tag_for_history(tagname: str, tag: dict):
-    """Correct tag dictionary in place to be suitable for web client."""
+def standardise_tag_info(tagname: str, tag: dict):
+    """Correct tag dictionary in place to be suitable for modules."""
     tag['name'] = tagname
     tag['id'] = None
     if 'desc' not in tag:
+        logging.warning(f"Tag {tagname} has no description, using name")
         tag['desc'] = tag['name']
     if 'multi' in tag:
         tag['type'] = int
@@ -69,6 +60,16 @@ def tag_for_history(tagname: str, tag: dict):
         tag['max'] = None
     if 'deadband' not in tag:
         tag['deadband'] = None
+
+
+class Request(TypedDict, total=False):
+    """Type definition for request dictionary."""
+    tagname: str 
+    start_ms: Optional[int]  # Allow web client to use native ms
+    start_us: Optional[int]  # Native for pymscada server
+    end_ms: Optional[int]
+    end_us: Optional[int]
+    __rta_id__: Optional[int]  # Empty for a change that must be broadcast
 
 
 def get_tag_hist_files(path: Path, tagname: str) -> dict[int, Path]:
@@ -226,7 +227,7 @@ class History():
         bus_ip: str = '127.0.0.1',
         bus_port: int = 1324,
         path: str = 'history',
-        tag_info: TagInfo = {},
+        tag_info: dict[str, dict] = {},
         rta_tag: str | None = '__history__'
     ) -> None:
         """
@@ -260,7 +261,7 @@ class History():
         self.tags: dict[str, Tag] = {}
         self.hist_tags: dict[str, TagHistory] = {}
         for tagname, tag in tag_info.items():
-            tag_for_history(tagname, tag)
+            standardise_tag_info(tagname, tag)
             if tag['type'] not in [float, int]:
                 continue
             self.hist_tags[tagname] = TagHistory(

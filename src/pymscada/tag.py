@@ -7,7 +7,6 @@ bus_id is python id(), 0 is null pointer in c, 0 is local bus.
 import time
 import array
 import logging
-from typing import TypedDict, Union, Optional, Type, List
 
 TYPES = {
     'int': int,
@@ -17,28 +16,6 @@ TYPES = {
     'dict': dict,
     'bytes': bytes
 }
-
-
-def tag_for_web(tagname: str, tag: dict):
-    """Correct tag dictionary in place to be suitable for web client."""
-    tag['name'] = tagname
-    tag['id'] = None
-    if 'desc' not in tag:
-        tag['desc'] = tagname
-    if 'multi' in tag:
-        tag['type'] = 'int'
-    else:
-        if 'type' not in tag:
-            tag['type'] = 'float'
-        else:
-            if tag['type'] not in TYPES:
-                tag['type'] = 'str'
-    if tag['type'] == 'int':
-        tag['dp'] = 0
-    elif tag['type'] == 'float' and 'dp' not in tag:
-        tag['dp'] = 2
-    elif tag['type'] == 'str' and 'dp' in tag:
-        del tag['dp']
 
 
 class UniqueTag(type):
@@ -311,20 +288,3 @@ class Tag(metaclass=UniqueTag):
                 self.values = array.array('d')
         else:
             raise TypeError(f"shard invalid {self.name} not int, float")
-
-
-class TagInfo(TypedDict, total=False):
-    """Type definition for tag information dictionary."""
-    name: str 
-    id: Optional[int]
-    desc: str
-    type: Union[str, Type[int], Type[float], Type[str], Type[list],
-                Type[dict], Type[bytes]]
-    multi: Optional[List[str]]
-    min: Optional[Union[float, int]]
-    max: Optional[Union[float, int]]
-    deadband: Optional[Union[float, int]]
-    units: Optional[str]
-    dp: Optional[int]
-    format: Optional[str]
-    init: Optional[Union[int, float, str]]

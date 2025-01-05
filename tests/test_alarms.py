@@ -13,7 +13,7 @@ def alarms_db():
             'desc': 'Ping time to localhost',
             'units': 'ms',
             'alarm': '> 2',
-            'type': float
+            'type': 'float',
         }
     }
     Path('tests/test_assets/alarms.sqlite').unlink(missing_ok=True)
@@ -38,23 +38,25 @@ def test_db_and_tag(alarms_db, alarms_tag):
     """Basic tests."""
     db = alarms_db
     tag = alarms_tag  # Alarms sets the tag value for www clients.
+
+    db._init_table()
     
     # Verify startup record was created
-    assert tag.value['transition'] == 3  # INF
-    assert 'Alarm logging started' in tag.value['description']
+    assert tag.value['kind'] == 3  # INF
+    assert 'Alarm logging started' in tag.value['desc']
     
     # Test adding an alarm
     record = {
         'action': 'ADD',
         'tagname': 'TEST_TAG',
         'date_ms': 1234567890123,
-        'transition': ALM,
-        'description': 'Test alarm condition'
+        'kind': ALM,
+        'desc': 'Test alarm condition'
     }
     db.rta_cb(record)
     assert tag.value['id'] == 2  # Second record after startup
-    assert tag.value['transition'] == 0
-    assert tag.value['description'] == 'Test alarm condition'
+    assert tag.value['kind'] == 0
+    assert tag.value['desc'] == 'Test alarm condition'
 
 
 def test_history_queries(alarms_db, alarms_tag, reply_tag):
@@ -74,8 +76,8 @@ def test_history_queries(alarms_db, alarms_tag, reply_tag):
         'action': 'ADD',
         'tagname': 'TEST_TAG',
         'date_ms': 12345,
-        'transition': ALM,
-        'description': 'Test alarm'
+        'kind': ALM,
+        'desc': 'Test alarm'
     }
     
     for i in range(10):
@@ -91,17 +93,18 @@ def test_history_queries(alarms_db, alarms_tag, reply_tag):
     }
     db.rta_cb(rq)
     assert a_values[10]['date_ms'] == 12340
-    assert a_values[-1]['description'] == 'Alarm logging started'
+    assert a_values[-1]['desc'] == 'Alarm logging started'
 
     db.close()
-    assert a_values[-1]['transition'] == INF
-    assert a_values[-1]['description'] == 'Alarm logging stopped'
+    assert a_values[-1]['kind'] == INF
+    assert a_values[-1]['desc'] == 'Alarm logging stopped'
 
 
 def test_alarm_tag(alarms_db, alarms_tag):
     """Test alarm tag callback."""
     BUSID = 999
     db = alarms_db
+    db._init_table()
     a_tag = alarms_tag
     a_values = []
 
@@ -121,5 +124,5 @@ def test_alarm_tag(alarms_db, alarms_tag):
     db.rta_cb(rq)
     for record in a_values:
         if record['tagname'] == 'localhost_ping':
-            assert record['transition'] == ALM
-            assert record['description'] == 'Ping time to localhost 3.0'
+            assert record['kind'] == ALM
+            assert record['desc'] == 'Ping time to localhost 3.0'

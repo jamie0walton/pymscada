@@ -60,6 +60,19 @@
             "justMyCode":true
         },
         {
+            "name":"alarms",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["alarms", "--verbose",
+                "--config", "../config/alarms.yaml",
+                "--tags", "../config/tags.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"simulate",
             "type":"debugpy",
             "request":"launch",

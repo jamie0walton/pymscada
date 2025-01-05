@@ -8,8 +8,30 @@ import socket
 import time
 from pymscada.bus_client import BusClient
 import pymscada.protocol_constants as pc
-from pymscada.tag import Tag, tag_for_web, TYPES
+from pymscada.tag import Tag, TYPES
 from pymscada_html import get_html_file
+
+
+def standardise_tag_info(tagname: str, tag: dict):
+    """Correct tag dictionary in place to be suitable for web client."""
+    tag['name'] = tagname
+    tag['id'] = None
+    if 'desc' not in tag:
+        tag['desc'] = tagname
+    if 'multi' in tag:
+        tag['type'] = 'int'
+    else:
+        if 'type' not in tag:
+            tag['type'] = 'float'
+        else:
+            if tag['type'] not in TYPES:
+                tag['type'] = 'str'
+    if tag['type'] == 'int':
+        tag['dp'] = 0
+    elif tag['type'] == 'float' and 'dp' not in tag:
+        tag['dp'] = 2
+    elif tag['type'] == 'str' and 'dp' in tag:
+        del tag['dp']
 
 
 class Interface():
@@ -36,12 +58,12 @@ class WSHandler():
 
     def __init__(self, ws: web.WebSocketResponse, pages: dict,
                  tag_info: dict[str, Tag], do_rta, interface: Interface,
-                 webclient: dict):
+                 config: dict):
         """Create callbacks to monitor tag values."""
         self.ws = ws
         self.pages = pages
         self.tag_info = tag_info
-        self.webclient = webclient
+        self.config = config
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.queue = asyncio.Queue()
@@ -143,7 +165,7 @@ class WSHandler():
 
     def notify_id(self, tag: Tag):
         """Must be done here."""
-        logging.info(f'{self.rta_id}: send id to webclient for {tag.name}')
+        logging.info(f'{self.rta_id}: send id to browser for {tag.name}')
         self.tag_info[tag.name]['id'] = tag.id
         self.tag_by_id[tag.id] = tag
         self.tag_by_name[tag.name] = tag
@@ -172,7 +194,7 @@ class WSHandler():
         """Run while the connection is active and don't return."""
         send_queue = asyncio.create_task(self.send_queue())
         self.queue.put_nowait(
-            (False, {'type': 'webclient', 'payload': self.webclient}))
+            (False, {'type': 'config', 'payload': self.config}))
         self.queue.put_nowait(
             (False, {'type': 'pages', 'payload': self.pages}))
         async for msg in self.ws:
@@ -213,7 +235,7 @@ class WSHandler():
 
 
 class WwwServer:
-    """Connect to bus on bus_ip:bus_port, serve on ip:port for webclient."""
+    """Connect to bus on bus_ip:bus_port, serve on ip:port for webserver."""
 
     def __init__(
         self,
@@ -224,15 +246,15 @@ class WwwServer:
         get_path: str | None = None,
         tag_info: dict = {},
         pages: dict = {},
-        webclient: dict = {},
+        config: dict = {},
         serve_path: str | None = None,
         www_tag: str = '__wwwserver__'
     ) -> None:
         """
-        Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
+        Connect to bus on bus_ip:bus_port, serve on ip:port for webserver.
 
-        Serves the webclient files at /, as a relative path. The webclient uses
-        a websocket connection to request and set tag values and subscribe to
+        Serves the files at /, as a relative path. The browser uses a
+        websocket connection to request and set tag values and subscribe to
         changes.
 
         Event loop must be running.
@@ -263,10 +285,10 @@ class WwwServer:
         self.get_path = get_path
         self.serve_path = Path(serve_path) if serve_path else None
         for tagname, tag in tag_info.items():
-            tag_for_web(tagname, tag)
+            standardise_tag_info(tagname, tag)
         self.tag_info = tag_info
         self.pages = pages
-        self.webclient = webclient
+        self.config = config
         self.interface = Interface(www_tag)
 
     async def redirect_handler(self, _request: web.Request):
@@ -305,7 +327,7 @@ class WwwServer:
         ws = web.WebSocketResponse(max_msg_size=0)  # disables max message size
         await ws.prepare(request)
         await WSHandler(ws, self.pages, self.tag_info, self.busclient.rta,
-                        self.interface, self.webclient).connection_active()
+                        self.interface, self.config).connection_active()
         await ws.close()
         logging.info(f"WS closed {peer}")
         return ws

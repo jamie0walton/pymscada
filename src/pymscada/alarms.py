@@ -5,12 +5,38 @@ import socket
 import time
 import atexit
 from pymscada.bus_client import BusClient
-from pymscada.tag import Tag, TagInfo, TYPES
+from pymscada.tag import Tag, TYPES
 
 ALM = 0
 RTN = 1
 ACT = 2
 INF = 3
+
+
+def standardise_tag_info(tagname: str, tag: dict):
+    """Correct tag dictionary in place to be suitable for modules."""
+    tag['name'] = tagname
+    tag['id'] = None
+    if 'desc' not in tag:
+        logging.warning(f"Tag {tagname} has no description, using name")
+        tag['desc'] = tag['name']
+    if 'multi' in tag:
+        tag['type'] = int
+    else:
+        if 'type' not in tag:
+            tag['type'] = float
+        else:
+            if tag['type'] not in TYPES:
+                tag['type'] = str
+            else:
+                tag['type'] = TYPES[tag['type']]
+    if 'dp' not in tag:
+        if tag['type'] == int:
+            tag['dp'] = 0
+        else:
+            tag['dp'] = 2
+    if 'units' not in tag:
+        tag['units'] = ''
 
 
 class Alarms:
@@ -22,7 +48,7 @@ class Alarms:
         bus_port: int | None = 1324,
         db: str | None = None,
         table: str = 'alarms',
-        tag_info: TagInfo = {},
+        tag_info: dict[str, dict] = {},
         rta_tag: str = '__alarms__'
     ) -> None:
         """
@@ -59,10 +85,13 @@ class Alarms:
         self.alarm_test: dict[str, dict] = {}
         self.in_alarm: set[str] = set()
         for tagname, tag in tag_info.items():
+            standardise_tag_info(tagname, tag)
             if 'alarm' not in tag:
                 continue
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].desc = tag['desc']
+            self.tags[tagname].dp = tag['dp']
+            self.tags[tagname].units = tag['units']
             self.tags[tagname].add_callback(self.alarm_cb)
             operator, value = tag['alarm'].split(' ')
             self.alarm_test[tagname] = [
@@ -81,7 +110,6 @@ class Alarms:
         self.rta = Tag(rta_tag, dict)
         self.rta.value = {}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
-        self._init_table()
         atexit.register(self.close)
 
     def alarm_cb(self, tag):
@@ -93,8 +121,8 @@ class Alarms:
                 'action': 'ADD',
                 'date_ms': int(tag.time_us / 1000),
                 'tagname': tag.name,
-                'transition': ALM,
-                'description': f'{tag.desc} {tag.value}'
+                'kind': ALM,
+                'desc': f'{tag.desc} {tag.value:.{tag.dp}f} {tag.units}'
             }
             self.rta_cb(alarm_record)
             self.in_alarm.add(tag.name)
@@ -104,8 +132,8 @@ class Alarms:
                 'action': 'ADD',
                 'date_ms': int(tag.time_us / 1000),
                 'tagname': tag.name,
-                'transition': RTN,
-                'description': f'{tag.desc} {tag.value}'
+                'kind': RTN,
+                'desc': f'{tag.desc} {tag.value:.{tag.dp}f} {tag.units}'
             }
             self.rta_cb(alarm_record)
             self.in_alarm.remove(tag.name)
@@ -117,8 +145,8 @@ class Alarms:
             '(id INTEGER PRIMARY KEY ASC, '
             'date_ms INTEGER, '
             'tagname TEXT, '
-            'transition INTEGER, '
-            'description TEXT)'
+            'kind INTEGER, '
+            'desc TEXT)'
         )
         self.cursor.execute(query)
         
@@ -127,8 +155,8 @@ class Alarms:
             'action': 'ADD',
             'date_ms': int(time.time() * 1000),
             'tagname': self.rta.name,
-            'transition': INF,
-            'description': 'Alarm logging started'
+            'kind': INF,
+            'desc': 'Alarm logging started'
         }
         self.rta_cb(startup_record)
 
@@ -142,8 +170,8 @@ class Alarms:
                 with self.connection:
                     self.cursor.execute(
                         f'INSERT INTO {self.table} '
-                        '(date_ms, tagname, transition, description) '
-                        'VALUES(:date_ms, :tagname, :transition, :description) '
+                        '(date_ms, tagname, kind, desc) '
+                        'VALUES(:date_ms, :tagname, :kind, :desc) '
                         'RETURNING *;',
                         request)
                     res = self.cursor.fetchone()
@@ -151,8 +179,8 @@ class Alarms:
                         'id': res[0],
                         'date_ms': res[1],
                         'tagname': res[2],
-                        'transition': res[3],
-                        'description': res[4]
+                        'kind': res[3],
+                        'desc': res[4]
                     }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
@@ -169,15 +197,31 @@ class Alarms:
                             'id': res[0],
                             'date_ms': res[1],
                             'tagname': res[2],
-                            'transition': res[3],
-                            'description': res[4]
+                            'kind': res[3],
+                            'desc': res[4]
                         }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
+        elif request['action'] == 'BULK HISTORY':
+            try:
+                logging.info(f'bulk history {request}')
+                with self.connection:
+                    self.cursor.execute(
+                        f'SELECT * FROM {self.table} WHERE date_ms > :date_ms '
+                        'ORDER BY -date_ms;', request)
+                    results = list(self.cursor.fetchall())
+                    self.rta.value = {'__rta_id__': request['__rta_id__'],
+                                      'data': results}
+            except sqlite3.IntegrityError as error:
+                logging.warning(f'Alarms rta_cb {error}')
+        elif request['action'] == 'IN ALARM':
+            self.rta.value = {'__rta_id__': request['__rta_id__'],
+                              'data': {'in_alarm': list(self.in_alarm)}}
 
     async def start(self):
         """Async startup."""
         await self.busclient.start()
+        self._init_table()
 
     def close(self):
         """Clean shutdown of alarms logging."""
@@ -185,8 +229,8 @@ class Alarms:
             'action': 'ADD',
             'date_ms': int(time.time() * 1000),
             'tagname': self.rta.name,
-            'transition': INF,
-            'description': 'Alarm logging stopped'
+            'kind': INF,
+            'desc': 'Alarm logging stopped'
         }
         try:
             self.rta_cb(shutdown_record)
