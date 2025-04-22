@@ -3,7 +3,8 @@ import asyncio
 import logging
 import sys
 from pymscada.bus_client import BusClient
-from pymscada.tag import Tag, tag_for_web, TagInfo
+from pymscada.tag import Tag
+from pymscada.www_server import standardise_tag_info
 try:
     import termios
     import tty
@@ -153,7 +154,7 @@ class Console:
     """Provide a text console to interact with a Bus."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 tag_info: dict[str, TagInfo] = {}) -> None:
+                 tag_info: dict = {}) -> None:
         """
         Connect to bus_ip:bus_port and provide console interaction with a Bus.
 
@@ -177,7 +178,7 @@ class Console:
         self.busclient = BusClient(bus_ip, bus_port, module='Console')
         self.tags: dict[str, Tag] = {}
         for tagname, tag in tag_info.items():
-            tag_for_web(tagname, tag)
+            standardise_tag_info(tagname, tag)
             self.tags[tagname] = Tag(tagname, tag['type'])
 
     def write_tag(self, tag: Tag):

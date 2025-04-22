@@ -7,5 +7,6 @@
     "workbench.colorCustomizations": {
         "titleBar.activeBackground": "#31849b",
         "titleBar.inactiveBackground":"#31849b"
-    }
+    },
+    "remote.autoForwardPorts": false
 }

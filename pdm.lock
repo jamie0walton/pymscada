@@ -5,7 +5,7 @@
 groups = ["default", "pdm", "test"]
 strategy = ["cross_platform"]
 lock_version = "4.4.2"
-content_hash = "sha256:b811b22cee133d74468482407fd67dfa7b8375ebbb2b672ac897a05311f04609"
+content_hash = "sha256:6a6b6276db38afa69718c4252056bc017d2214c4aa620e2fec36e46cb7831155"
 
 [[package]]
 name = "aiohttp"
@@ -617,12 +617,12 @@ files = [
 
 [[package]]
 name = "pymscada-html"
-version = "0.2.0rc2"
+version = "0.2.0rc4"
 requires_python = ">=3.9"
 summary = "Angular single page application html files served by pymscada."
 files = [
-    {file = "pymscada_html-0.2.0rc2-py3-none-any.whl", hash = "sha256:61710300eea316eff8ffb64b9edc9a3700dd23802752602a8c1789c186b11514"},
-    {file = "pymscada_html-0.2.0rc2.tar.gz", hash = "sha256:074b7bca046ad4cb86a9e5a5c2698203527a02c36f4935cb05b4544ce79ab990"},
+    {file = "pymscada_html-0.2.0rc4-py3-none-any.whl", hash = "sha256:2310c55a00534ee2efad560b2cb31c3796bd53c36a76c2914ba7468a10bdd7b8"},
+    {file = "pymscada_html-0.2.0rc4.tar.gz", hash = "sha256:51930a389651468ccff2f8ff07825ee7d7d505178e57bfe4c2026bca55f3c344"},
 ]
 
 [[package]]
