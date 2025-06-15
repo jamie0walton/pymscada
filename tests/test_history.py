@@ -8,6 +8,7 @@ from pymscada.history import get_tag_hist_files, TagHistory, History, ITEM_SIZE
 from pymscada.tag import Tag
 
 
+# Real time tag where time never goes backwards
 TIMES = list(range(60))
 VALUES = [
     255, 65535, 4_294_967_295, 2**63-1, -2**63,  # 0, 1, 2, 3, 4
@@ -19,6 +20,15 @@ VALUES = [
     50, 51, 52, 53, 54, 55, 56, 57, 58, 59,      # 50-59
 ]
 
+# Forecast tag where future is recast repeatedly
+REP_TIMES = [0, 1, 2,
+             1, 2, 3,
+             2, 3, 4,
+             3, 4, 5]
+REP_VALUES = [0.01, 1.01, 2.01,
+              1.02, 2.02, 3.02,
+              2.03, 3.03, 4.03,
+              3.04, 4.04, 5.04]
 
 @pytest.fixture(scope='session')
 def t0():
@@ -32,6 +42,24 @@ def t0():
             tag_0.flush()
     Path('tests/test_assets/hist_tag_0_10_2.dat').touch()
     return tag_0
+
+
+@pytest.fixture(scope='session')
+def t1():
+    """Make test files in the test_assets folder."""
+    for df in Path('tests/test_assets').glob('hist_tag_1_*'):
+        df.unlink()
+    tag_1 = TagHistory('hist_tag_1', float, 'tests/test_assets')
+    for time_us, value in zip(REP_TIMES, REP_VALUES):
+        tag_1.append(time_us, value)
+    i = 0
+    for time_us, value in zip(REP_TIMES, REP_VALUES):
+        i += 1
+        if i == 3:
+            tag_1.flush()
+        tag_1.append(time_us + 4, value + 0.04)
+    tag_1.flush()
+    return tag_1
 
 
 def test_right_files(t0: TagHistory):
@@ -72,6 +100,33 @@ async def test_read_ranges(t0: TagHistory):
                 rd_v.append(v)
             assert rd_t == TIMES[start:end]
             assert rd_v == VALUES[start:end]
+
+
+@pytest.mark.asyncio()
+async def test_read_ranges_forecast(t1: TagHistory):
+    """Check forecast tag."""
+    rd = t1.read_bytes()
+    rd_t = []
+    rd_v = []
+    for i in range(0, len(rd), ITEM_SIZE):
+        t, v = unpack_from(t1.packstr, rd, offset=i)
+        rd_t.append(t)
+        rd_v.append(v)
+    assert rd_t[:12] == REP_TIMES
+    assert rd_v[:12] == REP_VALUES
+    assert rd_t[12:] == [x + 4 for x in REP_TIMES]
+    assert rd_v[12:] == [x + 0.04 for x in REP_VALUES]
+    # see what happens when we read a partial reforecast time
+    # a little surprised to see a sane response
+    rd = t1.read_bytes(start_us=8)
+    rd_t = []
+    rd_v = []
+    for i in range(0, len(rd), ITEM_SIZE):
+        t, v = unpack_from(t1.packstr, rd, offset=i)
+        rd_t.append(t)
+        rd_v.append(v)
+    assert rd_t == [8, 7, 8, 9]
+    assert rd_v == [4.07, 3.08, 4.08, 5.08]
 
 
 @pytest.mark.asyncio()

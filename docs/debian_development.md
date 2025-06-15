@@ -147,6 +147,13 @@ Of course browsing to <host ip>:8324 is also good.
 
 ## Useful bits
 
+NOTE that the .env file is not included in indexing but does contain data
+that must be updated for environment variables to work for IDE test extension.
+Should be something like the following:
+```.env
+ENV_VAR=12345
+```
+
 Handy to run modbusclient against port 502 with Schneider's
 [test program](https://www.se.com/nz/en/faqs/FA180037/)
 that only connects to port 502.

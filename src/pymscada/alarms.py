@@ -76,7 +76,7 @@ def standardise_tag_info(tagname: str, tag: dict):
 def split_operator(alarm: str) -> dict:
     """Split alarm string into operator and value."""
     tokens = alarm.split(' ')
-    alm_dict = {}
+    alm_dict = {'for': 0}
     if len(tokens) not in (2, 4):
         raise ValueError(f"Invalid alarm {alarm}")
     if tokens[0] not in ['>', '<', '==', '>=', '<=']:
@@ -86,7 +86,6 @@ def split_operator(alarm: str) -> dict:
         alm_dict['value'] = float(tokens[1])
     except ValueError:
         raise ValueError(f"Invalid alarm {alarm}")
-    alm_dict['for'] = 0
     if len(tokens) == 4:
         if tokens[2] != 'for':
             raise ValueError(f"Invalid alarm {alarm}")
@@ -108,7 +107,7 @@ class Alarm():
     Generates the ALM and RTN messages for Alarms to publish via rta_tag.
     """
 
-    def __init__(self, tagname: str, tag: dict, alarm: str, area: str, rta_cb) -> None:
+    def __init__(self, tagname: str, tag: dict, alarm: str, area: str, rta_cb, alarms) -> None:
         """Initialize alarm with tag and condition(s)."""
         self.alarm_id = f'{tagname} {alarm}'
         self.tag = Tag(tagname, tag['type'])
@@ -118,9 +117,10 @@ class Alarm():
         self.tag.add_callback(self.callback)
         self.area = area
         self.rta_cb = rta_cb
+        self.alarms = alarms
         self.alarm = split_operator(alarm)
         self.in_alarm = False
-        self.waiting_time = 0
+        self.checking = False
 
     def callback(self, tag: Tag):
         """Handle tag value changes and generate ALM/RTN messages."""
@@ -129,23 +129,35 @@ class Alarm():
         value = float(tag.value)
         time_us = tag.time_us
         new_in_alarm = False
-        if self.alarm['operator'] == '>':
+        op = self.alarm['operator']
+        if op == '>':
             new_in_alarm = value > self.alarm['value']
-        elif self.alarm['operator'] == '<':
+        elif op == '<':
             new_in_alarm = value < self.alarm['value']
-        elif self.alarm['operator'] == '==':
+        elif op == '==':
             new_in_alarm = value == self.alarm['value']
-        elif self.alarm['operator'] == '>=':
+        elif op == '>=':
             new_in_alarm = value >= self.alarm['value']
-        elif self.alarm['operator'] == '<=':
+        elif op == '<=':
             new_in_alarm = value <= self.alarm['value']
         if new_in_alarm == self.in_alarm:
             return
         self.in_alarm = new_in_alarm
         if self.in_alarm:
-            kind = ALM
+            if self.alarm['for'] > 0:
+                if not self.checking:
+                    self.checking = True
+                    self.alarms.checking_alarms.append(self)
+            else:
+                self.generate_alarm(ALM, time_us, value)
         else:
-            kind = RTN
+            if self.checking:
+                self.checking = False
+                self.alarms.checking_alarms.remove(self)
+            self.generate_alarm(RTN, time_us, value)
+
+    def generate_alarm(self, kind: int, time_us: int, value: float):
+        """Generate alarm message."""
         logging.warning(f'Alarm {self.alarm_id} {value} {KIND[kind]}')
         self.rta_cb({
             'action': 'ADD',
@@ -156,6 +168,13 @@ class Alarm():
                     f' {self.tag.units}',
             'group': self.area
         })
+
+    def check_duration(self, current_time_us: int):
+        """Check if alarm condition has been met for required duration."""
+        if current_time_us - self.tag.time_us >= self.alarm['for'] * 1000000:
+            self.generate_alarm(ALM, current_time_us, self.tag.value)
+            self.checking = False
+            self.alarms.checking_alarms.remove(self)
 
 
 class Alarms:
@@ -200,13 +219,14 @@ class Alarms:
 
         logging.warning(f'Alarms {bus_ip} {bus_port} {db} {rta_tag}')
         self.alarms: list[Alarm] = []
+        self.checking_alarms: list[Alarm] = []
         for tagname, tag in tag_info.items():
             standardise_tag_info(tagname, tag)
             if 'alarm' not in tag or tag['type'] not in (int, float):
                 continue
             area = tag['area']
             for alarm in tag['alarm']:
-                new_alarm = Alarm(tagname, tag, alarm, area, self.rta_cb)
+                new_alarm = Alarm(tagname, tag, alarm, area, self.rta_cb, self)
                 self.alarms.append(new_alarm)
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
         self.rta = Tag(rta_tag, dict)
@@ -244,7 +264,9 @@ class Alarms:
 
     async def periodic_cb(self):
         """Periodic callback to check alarms."""
-        pass
+        current_time_us = int(time.time() * 1000000)
+        for alarm in self.checking_alarms[:]:
+            alarm.check_duration(current_time_us)
 
     def rta_cb(self, request):
         """Respond to Request to Author and publish on rta_tag as needed."""

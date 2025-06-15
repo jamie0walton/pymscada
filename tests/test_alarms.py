@@ -1,6 +1,7 @@
 """Test Alarms."""
 from pathlib import Path
 import pytest
+import time
 from pymscada.alarms import Alarms, ALM, INF, split_operator, \
     standardise_tag_info
 from pymscada.tag import Tag
@@ -52,6 +53,12 @@ def alarms_db():
             'dp': 1,
             'alarm': '> 2',
             'type': 'float',
+        },
+        'Murupara_Temp': {
+            'desc': 'Murupara Temp',
+            'units': 'C',
+            'dp': 1,
+            'alarm': '> 2 for 30',
         }
     }
     db_path = Path('tests/test_assets/alarms.sqlite')
@@ -75,9 +82,10 @@ def reply_tag():
 
 
 def test_db_and_tag(alarms_db, alarms_tag):
-    """Basic tests."""
+    """Basic test of the __alarms__ tag, start and first value."""
     db = alarms_db
     tag = alarms_tag  # Alarms sets the tag value for www clients.
+    assert tag.value['id'] == 1  # Start record
     assert tag.value['kind'] == INF  # INF
     assert 'Alarm logging started' in tag.value['desc']
     record = {
@@ -89,22 +97,22 @@ def test_db_and_tag(alarms_db, alarms_tag):
         'group': 'TEST'
     }
     db.rta_cb(record)
-    assert tag.value['id'] == 2  # Second record after startup
+    assert tag.value['id'] == 2  # First value, second record
     assert tag.value['kind'] == ALM
     assert tag.value['desc'] == 'Test alarm condition'
 
 
 def test_history_queries(alarms_db, alarms_tag, reply_tag):
-    """Test history queries."""
+    """Write 10 alarms and read back the most recent."""
     BUSID = 999
     db = alarms_db
-    a_tag: Tag = alarms_tag
-    a_values = []
+    tag: Tag = alarms_tag
+    values = []
 
-    def a_cb(tag):
-        a_values.append(tag.value)
+    def cb(tag):
+        values.append(tag.value)
 
-    a_tag.add_callback(a_cb, BUSID)
+    tag.add_callback(cb, BUSID)
     record = {
         'action': 'ADD',
         'alarm_string': 'Alarm string',
@@ -115,30 +123,30 @@ def test_history_queries(alarms_db, alarms_tag, reply_tag):
     }
     for i in range(10):
         record['date_ms'] -= 1
-        record['transition'] = i % 4  # Cycle through transitions
         db.rta_cb(record)
     rq = {
         '__rta_id__': BUSID,
         'action': 'HISTORY',
-        'date_ms': 12345 - 5.1,
+        'date_ms': 12345 - 5.1, # very old time.
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    assert a_values[10]['date_ms'] == 12340
-    assert a_values[-1]['desc'] == 'Alarm logging started'
+    assert values[10]['date_ms'] == 12340
+    # start is current time, much newer than 12340.
+    assert values[-1]['desc'] == 'Alarm logging started'
 
 
 def test_alarm_tag(alarms_db, alarms_tag):
-    """Test alarm tag callback."""
+    """Test request to author of alarm history."""
     BUSID = 999
     db = alarms_db
-    a_tag = alarms_tag
-    a_values = []
+    tag = alarms_tag
+    values = []
 
-    def a_cb(tag):
-        a_values.append(tag.value)
+    def cb(tag):
+        values.append(tag.value)
 
-    a_tag.add_callback(a_cb, BUSID)
+    tag.add_callback(cb, BUSID)
     tag_name = 'localhost_ping'
     ping_tag = Tag(tag_name, float)
     ping_tag.value = (3.0, 12345000, BUSID)
@@ -149,7 +157,42 @@ def test_alarm_tag(alarms_db, alarms_tag):
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    for record in a_values:
-        if record['alarm_string'] == 'localhost_ping > 2':
-            assert record['kind'] == ALM
-            assert record['desc'] == 'Ping time to localhost 3.0 ms'
+    assert '__rta_id__' not in values[0]
+    assert values[0]['alarm_string'] == 'localhost_ping > 2'
+    assert values[0]['desc'] == 'Ping time to localhost 3.0 ms'
+    assert values[0]['date_ms'] == 12345
+    assert values[1]['__rta_id__'] == BUSID
+    assert values[1]['alarm_string'] == 'localhost_ping > 2'
+    assert values[1]['desc'] == 'Ping time to localhost 3.0 ms'
+    assert values[1]['date_ms'] == 12345
+    assert values[2]['alarm_string'] == '__alarms__'
+    assert values[2]['desc'] == 'Alarm logging started'
+
+
+def test_delay_alarm(alarms_db, alarms_tag):
+    """Test only alarms when alarm has been present for required duration."""
+    BUSID = 999
+    db = alarms_db
+    tag = alarms_tag
+    values = []
+
+    def cb(tag):
+        values.append(tag.value)
+
+    tag.add_callback(cb, BUSID)
+    tag_name = 'Murupara_Temp'
+    time_us = int(time.time() * 1000000)
+    temp_tag = Tag(tag_name, float)
+    temp_tag.value = (50.0, time_us - 60000000, BUSID)
+    temp_tag.value = (0.0, time_us - 1000000, BUSID)
+    temp_tag.value = (200.0, time_us, BUSID)
+    rq = {
+        '__rta_id__': BUSID,
+        'action': 'HISTORY',
+        'date_ms': 10000,
+        'reply_tag': '__wwwserver__'
+    }
+    db.rta_cb(rq)
+    assert len(values) == 2
+    assert values[0]['desc'] == 'Alarm logging started'
+    assert values[1]['desc'] == 'Murupara Temp 50.0 C'

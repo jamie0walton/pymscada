@@ -1,0 +1,9 @@
+Use 2 line spacing between functions.
+Use 1 line spacing between methods in classes.
+Use 1 line spacing around functions defined inside functions and methods.
+Do not add other line spacing.
+Never add spaces immediately before carriage return.
+Make the smallest change necessary to address the question.
+Do incremental changes.
+Make sure that test functions continue to work.
+Do not make statements that are false.

@@ -1,0 +1,17 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+proxy:
+api:
+  url: 'https://api.electricityinfo.co.nz'
+  client_id: ${WITS_CLIENT_ID}
+  client_secret: ${WITS_CLIENT_SECRET}
+  gxp_list:
+    - MAT1101
+    - CYD2201
+    - BEN2201
+  back: 1
+  forward: 12
+tags:
+  - MAT1101_RTD
+  - CYD2201_RTD
+  - BEN2201_RTD

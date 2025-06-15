@@ -151,6 +151,18 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
+            name='witsapi',
+            help='poll WITS GXP pricing real time dispatch and forecast',
+            module_class='pymscada.iodrivers.witsapi:WitsAPIClient',
+            tags=False,
+            epilog=dedent("""
+                WITS_CLIENT_ID and WITS_CLIENT_SECRET can be set in the wits.yaml
+                or as environment variables:
+                  vi ~/.bashrc
+                  export WITS_CLIENT_ID='your_client_id'
+                  export WITS_CLIENT_SECRET='your_client_secret'""")
+        ),
+        ModuleDefinition(
             name='console',
             help='interactive bus console',
             module_class='pymscada.console:Console',
