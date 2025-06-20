@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - WITS client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ witsapiclient --config __DIR__/config/witsapi.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+
+[Install]
+    WantedBy=multi-user.target
