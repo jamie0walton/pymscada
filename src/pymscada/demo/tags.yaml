@@ -113,10 +113,14 @@ localhost_ping:
   desc: Ping time to localhost
   type: float
   units: ms
+  alarm: '> 500 for 300'
+  group: System
 google_ping:
   desc: Ping time to google
   type: float
   units: ms
+  alarm: '> 100 for 30'
+  group: System
 Murupara_Temp:
   desc: Murupara Temperature
   type: float

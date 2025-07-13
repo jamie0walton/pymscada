@@ -1,0 +1,16 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+rta_tag: __callout__
+alarms: __alarms__
+ack: SI_Alarm_Ack
+status: SO_Alarm_Status
+callees:
+- name: A name
+  sms: A number
+- name: B name
+  sms: B number
+groups:
+- name: Aniwhenua Station
+  group:
+- name: Aniwhenua System
+  group: System

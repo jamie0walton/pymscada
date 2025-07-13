@@ -73,6 +73,18 @@
             "justMyCode":true
         },
         {
+            "name":"callout",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["callout", "--verbose",
+                "--config", "../config/callout.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"simulate",
             "type":"debugpy",
             "request":"launch",
@@ -193,7 +205,6 @@
             "console":"integratedTerminal",
             "justMyCode":true
         },
-
         {
             "name":"validate",
             "type":"debugpy",

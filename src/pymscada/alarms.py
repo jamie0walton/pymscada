@@ -11,14 +11,12 @@ ALM = 0
 RTN = 1
 ACT = 2
 INF = 3
-
 KIND = {
     ALM: 'ALM',
     RTN: 'RTN',
     ACT: 'ACT',
     INF: 'INF'
 }
-
 NORMAL = 0
 ALARM = 1
 
@@ -46,8 +44,8 @@ def standardise_tag_info(tagname: str, tag: dict):
     if 'desc' not in tag:
         logging.warning(f"Tag {tagname} has no description, using name")
         tag['desc'] = tag['name']
-    if 'area' not in tag:
-        tag['area'] = ''
+    if 'group' not in tag:
+        tag['group'] = ''
     if 'multi' in tag:
         tag['type'] = int
     else:
@@ -107,7 +105,7 @@ class Alarm():
     Generates the ALM and RTN messages for Alarms to publish via rta_tag.
     """
 
-    def __init__(self, tagname: str, tag: dict, alarm: str, area: str, rta_cb, alarms) -> None:
+    def __init__(self, tagname: str, tag: dict, alarm: str, group: str, rta_cb, alarms) -> None:
         """Initialize alarm with tag and condition(s)."""
         self.alarm_id = f'{tagname} {alarm}'
         self.tag = Tag(tagname, tag['type'])
@@ -115,7 +113,7 @@ class Alarm():
         self.tag.dp = tag['dp']
         self.tag.units = tag['units']
         self.tag.add_callback(self.callback)
-        self.area = area
+        self.group = group
         self.rta_cb = rta_cb
         self.alarms = alarms
         self.alarm = split_operator(alarm)
@@ -166,7 +164,7 @@ class Alarm():
             'kind': kind,
             'desc': f'{self.tag.desc} {value:.{self.tag.dp}f}'
                     f' {self.tag.units}',
-            'group': self.area
+            'group': self.group
         })
 
     def check_duration(self, current_time_us: int):
@@ -224,9 +222,10 @@ class Alarms:
             standardise_tag_info(tagname, tag)
             if 'alarm' not in tag or tag['type'] not in (int, float):
                 continue
-            area = tag['area']
+            group = tag['group']
             for alarm in tag['alarm']:
-                new_alarm = Alarm(tagname, tag, alarm, area, self.rta_cb, self)
+                new_alarm = Alarm(tagname, tag, alarm, group, self.rta_cb,
+                                  self)
                 self.alarms.append(new_alarm)
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
         self.rta = Tag(rta_tag, dict)

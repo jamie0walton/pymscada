@@ -1,9 +1,22 @@
-Use 2 line spacing between functions.
-Use 1 line spacing between methods in classes.
-Use 1 line spacing around functions defined inside functions and methods.
-Do not add other line spacing.
-Never add spaces immediately before carriage return.
-Make the smallest change necessary to address the question.
-Do incremental changes.
-Make sure that test functions continue to work.
-Do not make statements that are false.
+FOLLOW THE FOLLOWING RULES STRICTLY:
+- Check the actual tag behaviour.
+- Tag values have a specific process for updating from and to the bus.
+- Tags that are Request To Author (RTA) have a different pattern.
+- Write code that is correct.
+- Code checks that check things that are right obscure functionality.
+- Use 2 line spacing between functions.
+- Use 1 line spacing between methods in classes.
+- Use 1 line spacing around functions defined inside functions and methods.
+- Do not add other line spacing.
+- Never add spaces immediately before carriage return.
+- Make the smallest change necessary to address the question.
+- Do incremental changes, fixing one thing at a time is good.
+- Make sure that test functions continue to work.
+- Do not make statements that are false.
+- Read the code carefully to be sure that the changes work.
+- Follow the existing code patterns.
+- Check field names for existing names.
+- Only add new field names when instructed.
+- prefer single quotes in strings
+  - ' is better than "
+  - " is better than using ' with escapes

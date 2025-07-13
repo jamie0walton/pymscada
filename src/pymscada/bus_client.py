@@ -17,8 +17,8 @@ class BusClient:
     the client dies. A connection is mandatory for the client to run.
     """
 
-    def __init__(self, ip: str = '127.0.0.1', port: int = 1324, tag_info=None,
-                 module: str = '_unset_'):
+    def __init__(self, ip: str | None = '127.0.0.1', port: int | None = 1324,
+                 tag_info=None, module: str = '_unset_'):
         """Create bus server."""
         self.ip = ip
         self.port = port
