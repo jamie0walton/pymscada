@@ -1,12 +1,13 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
 rta_tag: __callout__
-alarms: __alarms__
-ack: SI_Alarm_Ack
-status: SO_Alarm_Status
+alarms_tag: __alarms__
+ack_tag: SI_Alarm_Ack
+status_tag: SO_Alarm_Status
 callees:
 - name: A name
   sms: A number
+  group: System
 - name: B name
   sms: B number
 groups:

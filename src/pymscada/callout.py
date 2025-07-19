@@ -159,8 +159,11 @@ class Callout:
 
     def rta_cb(self, request):
         """Handle RTA requests for callout configuration."""
+        logging.info(f'rta_cb {request}')
         if 'action' not in request:
             logging.warning(f'rta_cb malformed {request}')
+        elif request['action'] == 'ALL':
+            self.rta.value = {'callees': self.callees, 'groups': self.groups}
         elif request['action'] == 'MODIFY':
             for callee in self.callees:
                 if callee['name'] == request['name']:

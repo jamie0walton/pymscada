@@ -9,14 +9,14 @@ from pymscada.config import Config
 class ModuleArgument:
     def __init__(self, args: tuple[str, ...], kwargs: dict[str, Any]):
         self.args = args
-        self.kwargs = kwargs
+        self.kwargs = kwargs 
 
 class ModuleDefinition:
     """Defines a module's configuration and behavior."""
-    def __init__(self, name: str, help: str, module_class: Type[Any], *,
+    def __init__(self, name: str, help: str, module_class: Any, *,
                  config: bool = True, tags: bool = True,
                  epilog: Optional[str] = None,
-                 extra_args: list[ModuleArgument] = None,
+                 extra_args: Optional[list[ModuleArgument]] = None,
                  await_future: bool = True):
         self.name = name
         self.help = help
@@ -62,6 +62,12 @@ def create_module_registry():
             name='alarms',
             help='alarms',
             module_class='pymscada.alarms:Alarms'
+        ),
+        ModuleDefinition(
+            name='callout',
+            help='alarm callout notifications',
+            module_class='pymscada.callout:Callout',
+            tags=False
         ),
         ModuleDefinition(
             name='validate',

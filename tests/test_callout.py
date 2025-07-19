@@ -1,7 +1,6 @@
 """Test Callout."""
 import pytest
 from pymscada.callout import Callout, alarm_in_callee_group, ALM
-import time
 
 
 BUS_ID = 123
