@@ -1,5 +1,60 @@
-# Debian Development
+# Debian
 #### [Previous](./modbus_plc_demo.md) [Up](./README.md) [Next](./apache.md)
+
+## System Build
+
+Installing as a headless VM gives the most flexibility. Has very low resource requirements unless you are using the MILP functionality where the external solver package benefits from a lot more RAM and CPU. I use:
+
+- 20 GB Hard Disk
+- 8 GB RAM
+- 8 CPU cores
+- Debian, latest network ISO
+- Graphical install
+- Location, language and keyboard to suit
+- name and domain to suit, empty is fine for domain
+- root password, add mscada user and password
+- Clock to suit
+- Guided, entire disk, all in one partition, finish and write to disk (wipes your disk)
+- No extra media, your country, archive mirror and proxy (if required)
+- Deselect Debian desktop environment and GNOME
+- Select web server, SSH server, standard system utilities
+  - There is nothing to stop you using a desktop environment, it's not required
+- GRUB, pick a device, the install will proceed, reboot
+
+If you have run this up as a VM its easiest to bridge the network. Log in to the system and run ```ip a s``` to see the IP address. Use Putty to connect.
+
+## System Setup
+
+Initially DHCP is fine, however later fix the network address.
+
+```
+vi /etc/network/interfaces
+#allow-hotplug ens192
+#iface ensp1s0 inet dhcp
+auto ens192
+iface ens192 inet static
+    address 192.168.178.33
+    netmask 255.255.255.0
+    gateway 192.168.178.254
+:wq
+systemctl restart networking
+ip a s
+```
+
+Turn off IPV6, ng serve for angular binds to ipv6 (last I checked).
+
+```
+vi /etc/sysctl.conf
+ --- Add the following at the bottom of the file:
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+net.ipv6.conf.tun0.disable_ipv6 = 1
+```
+
+
+
+
 
 ## Notes
 
