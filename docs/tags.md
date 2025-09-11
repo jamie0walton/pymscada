@@ -1,124 +1,153 @@
 # Tag class
 #### [Previous](./module_list.md) [Up](./README.md) [Next](./modbus_plc_demo.md)
 
-## Concept
-```pymscada``` is based on sharing ```Tag``` values. These can be read
-and written anywhere. Values are transparently passed up to the message
-bus. Code can be triggered by a value change. Tag's are not restricted to
+## Overview
+```pymscada``` is based on sharing ```Tag``` values across processes. Tags can be read
+and written anywhere, with values transparently passed through the message bus.
+Code can be triggered by value changes through callbacks, and Tags are not restricted to
 one process.
 
-In ```pymscada``` each module is a separate process. Each process has
-access to Tags via the bus.
+## Architecture
+Each module runs as a separate process with access to Tags via the bus:
 
-Two classes share the values, ```BusServer``` which runs in the bus
-module, this keeps the last value and time of every tag, provides the
-value and time to any request, and sends updates to any
-connected subscriber to each tag. The ```BusClient``` makes a
-connection to the bus module, publishes and subscribes as necessary
-to send and receive tag values, and stops any update loops associated
-with a __single__ tag.
+- ```BusServer``` runs in the bus module, maintaining the last value and time of every tag
+- ```BusClient``` connects to the bus, publishes and subscribes to tag values
+- ```Tag``` objects provide local access to shared values with callback mechanisms
 
-## Properties
-```value``` may be any of float, int, string, multi, list and dict.
-multi is a state variable which is mostly handled as an integer, on
-the web client the state names are displayed instead of the integer.
-Don't use anything that needs pickling. The type may also be bytes,
-see big values below.
+## Data Flow and Callbacks
 
-Set ```value``` with either the value alone or a tuple, either
-```(value, time_us)``` or ```(value, time_us, bus_id)```.
+Note that Tag methods can be called by co-routines but CANNOT callback a co-routine.
 
-```time_us``` is the UTC time in microseconds. This is set by the
-Tag when given a value, or by the time in the tuple if value is set
-with a tuple. ```value, time_us``` is shared via the bus.
+### Tag Value Update Flow
+1. Tag value changes - set by any process
+2. Tag callbacks execute - immediate, local to the process
+3. Value published to bus - if BusClient is connected
+4. Bus distributes to subscribers - other connected processes
+5. Remote tag callbacks execute - in other processes
 
-```bus_id``` is the source of the tag value update through the
-```BusServer``` and ```BusClient```. If not set (normal in application
-code) it is assigned 0. Otherwise it is assigned the python ```id()```
-value for the object managing the connection.
+### Two Types of Callbacks
 
-```RTA```, see big values below.
+#### Tag Callbacks - Respond to Value Changes
+```python
+# Register a function to run when tag value changes
+tag.add_callback(self.handle_value_change)
+
+# Callback function signature
+def handle_value_change(self, tag: Tag):
+    # tag.value - the new value
+    # tag.name - the tag name
+    # tag.time_us - timestamp in microseconds
+    # tag.type - the tag's data type
+```
+
+Use when: You need to respond immediately to tag value changes
+Examples: Process control logic, status updates, alarm triggers
+
+#### RTA Callbacks - Respond to Explicit Requests
+```python
+# Register a handler for RTA (Request to Author) messages
+self.busclient.add_callback_rta(rta_tag, self.handle_rta_request)
+
+# RTA callback function signature
+def handle_rta_request(self, request: dict):
+    # request contains action, parameters, request_id, etc.
+    # Respond by setting self.rta.value
+    self.rta.value = {'status': 'success', 'data': result}
+```
+
+Use when: You need to handle on-demand requests for data or actions
+Examples: Database queries, file operations, configuration changes, large data transfers
+
+### RTA (Request to Author) Flow
+1. Client sends RTA request via bus
+2. Bus routes to last process that set the tag value
+3. RTA callback executes in the target process
+4. Response published via rta_tag.value
+5. Requesting client receives the response
+
+## Tag Properties
+
+### Value Types
+```value``` may be any of:
+- float, int, string - Basic data types
+- multi - State variable (displayed as text, handled as integer)
+- list and dict - Complex data structures
+- bytes - For large values (see Big Values section)
+
+Note: Don't use anything that needs pickling.
+
+### Setting Values
+```python
+# Simple value assignment, time and bus_id auto-set
+tag.value = 42
+
+# With timestamp (microseconds), bus_id auto-set
+tag.value = (42, 1640995200000000)
+
+# With timestamp and bus_id
+tag.value = (42, 1640995200000000, bus_id)
+```
 
 ## Methods
-```add_callback``` allows you to registor your function to run when a
-tag value changes. Your function must be a plain function (not a
-co-routine) that takes an action and returns immediately without
-blocking. __Do not__ update the triggering tag value in the callback,
-this is an error.
 
-## Update Loops
-A tag value update is sent to every subscribed listener __except for__
-the matching id of the sender. When you set a tag value every subsriber,
-including the mechanism updating the bus, gets an update. There is a
-potential for CPU hogging update loops.
+### add_callback(callback, bus_id: int = 0)
+Register a function to run when a tag value changes.
 
-Update loops are blocked at the simplest source by prohibiting value
-updates of the calling tag when in a callback. These error immediately.
-More complex circular loops are not blocked, you will need to avoid
-creating these.
+Requirements:
+- Function must be plain (not a coroutine)
+- Must return immediately without blocking
+- Do not update the triggering tag value in the callback (causes error)
 
-### Example with a multi tag
-multi tags can be used as a singular state variable. This can be used
-in a process to manage state. The multi tag can be presented to a user
-via the web client as a single indicator / control variable. Consider
-a four-state tag:
+Example:
+```python
+def status_changed(self, tag: Tag):
+    if tag.value == 'Running':
+        self.start_process()
+    elif tag.value == 'Stopped':
+        self.stop_process()
 
-- __Off__ - process is stopped
-- __Running__ - process is running
-- __Idle__ - process is awaiting a condition to run
-- __Run Now__ - immediate run is requested
+status_tag.add_callback(self.status_changed)
+```
 
-In the callback function in your site logic, set a flag for the change.
-The process responding to the flag should check and correct any state
-transitions and update the multi tag value, which passes through the
-bus to the web client, indicating the state.
+## Update Loops and Prevention
 
-At the web client a multi-setpoint display will both show the state and
-provide a user with the ability to set the state. It only makes sense
-(in this case) for the operator to set __Off__ or __Run Now__. A feature
-I need to add is where options that don't make sense are grayed out. I
-plan to do this via a leading _ in the multi text, so __Running__ would
-become ___Running__. The process you write must still filter bad state
-transitions.
+### How Updates Work
+A tag value update is sent to every subscribed listener except the matching bus_id of the sender. This prevents immediate feedback loops.
 
-## Big Values and RTA
-Everything is shared via a tag value. This includes historical trend
-data passed to the web display. These are passed in a packed bytes
-structure that assumes int and float will fit in 64 bits. Tag values
-to pass history are often several megabytes.
+### Loop Prevention Mechanisms
+1. Immediate blocking - Tag callbacks cannot update the triggering tag
+2. Bus_id filtering - Sender doesn't receive their own updates
+3. Manual prevention - Avoid creating circular update patterns
 
-Tag values will also be used for database interaction. Operator notes
-(module to come) is a database that can be updated from the web client.
-To be bandwidth efficient, this should send a full display only when
-requested, and otherwise update by exception. To support this, tags
-have a Request To Author (RTA) function that asks the author to make
-an update of the tag value.
+## Request to Author (RTA)
 
-RTA is passed to the bus. The bus passes the RTA to the last client
-that set the tag value. This __requires__ care that only one process
-is setting the tag value. It also makes it fairly simple to restart
-the process and make a new connection the bus to establish the RTA
-path.
+### Large Data Transfer
+Tags can handle values up to several megabytes, including:
+- Historical trend data
+- File contents
+- Database query results
+- Configuration dumps
 
-Once the process writing the tag recieves an RTA, with an embedded id,
-it responds accordingly. If one month worth of history for a tag is
-requested this is retrieved (memory and disk as needed), placed in
-a tag and sent with the RTA id. The RTA id allows the web server to
-filter the packets send so that this is only sent to the requesting
-web client.
+### RTA for Efficiency
+Instead of continuously publishing large values:
+1. Small tag value - Contains metadata or status
+2. RTA request - Client requests specific data
+3. Response - Large data sent only when requested
+4. Reset - Tag value reset to small size
 
-The history module follows the megabyte sized bytes value with a null
-value to make it small again, reducing the likelihood of a later
-connection gaining a really large, stale, tag value.
-
-## Web Display
-Tags are displayed via the webserver. The web pages interact with tags
-in a very similar manner to that described above. The wwwserver module
-has additional mechanisms to extend the bus to the web client via
-a websocket.
-
-See the ```src/pymscada/demo``` folder for demo files. An example of
-every type is displayed. The web display is fully defined by the
-```wwwserver.yaml``` file, i.e. you don't manually draw or layout
-any of the pages. There is no graphical P&ID style display and no
-plans to add one.
+### RTA Implementation Pattern
+```python
+def handle_rta_request(self, request: dict):
+    if request['action'] == 'GET_HISTORY':
+        # Retrieve large dataset
+        data = self.get_historical_data(request['start'], request['end'])
+        
+        # Send response with request ID
+        self.rta.value = {
+            '__rta_id__': request['__rta_id__'],
+            'data': data
+        }
+        
+        # Reset to small value
+        self.rta.value = {'status': 'ready'}
+```

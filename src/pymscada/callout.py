@@ -106,13 +106,17 @@ class Callout:
         self.groups = []
         if groups is not None:
             self.groups = groups
+        if alarms_tag is not None:
+            self.alarms_tag = Tag(alarms_tag, dict)
+            self.alarms_tag.add_callback(self.alarms_cb)
+        if ack_tag is not None:
+            self.ack_tag = Tag(ack_tag, str)
+            self.ack_tag.add_callback(self.ack_cb)
         self.status = None
         if status_tag is not None:
             self.status = Tag(status_tag, int)
             self.status.value = IDLE
         self.busclient = BusClient(bus_ip, bus_port, module='Callout')
-        self.busclient.add_callback_rta(alarms_tag, self.alarms_cb)
-        self.busclient.add_callback_rta(ack_tag, self.ack_cb)
         self.rta = Tag(rta_tag, dict)
         self.rta.value = {}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)

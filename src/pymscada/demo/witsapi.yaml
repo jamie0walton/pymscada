@@ -3,8 +3,8 @@ bus_port: 1324
 proxy:
 api:
   url: 'https://api.electricityinfo.co.nz'
-  client_id: ${WITS_CLIENT_ID}
-  client_secret: ${WITS_CLIENT_SECRET}
+  client_id: ${MSCADA_WITS_CLIENT_ID}
+  client_secret: ${MSCADA_WITS_CLIENT_SECRET}
   gxp_list:
     - MAT1101
     - CYD2201

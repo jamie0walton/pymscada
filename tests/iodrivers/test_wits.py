@@ -9,12 +9,12 @@ from pymscada.tag import Tag
 @pytest.mark.asyncio
 async def test_wits_api():
     """Test reading pricing data from WITS API."""
-    client_id = os.getenv('WITS_CLIENT_ID')
-    client_secret = os.getenv('WITS_CLIENT_SECRET')
+    client_id = os.getenv('MSCADA_WITS_CLIENT_ID')
+    client_secret = os.getenv('MSCADA_WITS_CLIENT_SECRET')
     if not client_id:
-        pytest.skip("WITS_CLIENT_ID environment variable not set")
+        pytest.skip("MSCADA_WITS_CLIENT_ID environment variable not set")
     if not client_secret:
-        pytest.skip("WITS_CLIENT_SECRET environment variable not set")
+        pytest.skip("MSCADA_WITS_CLIENT_SECRET environment variable not set")
     api_config = {
         'url': 'https://api.electricityinfo.co.nz',
         'client_id': client_id,

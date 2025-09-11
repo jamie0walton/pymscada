@@ -70,19 +70,6 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
-            name='validate',
-            help='validate config files',
-            module_class='pymscada.validate:validate',
-            config=False,
-            tags=False,
-            extra_args=[
-                ModuleArgument(
-                    ('--path',),
-                    {'metavar': 'file', 'help': 'default is current working directory'}
-                )
-            ]
-        ),
-        ModuleDefinition(
             name='checkout',
             help='create example config files',
             module_class='pymscada.checkout:Checkout',
@@ -139,10 +126,23 @@ def create_module_registry():
             module_class='pymscada.iodrivers.openweather:OpenWeatherClient',
             tags=False,
             epilog=dedent("""
-                OPENWEATHERMAP_API_KEY can be set in the openweathermap.yaml
+                MSCADA_OPENWEATHERMAP_API_KEY can be set in the openweathermap.yaml
                 or as an environment variable:
                   vi ~/.bashrc
-                  export OPENWEATHERMAP_API_KEY='1234567890'""")
+                  export MSCADA_OPENWEATHERMAP_API_KEY='1234567890'""")
+        ),
+        ModuleDefinition(
+            name='smsmodem',
+            help='send and receive SMS messages through an RUT241 modem',
+            module_class='pymscada.iodrivers.sms:SMS',
+            tags=False,
+            epilog=dedent("""
+                MSCADA_SMS_IP, MSCADA_SMS_USERNAME, MSCADA_SMS_PASSWORD can be set in the sms.yaml
+                or as an environment variable:
+                  vi ~/.bashrc
+                  export MSCADA_SMS_IP='192.168.1.2'
+                  export MSCADA_SMS_USERNAME='smsuser'
+                  export MSCADA_SMS_PASSWORD='smspass'""")
         ),
         ModuleDefinition(
             name='pingclient',
@@ -162,11 +162,11 @@ def create_module_registry():
             module_class='pymscada.iodrivers.witsapi:WitsAPIClient',
             tags=False,
             epilog=dedent("""
-                WITS_CLIENT_ID and WITS_CLIENT_SECRET can be set in the wits.yaml
+                MSCADA_WITS_CLIENT_ID and MSCADA_WITS_CLIENT_SECRET can be set in the wits.yaml
                 or as environment variables:
                   vi ~/.bashrc
-                  export WITS_CLIENT_ID='your_client_id'
-                  export WITS_CLIENT_SECRET='your_client_secret'""")
+                  export MSCADA_WITS_CLIENT_ID='your_client_id'
+                  export MSCADA_WITS_CLIENT_SECRET='your_client_secret'""")
         ),
         ModuleDefinition(
             name='console',
