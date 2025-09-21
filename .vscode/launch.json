@@ -196,6 +196,18 @@
             "justMyCode":true
         },
         {
+            "name":"pi_api",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["piapi", "--verbose",
+                "--config", "../config/piapi.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"checkout",
             "type":"debugpy",
             "request":"launch",

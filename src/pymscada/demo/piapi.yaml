@@ -1,0 +1,15 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+proxy:
+api:
+  url: 'https://192.168.15.1/'
+  webid: F1Em9DA80Xftdkec1gdWFtX7NAm1eiSAyV8BG1mAAMKQIjRQUEdQSVxQSU9ORUVSXFdFQkFQSVxNT0JJTEVTQ0FEQQ
+  averaging: 300
+tags:
+  I_An_G1_MW:
+    pitag: AnG1.AIMw
+  I_An_G2_MW:
+    pitag: AnG2.AIMw
+  I_Ko_Gn_MW:
+    pitag: KoGn.AIkW
+    scale: 1000

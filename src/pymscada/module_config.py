@@ -169,6 +169,12 @@ def create_module_registry():
                   export MSCADA_WITS_CLIENT_SECRET='your_client_secret'""")
         ),
         ModuleDefinition(
+            name='piapi',
+            help='poll WITS GXP pricing real time dispatch and forecast',
+            module_class='pymscada.iodrivers.piapi:PIWebAPIClient',
+            tags=False
+        ),
+        ModuleDefinition(
             name='console',
             help='interactive bus console',
             module_class='pymscada.console:Console',
