@@ -208,6 +208,18 @@
             "justMyCode":true
         },
         {
+            "name":"wits_api",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["witsapi", "--verbose",
+                "--config", "../config/witsapi.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"checkout",
             "type":"debugpy",
             "request":"launch",

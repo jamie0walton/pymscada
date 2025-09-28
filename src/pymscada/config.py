@@ -55,6 +55,8 @@ class Config(dict):
         with open(fp, 'r') as fh:
             try:
                 for data in safe_load_all(fh):
+                    if '__vars__' in data:
+                        del data['__vars__']
                     for x in data:
                         self[x] = data[x]
             except YAMLError as e:

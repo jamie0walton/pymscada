@@ -17,8 +17,7 @@ class WitsAPIClient:
         bus_ip: str | None = '127.0.0.1',
         bus_port: int = 1324,
         proxy: str | None = None,
-        api: dict = {},
-        tags: list = []
+        api: dict = {}
     ) -> None:
         """
         Connect to bus on bus_ip:bus_port.
@@ -41,21 +40,21 @@ class WitsAPIClient:
             raise ValueError("proxy must be a string or None")
         if not isinstance(api, dict):
             raise ValueError("api must be a dictionary")
-        if not isinstance(tags, list):
-            raise ValueError("tags must be a list")
 
         self.busclient = None
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='WitsAPI')
         self.proxy = proxy
-        self.map_bus = id(self)
-        self.tags = {tagname: Tag(tagname, float) for tagname in tags}
-        
+        self.tags = {}
         # API configuration
         self.client_id = api['client_id']
         self.client_secret = api['client_secret']
         self.base_url = api['url']
         self.gxp_list = api.get('gxp_list', [])
+        for gxp in self.gxp_list:
+            self.tags[gxp] = Tag(gxp, float)
+            self.tags[f"{gxp}_Realtime"] = Tag(f"{gxp}_Realtime", float)
+            self.tags[f"{gxp}_Forecast"] = Tag(f"{gxp}_Forecast", float)
         self.back = api.get('back', 2)
         self.forward = api.get('forward', 72)
         
@@ -146,34 +145,26 @@ class WitsAPIClient:
 
     def update_tags(self, prices):
         """Update tags with price data"""
-        for node in prices:
-            rtd = {}
-            for trading_time in prices[node]:
-                if 'RTD' in prices[node][trading_time]:
-                    rtd_price, _ = prices[node][trading_time]['RTD']
-                    rtd[trading_time] = rtd_price
-                    continue
-                prss_price = None
-                prsl_price = None
-                if 'PRSS' in prices[node][trading_time]:
-                    prss_price, prss_last_run = prices[node][trading_time]['PRSS']
-                if 'PRSL' in prices[node][trading_time]:
-                    prsl_price, prsl_last_run = prices[node][trading_time]['PRSL']
-                if prsl_price is not None and prss_price is not None:
-                    if prss_last_run > prsl_last_run:
-                        rtd[trading_time] = prss_price
-                    else:
-                        rtd[trading_time] = prsl_price
-                    continue
-                if prss_price is not None:
-                    rtd[trading_time] = prss_price
-                elif prsl_price is not None:
-                    rtd[trading_time] = prsl_price
-            tagname = f"{node}_RTD"
-            if tagname in self.tags:
-                for trading_time in sorted(rtd.keys()):
-                    time_us = int(trading_time * 1_000_000)
-                    self.tags[tagname].value = rtd[trading_time], time_us, self.map_bus
+        tags = self.tags
+        for tagname, data in prices.items():
+            realtime = f"{tagname}_Realtime"
+            forecast = f"{tagname}_Forecast"
+            times = sorted(prices[tagname].keys())
+            for time_s in times:
+                time_us = int(time_s * 1_000_000)
+                if 'RTD' in data[time_s]:
+                    value, _ = data[time_s]['RTD']
+                    if True or time_us > tags[realtime].time_us:
+                        tags[realtime].value = value, time_us
+                        tags[tagname].value = value, time_us
+                if 'PRSS' in data[time_s]:
+                    value, _ = data[time_s]['PRSS']
+                    tags[forecast].value = value, time_us
+                    tags[tagname].value = value, time_us
+                elif 'PRSL' in data[time_s]:
+                    value, _ = data[time_s]['PRSL']
+                    tags[forecast].value = value, time_us
+                    tags[tagname].value = value, time_us
 
     async def handle_response(self):
         """Handle responses from the API."""
