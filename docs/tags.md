@@ -62,8 +62,26 @@ Examples: Database queries, file operations, configuration changes, large data t
 1. Client sends RTA request via bus
 2. Bus routes to last process that set the tag value
 3. RTA callback executes in the target process
-4. Response published via rta_tag.value
-5. Requesting client receives the response
+4. Response published via rta_tag.value **with rta_id**
+5. Web server filters responses based on rta_id matching
+
+### RTA ID Requirements
+**All RTA responses must include an rta_id field to control client visibility:**
+
+- **Broadcast responses** (`rta_id = 0`): Visible to all connected clients
+  - Used for: Status updates, notifications, broadcast data
+  - Binary format: `b'\x00\x00\x00\x00\x00\x00'` (first 2 bytes are rta_id)
+  - Dict format: `{'__rta_id__': 0, 'data': ...}`
+
+- **Targeted responses** (`rta_id = client_id`): Visible only to requesting client
+  - Used for: Large data transfers, private queries, client-specific responses
+  - Binary format: `pack('>HHH', client_id, tagid, packtype) + data`
+  - Dict format: `{'__rta_id__': client_id, 'data': ...}`
+
+**Web server filtering logic:**
+- If `rta_id` present and matches client ID → Send to client
+- If `rta_id` present and doesn't match → Filter out (don't send)
+- If `rta_id` not present → Send to all clients (legacy behavior)
 
 ## Tag Properties
 
@@ -136,18 +154,41 @@ Instead of continuously publishing large values:
 4. Reset - Tag value reset to small size
 
 ### RTA Implementation Pattern
+
+**CRITICAL**: All RTA responses MUST include an `rta_id` field to control client visibility:
+- `rta_id = 0` or `'__rta_id__': 0` = Broadcast to all clients
+- `rta_id = client_id` or `'__rta_id__': client_id` = Targeted response to specific client
+
+#### Binary Format (History Module)
 ```python
 def handle_rta_request(self, request: dict):
     if request['action'] == 'GET_HISTORY':
         # Retrieve large dataset
         data = self.get_historical_data(request['start'], request['end'])
         
-        # Send response with request ID
+        # Send response with request ID (binary format)
+        rta_id = request.get('__rta_id__', 0)
+        self.rta.value = pack('>HHH', rta_id, tagid, packtype) + data
+        
+        # Reset to small value (broadcast)
+        self.rta.value = b'\x00\x00\x00\x00\x00\x00'  # rta_id = 0
+```
+
+#### Dict Format (OpNotes Module)
+```python
+def handle_rta_request(self, request: dict):
+    if request['action'] == 'ADD':
+        # Process database operation
+        result = self.add_record(request)
+        
+        # Send response with request ID (dict format)
+        rta_id = request.get('__rta_id__', 0)
         self.rta.value = {
-            '__rta_id__': request['__rta_id__'],
-            'data': data
+            '__rta_id__': rta_id,
+            'id': result['id'],
+            'data': result['data']
         }
         
-        # Reset to small value
-        self.rta.value = {'status': 'ready'}
+        # For broadcast operations, use rta_id = 0
+        self.rta.value = {'__rta_id__': 0, 'status': 'ready'}
 ```

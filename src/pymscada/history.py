@@ -270,7 +270,7 @@ class History():
             self.tags[tagname] = Tag(tagname, tag['type'])
             self.tags[tagname].add_callback(self.hist_tags[tagname].callback)
         self.rta = Tag(rta_tag, bytes)
-        self.rta.value = b'\x00\x00\x00\x00\x00\x00'
+        self.rta.value = b'\x00\x00\x00\x00\x00\x00'  # rta_id is 0
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
 
     def rta_cb(self, request: Request):
@@ -278,9 +278,7 @@ class History():
         if 'start_ms' in request:
             request['start_us'] = request['start_ms'] * 1000
             request['end_us'] = request['end_ms'] * 1000
-        rta_id = 0
-        if '__rta_id__' in request:
-            rta_id = request['__rta_id__']
+        rta_id = request['__rta_id__']
         tagname = request['tagname']
         start_time = time.asctime(time.localtime(
             request['start_us'] / 1000000))
@@ -299,7 +297,7 @@ class History():
                 packtype = 2
             self.rta.value = pack('>HHH', rta_id, tagid, packtype) + data
             logging.info(f'sent {len(data)} bytes for {request["tagname"]}')
-            self.rta.value = b'\x00\x00\x00\x00\x00\x00'
+            self.rta.value = b'\x00\x00\x00\x00\x00\x00'  # rta_id is 0
         except Exception as e:
             logging.error(f'history rta_cb {e}')
 

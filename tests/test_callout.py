@@ -8,19 +8,19 @@ CALLEES = [
     {
         'name': 'Name Lazy',
         'sms': 'Lazy number',
-        'delay': 1000,
+        'role': 'Off',
         'group': ['NoZone']
     },
     {
         'name': 'Name System',
         'sms': 'System number',
-        'delay': 1000,
+        'role': 'OnCall',
         'group': ['System']
     },
     {
         'name': 'Name All',
         'sms': 'All number',
-        'delay': 1000,
+        'role': 'Standby',
         'group': []
     }
 ]
@@ -55,9 +55,14 @@ def test_callout(callout):
     """Basic tests."""
     co = callout
     # test callees and groups setup from config variables
-    assert co.callees[0]['name'] == 'Name Lazy'
-    assert co.callees[0]['delay_ms'] == 1000000
-    assert co.callees[0]['group'] == ['NoZone']
+    # find the specific callee by name since sorting may change order
+    lazy_callee = next(c for c in co.callees if c['name'] == 'Name Lazy')
+    assert lazy_callee['delay_ms'] == 0  # Off role
+    assert lazy_callee['group'] == ['NoZone']
+    system_callee = next(c for c in co.callees if c['name'] == 'Name System')
+    assert system_callee['delay_ms'] == 60000  # OnCall role
+    all_callee = next(c for c in co.callees if c['name'] == 'Name All')
+    assert all_callee['delay_ms'] == 180000  # Standby role
     assert co.groups[0]['name'] == 'My Group'
     assert co.groups[0]['group'] == 'System'
     # test update in the callee group
@@ -67,8 +72,9 @@ def test_callout(callout):
         'group': ['Still No Zone']
     }
     co.rta_cb(callee_update)
-    assert co.callees[0]['delay_ms'] == 1000000
-    assert co.callees[0]['group'] == ['Still No Zone']
+    lazy_callee = next(c for c in co.callees if c['name'] == 'Name Lazy')
+    assert lazy_callee['delay_ms'] == 0  # Off role
+    assert lazy_callee['group'] == ['Still No Zone']
 
 
 def test_new_alarm(callout):

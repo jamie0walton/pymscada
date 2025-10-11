@@ -2,8 +2,15 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 rta_tag: __callout__
 alarms_tag: __alarms__
+sms_send_tag: __sms_send__
+sms_recv_tag: __sms_recv__
 ack_tag: SI_Alarm_Ack
 status_tag: SO_Alarm_Status
+escalation:
+- OnCall: 60000
+- Backup 1: 180000
+- Backup 2: 300000
+- Escalate: 600000
 callees:
 - name: A name
   sms: A number
@@ -11,7 +18,9 @@ callees:
 - name: B name
   sms: B number
 groups:
-- name: Aniwhenua Station
-  group:
-- name: Aniwhenua System
-  group: System
+  Wind:
+    tagnames: [Mt, Fh]
+  System:
+    groups: [__system__, Comms]
+  Test:
+    tagnames: [alarm]

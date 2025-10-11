@@ -17,6 +17,7 @@ KIND = {
     ACT: 'ACT',
     INF: 'INF'
 }
+
 NORMAL = 0
 ALARM = 1
 
@@ -105,7 +106,8 @@ class Alarm():
     Generates the ALM and RTN messages for Alarms to publish via rta_tag.
     """
 
-    def __init__(self, tagname: str, tag: dict, alarm: str, group: str, rta_cb, alarms) -> None:
+    def __init__(self, tagname: str, tag: dict, alarm: str, group: str,
+                 rta_cb, alarms) -> None:
         """Initialize alarm with tag and condition(s)."""
         self.alarm_id = f'{tagname} {alarm}'
         self.tag = Tag(tagname, tag['type'])
@@ -229,7 +231,7 @@ class Alarms:
                 self.alarms.append(new_alarm)
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
         self.rta = Tag(rta_tag, dict)
-        self.rta.value = {}
+        self.rta.value = {'__rta_id__': 0}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
         self._init_db(db, table)
         self.periodic = Periodic(self.periodic_cb, 1.0)
@@ -283,6 +285,7 @@ class Alarms:
                         request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
+                        '__rta_id__': 0,
                         'id': res[0],
                         'date_ms': res[1],
                         'alarm_string': res[2],
@@ -303,6 +306,7 @@ class Alarms:
                     res = self.cursor.fetchone()
                     if res:
                         self.rta.value = {
+                            '__rta_id__': 0,
                             'id': res[0],
                             'date_ms': res[1],
                             'alarm_string': res[2],

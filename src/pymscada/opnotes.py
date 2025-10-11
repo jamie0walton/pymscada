@@ -52,7 +52,7 @@ class OpNotes:
         self._init_table()
         self.busclient = BusClient(bus_ip, bus_port, module='OpNotes')
         self.rta = Tag(rta_tag, dict)
-        self.rta.value = {}
+        self.rta.value = {'__rta_id__': 0}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
 
     def _init_table(self):
@@ -115,6 +115,7 @@ class OpNotes:
                         request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
+                        '__rta_id__': 0,
                         'id': res[0],
                         'date_ms': res[1],
                         'site': res[2],
@@ -133,6 +134,7 @@ class OpNotes:
                         ':site, :by, :note, :abnormal) RETURNING *;', request)
                     res = self.cursor.fetchone()
                     self.rta.value = {
+                        '__rta_id__': 0,
                         'id': res[0],
                         'date_ms': res[1],
                         'site': res[2],
@@ -148,7 +150,7 @@ class OpNotes:
                 with self.connection:
                     self.cursor.execute(
                         f'DELETE FROM {self.table} WHERE id = :id;', request)
-                    self.rta.value = {'id': request['id']}
+                    self.rta.value = {'__rta_id__': 0, 'id': request['id']}
             except sqlite3.IntegrityError as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'HISTORY':

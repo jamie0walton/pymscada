@@ -151,7 +151,7 @@ class WSHandler():
                 }
             }))
         elif tag.type is dict:
-            if '__rta_id__' in tag.value:
+            if '__rta_id__' in tag.value and tag.value['__rta_id__'] != 0:
                 if tag.value['__rta_id__'] != self.rta_id:
                     return
             self.queue.put_nowait((False, {
