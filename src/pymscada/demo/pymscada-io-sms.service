@@ -1,0 +1,18 @@
+[Unit]
+    Description=pymscada - SMS client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    Environment="MSCADA_SMS_IP=an_ip_address"
+    Environment="MSCADA_SMS_USERNAME=a_user"
+    Environment="MSCADA_SMS_PASSWORD=a_password"
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ sms --config __DIR__/config/sms.yaml
+    Restart=always
+    RestartSec=5
+    User=root
+    Group=root
+
+[Install]
+    WantedBy=multi-user.target

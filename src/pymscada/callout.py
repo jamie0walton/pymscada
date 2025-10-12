@@ -172,9 +172,16 @@ class Callout:
                 self.status.value = IDLE
             logging.info('ACK: all alarms cleared')
 
-    def sms_recv_cb(self, sms_recv_tag):
+    def sms_recv_cb(self, sms_recv_tag: dict):
         """Handle SMS messages from the modem."""
-        pass
+        logging.info(f'sms_recv_cb {sms_recv_tag.value}')
+        _number = sms_recv_tag.value['number']
+        message = sms_recv_tag.value['message'][:2].upper()
+        if message in ['OK', 'AC', 'TH']:
+            self.alarms = []
+            if self.status is not None:
+                self.status.value = IDLE
+            logging.info('ACK: all alarms cleared')
 
     def rta_cb(self, request):
         """Handle RTA requests for callout configuration."""

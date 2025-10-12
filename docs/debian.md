@@ -174,12 +174,10 @@ Once you have finalised your ```.service``` files:
 
 ```bash
 su -
-cd /home/mscada
-for f in config/*.service
-do
-cp $f /lib/systemd/system/
-systemctl enable `basename $f`
-systemctl start `basename $f`
+cd /lib/systemd/system
+ln -s /home/mscada/config/pymscada-io-sms.service
+systemctl enable pymscada-io-sms
+systemctl start pymscada-io-sms
 done
 ```
 
@@ -221,10 +219,20 @@ Running the demo PLC code.
 nohup .venv/bin/python3.11 src/pymscada/demo/modbus_plc.py &
 ```
 
-# Windows
+# Putty
 
-Mostly works the same, just install the latest CPython, ```pip install pdm``` then
-checkout the repos and run ```pdm install``` as for Debian.
+Using Putty with a port rule ```R3128 192.168.1.1:3128``` and a local internet
+connected squid proxy on 192.168.1.1 allows things like ```pip install pymscada```
+to work. VS Code / Cursor have a nasty habit of trying to do this automatically
+with varying degrees of success. YMMV.
 
-There is no systemd equivalent, although there are various approaches people have
-managed to make work for Windows daemons / services.
+```bash
+jamie@debianv12:~$ cat .bash_aliases
+function px_set() {
+    export {http,https,ftp}_proxy='http://127.0.0.1:3128'
+}
+
+function activate() {
+    source ~/pymscada/.venv/bin/activate
+}
+```

@@ -19,10 +19,13 @@ class RUT241:
     # point to this server, use aiohttp to serve, awkward but
     # by exception so fast and light
     # set the http forward to use sms_number and sms_message
+    # If keeping it simple (i.e. limit to SMS and LAN)
+    # Network WAN - turn all off, LAN - static, Wireless - turn off
+    
     
     def __init__(self, ip: str = None, username: str = None,
                  password: str = None, port: int = 8080,
-                 recv_cb: Callable = None):
+                 recv_cb: Callable = None, info: dict = {}):
         if ip is None:
             raise ValueError('ip is required')
         if username is None:
@@ -35,6 +38,9 @@ class RUT241:
         self.password = password
         self.port = port
         self.recv_cb = recv_cb
+        self.tags = {}
+        for info, tagname in info.items():
+            self.tags[info] = Tag(tagname, str)
         self.token = None
         self.modem = None
         self.carrier = None
@@ -98,6 +104,14 @@ class RUT241:
         
         async def post_handler(request):
             data = await request.post()
+            if data['sms_message'][:2].upper() == 'IN':
+                tag = self.tags['__default__']
+                if tag.value is None:
+                    message = '__default__'
+                else:
+                    message = tag.value
+                asyncio.create_task(self.send_sms(data['sms_number'], message))
+                return web.Response(text='OK', status=200)
             if self.recv_cb is not None:
                 self.recv_cb(dict(data))
             return web.Response(text='OK', status=200)
@@ -126,7 +140,8 @@ class SMS:
         modem_ip: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        listen_port: int | None = 8080
+        listen_port: int | None = 8080,
+        info: dict = {}
     ) -> None:
         """
         Connect to SMS, only RUT240 at the moment.
@@ -151,7 +166,7 @@ class SMS:
         if modem == 'rut241':
             self.modem = RUT241(ip=modem_ip, username=username,
                                 password=password, port=listen_port,
-                                recv_cb=self.sms_recv_cb)
+                                recv_cb=self.sms_recv_cb, info=info)
         else:
             raise ValueError(f'Unknown modem type: {type}')
 
@@ -160,6 +175,9 @@ class SMS:
         self.sms_send = Tag(sms_send_tag, dict)
         self.sms_send.add_callback(self.sms_send_cb)
         self.sms_recv = Tag(sms_recv_tag, dict)
+        self.tags = {}
+        for info, tagname in info.items():
+            self.tags[info] = Tag(tagname, str)
         self.busclient = None
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='SMS')

@@ -1,9 +1,20 @@
+__vars__:
+- &primary_color darkmagenta
+- &secondary_color green
 bus_ip: 127.0.0.1
 bus_port: 1324
 ip: 0.0.0.0
 port: 8324
 get_path:
 serve_path: __HOME__
+config:
+  primary_color: *primary_color
+  secondary_color: *secondary_color
+  mscada_link: http://127.0.0.1/
+  people:
+  - name: John Smith
+    email: john.smith@example.com
+    phone: '+64not_a_number'
 pages:
 - name: Notes
   parent:
@@ -78,6 +89,10 @@ pages:
       scale: mS
       color: red
       dp: 1
+    bands:
+    - series: [localhost_ping, google_ping]
+      fill: [green, 0.3]
+      dir: 1
 - name: Weather
   parent:
   items:

@@ -85,6 +85,18 @@
             "justMyCode":true
         },
         {
+            "name":"sms",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["sms", "--verbose",
+                "--config", "../config/sms.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"simulate",
             "type":"debugpy",
             "request":"launch",

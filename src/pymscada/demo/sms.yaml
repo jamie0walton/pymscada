@@ -7,3 +7,5 @@ modem_ip: ${MSCADA_SMS_IP}
 username: ${MSCADA_SMS_USERNAME}
 password: ${MSCADA_SMS_PASSWORD}
 listen_port: 8080
+info:
+  __default__: info

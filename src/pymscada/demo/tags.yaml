@@ -13,6 +13,9 @@ __opnotes__:
 __alarms__:
   desc: Alarms
   type: dict
+info:
+  desc: Info
+  type: str
 IntSet:
   desc: Integer Setpoint
   type: int

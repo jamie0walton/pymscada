@@ -2,6 +2,8 @@
 import importlib.resources
 from importlib.abc import Traversable
 import logging
+import os
+import re
 from pathlib import Path
 from yaml import safe_load_all, YAMLError
 from pymscada import demo, pdf
@@ -38,6 +40,21 @@ def get_pdf_files() -> list[Traversable]:
     return files
 
 
+def _expand_env_vars(value):
+    """Recursively expand environment variables in config values."""
+    if isinstance(value, str):
+        pattern = re.compile(r'\$\{([^}]+)\}')
+        def replace_env(match):
+            env_var = match.group(1)
+            return os.environ.get(env_var, match.group(0))
+        return pattern.sub(replace_env, value)
+    elif isinstance(value, dict):
+        return {k: _expand_env_vars(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [_expand_env_vars(item) for item in value]
+    return value
+
+
 class Config(dict):
     """Read config from yaml file."""
 
@@ -58,6 +75,6 @@ class Config(dict):
                     if '__vars__' in data:
                         del data['__vars__']
                     for x in data:
-                        self[x] = data[x]
+                        self[x] = _expand_env_vars(data[x])
             except YAMLError as e:
                 raise SystemExit(f'failed to load {filename} {e}')

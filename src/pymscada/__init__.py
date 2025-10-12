@@ -7,11 +7,11 @@ from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
 from pymscada.iodrivers.piapi import PIWebAPIClient
+from pymscada.iodrivers.sms import SMS
 from pymscada.iodrivers.witsapi import WitsAPIClient
 from pymscada.misc import find_nodes, ramp
 from pymscada.periodic import Periodic
 from pymscada.tag import Tag
-from pymscada.sms import SMS
 
 __all__ = [
     'BusClient',
@@ -22,9 +22,9 @@ __all__ = [
     'ModbusClient',
     'ModbusServer',
     'PIWebAPIClient',
+    'SMS',
     'WitsAPIClient',
     'find_nodes', 'ramp',
     'Periodic',
     'Tag',
-    'SMS',
 ]

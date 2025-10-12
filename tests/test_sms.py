@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime
 import os
 import pytest
-from pymscada.sms import SMS, RUT241
+from pymscada.iodrivers.sms import SMS, RUT241
 from pymscada.tag import Tag
 
 

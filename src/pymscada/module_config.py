@@ -132,7 +132,7 @@ def create_module_registry():
                   export MSCADA_OPENWEATHERMAP_API_KEY='1234567890'""")
         ),
         ModuleDefinition(
-            name='smsmodem',
+            name='sms',
             help='send and receive SMS messages through an RUT241 modem',
             module_class='pymscada.iodrivers.sms:SMS',
             tags=False,
