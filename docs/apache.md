@@ -5,7 +5,7 @@ Assuming that ```https:\\<yourhost>``` is not working and as root:
 
 ```bash
 cd /etc/apache2/sites-available
-cp  default-ssl.conf  mscada.conf
+cp  default-ssl.conf  pymscada.conf
 a2dissite 000-default
 a2dissite detault-ssl
 a2enmod ssl
@@ -16,7 +16,7 @@ probably just showing the default apache page.
 
 ## Add the pymscada proxy
 
-Add the following into ```mscada.conf```
+Add the following into ```pymscada.conf```
 ```ini
     RewriteEngine on
     RewriteCond %{HTTP:Upgrade} websocket [NC]
@@ -28,12 +28,12 @@ Add the following into ```mscada.conf```
         Authtype Basic
         Authname "Password Required - pymscada Authorised Users Only"
         AuthUserFile /etc/apache2/pymscada.htpasswd
-        Require all granted  # Apache 2.4, same as when omitted in 2.2
+        Require all granted
     </Location>
 ```
 
 ```bash
-a2ensite mscada
+a2ensite pymscada
 htpasswd -c /etc/apache2/pymscada.htpasswd pymscada
 # give the user a password
 a2enmod rewrite

@@ -192,8 +192,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["logixclient", "--verbose",
-                "--config", "../config/logixclient.yaml",
-                "--tags", "../config/tags.yaml",
+                "--config", "../config/logixclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -252,6 +251,18 @@
             "justMyCode":true
         },
         {
+            "name":"ecogas-logixclient",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["logixclient", "--verbose",
+                "--config", "../ecogas/logixclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+       {
             "name": "Python: Debug Tests",
             "type": "debugpy",
             "request": "launch",

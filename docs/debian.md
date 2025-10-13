@@ -43,16 +43,53 @@ ip a s
 
 Turn off IPV6, ng serve for angular binds to ipv6 (last I checked).
 
-```
+```bash
 vi /etc/sysctl.conf
- --- Add the following at the bottom of the file:
+# Add the following at the bottom of the file:
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
 net.ipv6.conf.tun0.disable_ipv6 = 1
 ```
 
+## Shell
 
+A bunch of this stuff is to simplify the process of ssh connections from an internet connected computer to a computer with no internet access.
+
+```bash
+vi .bash_aliases
+# add
+function px_set() {
+    export {http,https,ftp}_proxy='http://127.0.0.1:3128'
+}
+
+function activate() {
+    source ~/.venv/bin/activate
+}
+```
+
+```px_set``` on next login to set the proxy environment variables.
+
+```bash
+cd ~
+python3 -m venv .venv  # creates the .venv used by the activate alias
+activate
+pip install pymscada
+pymscada checkout  # creates config in your current working directory
+```
+
+As root.
+
+```bash
+cd /lib/systemd/system
+ln -s /home/mscada/config/pymscada-bus.service
+systemctl enable pymscada-io-sms
+systemctl start pymscada-io-sms
+
+```
+
+
+## Application
 
 
 

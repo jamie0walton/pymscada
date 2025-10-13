@@ -140,5 +140,5 @@ class LogixMaps:
                 elm = int(poll.tag[arr_start_loc + 1: -1])
                 for map in self.read_var_map[plcname][var]:
                     elm_offset = map.read_elm - elm
-                    if elm_offset > 0 and elm_offset < len(poll.value):
+                    if elm_offset >= 0 and elm_offset < len(poll.value):
                         map.set_tag_value(poll.value[elm_offset], time_us)
