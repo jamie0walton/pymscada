@@ -241,6 +241,17 @@ class Alarms:
         self.connection = sqlite3.connect(db)
         self.table = table
         self.cursor = self.connection.cursor()
+        
+        # Check SQLite version for RETURNING clause support (requires >= 3.35.0)
+        sqlite_version = sqlite3.sqlite_version_info
+        self.has_returning = sqlite_version >= (3, 35, 0)
+        if not self.has_returning:
+            logging.warning(
+                f'SQLite version {sqlite3.sqlite_version} is older than 3.35.0. '
+                f'RETURNING clause not supported, using fallback method. '
+                f'Consider upgrading SQLite for better performance.'
+            )
+        
         query = (
             'CREATE TABLE IF NOT EXISTS ' + self.table + ' '
             '(id INTEGER PRIMARY KEY ASC, '
@@ -277,13 +288,25 @@ class Alarms:
             try:
                 logging.info(f'add {request}')
                 with self.connection:
-                    self.cursor.execute(
-                        f'INSERT INTO {self.table} '
-                        '(date_ms, alarm_string, kind, desc, "group") '
-                        'VALUES(:date_ms, :alarm_string, :kind, :desc, :group) '
-                        'RETURNING *;',
-                        request)
-                    res = self.cursor.fetchone()
+                    if self.has_returning:
+                        self.cursor.execute(
+                            f'INSERT INTO {self.table} '
+                            '(date_ms, alarm_string, kind, desc, "group") '
+                            'VALUES(:date_ms, :alarm_string, :kind, :desc, :group) '
+                            'RETURNING *;',
+                            request)
+                        res = self.cursor.fetchone()
+                    else:
+                        self.cursor.execute(
+                            f'INSERT INTO {self.table} '
+                            '(date_ms, alarm_string, kind, desc, "group") '
+                            'VALUES(:date_ms, :alarm_string, :kind, :desc, :group);',
+                            request)
+                        row_id = self.cursor.lastrowid
+                        self.cursor.execute(
+                            f'SELECT * FROM {self.table} WHERE id = ?;',
+                            (row_id,))
+                        res = self.cursor.fetchone()
                     self.rta.value = {
                         '__rta_id__': 0,
                         'id': res[0],
@@ -299,21 +322,42 @@ class Alarms:
             try:
                 logging.info(f'update {request}')
                 with self.connection:
-                    self.cursor.execute(
-                        f'UPDATE {self.table} SET in_alm = :in_alm '
-                        'WHERE id = :id RETURNING *;',
-                        request)
-                    res = self.cursor.fetchone()
-                    if res:
-                        self.rta.value = {
-                            '__rta_id__': 0,
-                            'id': res[0],
-                            'date_ms': res[1],
-                            'alarm_string': res[2],
-                            'kind': res[3],
-                            'desc': res[4],
-                            'group': res[5]
-                        }
+                    if self.has_returning:
+                        self.cursor.execute(
+                            f'UPDATE {self.table} SET in_alm = :in_alm '
+                            'WHERE id = :id RETURNING *;',
+                            request)
+                        res = self.cursor.fetchone()
+                        if res:
+                            self.rta.value = {
+                                '__rta_id__': 0,
+                                'id': res[0],
+                                'date_ms': res[1],
+                                'alarm_string': res[2],
+                                'kind': res[3],
+                                'desc': res[4],
+                                'group': res[5]
+                            }
+                    else:
+                        self.cursor.execute(
+                            f'UPDATE {self.table} SET in_alm = :in_alm '
+                            'WHERE id = :id;',
+                            request)
+                        if self.cursor.rowcount > 0:
+                            self.cursor.execute(
+                                f'SELECT * FROM {self.table} WHERE id = :id;',
+                                request)
+                            res = self.cursor.fetchone()
+                            if res:
+                                self.rta.value = {
+                                    '__rta_id__': 0,
+                                    'id': res[0],
+                                    'date_ms': res[1],
+                                    'alarm_string': res[2],
+                                    'kind': res[3],
+                                    'desc': res[4],
+                                    'group': res[5]
+                                }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb update {error}')
         elif request['action'] == 'HISTORY':
