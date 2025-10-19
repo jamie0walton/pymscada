@@ -2,6 +2,7 @@
 from pymscada.bus_client import BusClient
 from pymscada.bus_server import BusServer
 from pymscada.config import Config
+from pymscada.callout import Callout, alarm_in_group, ALM
 from pymscada.iodrivers.accuweather import AccuWeatherClient
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
@@ -17,6 +18,7 @@ __all__ = [
     'BusClient',
     'BusServer',
     'Config',
+    'Callout', 'alarm_in_group', ALM,
     'AccuWeatherClient',
     'LogixClient',
     'ModbusClient',

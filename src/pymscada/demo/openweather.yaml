@@ -2,6 +2,7 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 proxy:
 api:
+  # tagnames are assigned by location_parameter, i.e. Murupara_Temp
   api_key: ${MSCADA_OPENWEATHERMAP_API_KEY}
   units: metric
   locations:
@@ -14,12 +15,3 @@ api:
   - WindSpeed
   - WindDir
   - Rain
-tags:
-  - Murupara_Temp
-  - Murupara_WindSpeed
-  - Murupara_WindDir
-  - Murupara_Rain
-  - Murupara_Temp_03
-  - Murupara_WindSpeed_03
-  - Murupara_WindDir_03
-  - Murupara_Rain_03

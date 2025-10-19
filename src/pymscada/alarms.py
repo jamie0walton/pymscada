@@ -11,6 +11,7 @@ ALM = 0
 RTN = 1
 ACT = 2
 INF = 3
+TIMING = 4
 KIND = {
     ALM: 'ALM',
     RTN: 'RTN',
@@ -75,12 +76,11 @@ def standardise_tag_info(tagname: str, tag: dict):
 def split_operator(alarm: str) -> dict:
     """Split alarm string into operator and value."""
     tokens = alarm.split(' ')
-    alm_dict = {'for': 0}
     if len(tokens) not in (2, 4):
         raise ValueError(f"Invalid alarm {alarm}")
     if tokens[0] not in ['>', '<', '==', '>=', '<=']:
         raise ValueError(f"Invalid alarm {alarm}")
-    alm_dict['operator'] = tokens[0]
+    alm_dict = {'for': 0, 'operator': tokens[0], 'value': None}
     try:
         alm_dict['value'] = float(tokens[1])
     except ValueError:
@@ -103,11 +103,11 @@ class Alarm():
     conditions, each combination of tag and condition is a separate Alarm.
 
     Monitors tag value through the Tag callback. Tracks in alarm state.
-    Generates the ALM and RTN messages for Alarms to publish via rta_tag.
+    Notifies Alarms of state changes via state callback.
     """
 
     def __init__(self, tagname: str, tag: dict, alarm: str, group: str,
-                 rta_cb, alarms) -> None:
+                 state_cb) -> None:
         """Initialize alarm with tag and condition(s)."""
         self.alarm_id = f'{tagname} {alarm}'
         self.tag = Tag(tagname, tag['type'])
@@ -116,18 +116,16 @@ class Alarm():
         self.tag.units = tag['units']
         self.tag.add_callback(self.callback)
         self.group = group
-        self.rta_cb = rta_cb
-        self.alarms = alarms
+        self.state_cb = state_cb
         self.alarm = split_operator(alarm)
         self.in_alarm = False
-        self.checking = False
+        self.disabled_until = 0
 
     def callback(self, tag: Tag):
         """Handle tag value changes and generate ALM/RTN messages."""
-        if tag.value is None:
+        if tag.value is None or tag.time_us < self.disabled_until:
             return
         value = float(tag.value)
-        time_us = tag.time_us
         new_in_alarm = False
         op = self.alarm['operator']
         if op == '>':
@@ -142,39 +140,19 @@ class Alarm():
             new_in_alarm = value <= self.alarm['value']
         if new_in_alarm == self.in_alarm:
             return
-        self.in_alarm = new_in_alarm
-        if self.in_alarm:
+        if new_in_alarm:
             if self.alarm['for'] > 0:
-                if not self.checking:
-                    self.checking = True
-                    self.alarms.checking_alarms.append(self)
+                self.state_cb(self, TIMING)
             else:
-                self.generate_alarm(ALM, time_us, value)
+                self.state_cb(self, ALM)
         else:
-            if self.checking:
-                self.checking = False
-                self.alarms.checking_alarms.remove(self)
-            self.generate_alarm(RTN, time_us, value)
-
-    def generate_alarm(self, kind: int, time_us: int, value: float):
-        """Generate alarm message."""
-        logging.warning(f'Alarm {self.alarm_id} {value} {KIND[kind]}')
-        self.rta_cb({
-            'action': 'ADD',
-            'date_ms': int(time_us / 1000),
-            'alarm_string': self.alarm_id,
-            'kind': kind,
-            'desc': f'{self.tag.desc} {value:.{self.tag.dp}f}'
-                    f' {self.tag.units}',
-            'group': self.group
-        })
+            self.state_cb(self, RTN)
+        self.in_alarm = new_in_alarm
 
     def check_duration(self, current_time_us: int):
         """Check if alarm condition has been met for required duration."""
         if current_time_us - self.tag.time_us >= self.alarm['for'] * 1000000:
-            self.generate_alarm(ALM, current_time_us, self.tag.value)
-            self.checking = False
-            self.alarms.checking_alarms.remove(self)
+            self.state_cb(self, ALM)
 
 
 class Alarms:
@@ -220,14 +198,14 @@ class Alarms:
         logging.warning(f'Alarms {bus_ip} {bus_port} {db} {rta_tag}')
         self.alarms: list[Alarm] = []
         self.checking_alarms: list[Alarm] = []
+        self.in_alarm: list[Alarm] = []
         for tagname, tag in tag_info.items():
             standardise_tag_info(tagname, tag)
             if 'alarm' not in tag or tag['type'] not in (int, float):
                 continue
             group = tag['group']
             for alarm in tag['alarm']:
-                new_alarm = Alarm(tagname, tag, alarm, group, self.rta_cb,
-                                  self)
+                new_alarm = Alarm(tagname, tag, alarm, group, self.state_cb)
                 self.alarms.append(new_alarm)
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
         self.rta = Tag(rta_tag, dict)
@@ -279,6 +257,37 @@ class Alarms:
         current_time_us = int(time.time() * 1000000)
         for alarm in self.checking_alarms[:]:
             alarm.check_duration(current_time_us)
+
+    def state_cb(self, alarm: Alarm, state: int):
+        """Handle alarm state changes."""
+        if state == TIMING:
+            self.checking_alarms.append(alarm)
+        elif state == ALM:
+            if alarm in self.checking_alarms:
+                self.checking_alarms.remove(alarm)
+            self.in_alarm.append(alarm)
+            self.generate_alarm(alarm, ALM)
+        elif state == RTN:
+            if alarm in self.checking_alarms:
+                self.checking_alarms.remove(alarm)
+            if alarm in self.in_alarm:
+                self.in_alarm.remove(alarm)
+            self.generate_alarm(alarm, RTN)
+
+    def generate_alarm(self, alarm: Alarm, kind: int):
+        """Generate alarm message."""
+        value = alarm.tag.value
+        time_us = alarm.tag.time_us
+        logging.warning(f'Alarm {alarm.alarm_id} {value} {KIND[kind]}')
+        self.rta_cb({
+            'action': 'ADD',
+            'date_ms': int(time_us / 1000),
+            'alarm_string': alarm.alarm_id,
+            'kind': kind,
+            'desc': f'{alarm.tag.desc} {value:.{alarm.tag.dp}f}'
+                    f' {alarm.tag.units}',
+            'group': alarm.group
+        })
 
     def rta_cb(self, request):
         """Respond to Request to Author and publish on rta_tag as needed."""
@@ -394,6 +403,61 @@ class Alarms:
         elif request['action'] == 'IN ALARM':
             self.rta.value = {'__rta_id__': request['__rta_id__'],
                               'data': {'in_alarm': list(self.in_alarm)}}
+        elif request['action'] == 'ENABLE':
+            time_us = int(time.time() * 1000000)
+            local_time = time.localtime(time_us / 1000000)
+            for alarm in self.alarms:
+                if alarm.alarm_id == request['alarm id']:
+                    enable = request['enable']
+                    if enable == 'Enable':
+                        disabled_until_us = 0
+                    else:
+                        if enable == 'Disable until 8am':
+                            target_hour = 8
+                            target_day_offset = 0
+                            next_offset = 1
+                        elif enable == 'Disable until 4pm':
+                            target_hour = 16
+                            target_day_offset = 0
+                            next_offset = 1
+                        elif enable == 'Disable until Monday 8am':
+                            target_hour = 8
+                            target_day_offset = (0 - local_time.tm_wday) % 7
+                            next_offset = 7
+                        else:
+                            disabled_until_us = 0
+                            break
+                        target_s = time.mktime((
+                            local_time.tm_year, local_time.tm_mon,
+                            local_time.tm_mday + target_day_offset,
+                            target_hour, 0, 0, 0, 0, -1
+                        ))
+                        if target_s * 1000000 <= time_us:
+                            target_s = time.mktime((
+                                local_time.tm_year, local_time.tm_mon,
+                                local_time.tm_mday + next_offset, 
+                                target_hour, 0, 0, 0, 0, -1
+                            ))
+                        disabled_until_us = int(target_s * 1000000)
+                    alarm.disabled_until = disabled_until_us
+                    ts = time.strftime(
+                        "%Y-%m-%d %H:%M:%S",
+                        time.localtime(disabled_until_us / 1000000)
+                    )
+                    if disabled_until_us == 0:
+                        desc = 'Enable'
+                    else:
+                        desc = f'Disable until {ts}'
+                    self.rta_cb({
+                        'action': 'ADD',
+                        'date_ms': int(time_us / 1000),
+                        'alarm_string': alarm.alarm_id,
+                        'kind': ACT,
+                        'desc': desc,
+                        'group': alarm.group
+                    })
+                    break
+ 
 
     async def start(self):
         """Async startup."""

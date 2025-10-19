@@ -3,8 +3,9 @@ bus_port: 1324
 path: __HOME__
 files:
 - path: pdf/one.pdf
-  desc: PDF
+  desc: One PDF
 - path: pdf/two.pdf
-  desc: PDF
+  desc: Two PDF
+- path: pdf/*.pdf
 - path: config/*.yaml
 - path: history/*.dat

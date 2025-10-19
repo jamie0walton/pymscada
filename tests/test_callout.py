@@ -1,6 +1,6 @@
 """Test Callout."""
 import pytest
-from pymscada.callout import Callout, alarm_in_callee_group, ALM
+from pymscada.callout import Callout, alarm_in_group, ALM
 
 
 BUS_ID = 123

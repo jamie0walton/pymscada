@@ -2,7 +2,9 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 proxy:
 api:
-  url: 'https://api.electricityinfo.co.nz'
+  # tagnames are assigned by gxp_list
+  # i.e. MAT1101, MAT1101_Realtime, MAT1101_Forecast
+  url: ${MSCADA_WITS_URL}
   client_id: ${MSCADA_WITS_CLIENT_ID}
   client_secret: ${MSCADA_WITS_CLIENT_SECRET}
   gxp_list:
@@ -11,7 +13,3 @@ api:
     - BEN2201
   back: 1
   forward: 12
-tags:
-  - MAT1101_RTD
-  - CYD2201_RTD
-  - BEN2201_RTD
