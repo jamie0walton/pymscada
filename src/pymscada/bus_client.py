@@ -77,6 +77,10 @@ class BusClient:
         jsonstr = json.dumps(request).encode()
         size = len(jsonstr)
         data = struct.pack(f'>B{size}s', pc.TYPE.JSON, jsonstr)
+        action = request.get("action", "unknown")
+        tag_id = self.tag_by_name[tagname].id
+        logging.info(f'{self.module}: RTA sending {tagname} {action} to'
+                     f' tag_id {tag_id}')
         self.write(pc.COMMAND.RTA, self.tag_by_name[tagname].id, time_us, data)
 
     def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
@@ -84,6 +88,12 @@ class BusClient:
         """Write a message."""
         if data is None:
             data = b''
+        try:
+            size_total = len(data)
+        except Exception:
+            size_total = 0
+        logging.info(f'{self.module}: write cmd={command} tag_id={tag_id} '
+                     f'size_total={size_total}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
@@ -94,7 +104,9 @@ class BusClient:
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 self.read_task.cancel()
             except AttributeError:
-                logging.warning('Attribute Error, TO DO, fix in test')
+                logging.warning(f'{self.module}: write AttributeError '
+                                f'cmd={command} '
+                                f'tag_id={tag_id} size={size}')
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
@@ -209,10 +221,13 @@ class BusClient:
             data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
                                       )[0].decode()
             data = json.loads(data)
+            action = data.get("action", "unknown")
+            logging.info(f'{self.module}: RTA received {tag.name} {action} '
+                        f'from tag_id {tag_id}')
             try:
                 self.rta_handlers[tag.name](data)
             except KeyError:
-                logging.warning(f'unhandled RTA for {tag.name} {data}')
+                logging.warning(f'{self.module}: unhandled RTA for {tag.name} {data}')
         else:
             raise SystemExit(f'Invalid message {cmd}')
 

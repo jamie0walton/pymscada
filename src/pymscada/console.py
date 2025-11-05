@@ -1,6 +1,7 @@
 """Interactive console."""
 import asyncio
 import logging
+import os
 import sys
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag
@@ -123,6 +124,10 @@ class ConsoleWriter:
         """Init."""
         self.edit = None
         self.cursor = 0
+        # Make stdout non-blocking to avoid BlockingIOError in async context
+        import fcntl
+        flags = fcntl.fcntl(sys.stdout.fileno(), fcntl.F_GETFL)
+        fcntl.fcntl(sys.stdout.fileno(), fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
     def write(self, data: bytes):
         """Stream writer, primarily for logging."""
@@ -132,22 +137,30 @@ class ConsoleWriter:
         ln = EC.cr_clr + data + b'\r\n'
         if self.edit is not None:
             ln += EC.cr_clr + self.edit + EC.mv_left + cursor_str
-        sys.stdout.buffer.write(ln)
-        sys.stdout.flush()
+        try:
+            os.write(sys.stdout.fileno(), ln)
+        except BlockingIOError:
+            # If stdout buffer is full, skip this write to avoid blocking
+            pass
 
     def edit_line(self, edit: bytes, cursor: int):
         """Update the edit line and cursor position."""
         self.edit = edit
         if self.edit is None:
-            sys.stdout.buffer.write(b'\r\n')
-            sys.stdout.flush()
+            try:
+                os.write(sys.stdout.fileno(), b'\r\n')
+            except BlockingIOError:
+                pass
             return
         self.cursor = cursor
         ln = EC.cr_clr + self.edit + EC.mv_left
         if self.cursor > 0:
             ln += b'\x1b[' + str(self.cursor).encode() + b'C'
-        sys.stdout.buffer.write(ln)
-        sys.stdout.flush()
+        try:
+            os.write(sys.stdout.fileno(), ln)
+        except BlockingIOError:
+            # If stdout buffer is full, skip this write to avoid blocking
+            pass
 
 
 class Console:

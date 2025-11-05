@@ -211,6 +211,7 @@ class Alarms:
         self.rta = Tag(rta_tag, dict)
         self.rta.value = {'__rta_id__': 0}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
+        self.busclient.add_tag(self.rta)
         self._init_db(db, table)
         self.periodic = Periodic(self.periodic_cb, 1.0)
 

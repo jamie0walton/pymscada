@@ -2,9 +2,178 @@
 import asyncio
 import logging
 from struct import pack, unpack_from
+from time import time
 from pymscada.bus_client import BusClient
-from pymscada.iodrivers.modbus_map import ModbusMaps
+from pymscada.tag import Tag
 from pymscada.periodic import Periodic
+
+
+# Modbus
+#
+# Transaction ID    2 bytes     incrementing
+# Protocol          2 bytes     always 0
+# Length            2 bytes     number of following bytes
+# Unit address      1 byte      PLC address
+# Message           N bytes     max size, 253 bytes
+#                               max overall 260 bytes
+# Function code     1 byte      3 Read registers
+# First address     2 bytes     0 == 40001
+# Register count    2 bytes     125 is the largest
+
+
+# data types for PLCs
+DTYPES = {
+    'int16': [int, -32768, 32767, 1],
+    'int32': [int, -2147483648, 2147483647, 2],
+    'int64': [int, -2**63, 2**63 - 1, 4],
+    'uint16': [int, 0, 65535, 1],
+    'uint32': [int, 0, 4294967295, 2],
+    'uint64': [int, 0, 2**64 - 1, 4],
+    'float32': [float, None, None, 2],
+    'float64': [float, None, None, 4],
+    'bool': [int, 0, 1, 1]
+}
+
+
+def tag_split(modbus_tag: str):
+    """Split the address into rtu, variable, element and bit."""
+    name, unit, file, word = modbus_tag.split(':')
+    bit_loc = word.find('.')
+    if bit_loc == -1:
+        bit = None
+        word = word
+    else:
+        bit = word[bit_loc + 1:]
+        word = word[:bit_loc]
+    return name, unit, file, word, bit
+
+
+class ModbusClientMap:
+    """Map the data table to a Tag."""
+
+    def __init__(self, tagname: str, src_type: str, addr: str, data: dict,
+                 value_chg: dict):
+        """Initialise modbus map and Tag."""
+        name, unit, file, word, bit = tag_split(addr)
+        self.data_file = f'{name}:{unit}:{file}'
+        self.data = data[self.data_file]
+        self.value_chg = value_chg[self.data_file]
+        self.src_type = src_type
+        self.bit = bit
+        dtype, dmin, dmax = DTYPES[src_type][0:3]
+        self.tag = Tag(tagname, dtype)
+        self.map_bus = id(self)
+        self.tag.add_callback(self.tag_value_ext, self.map_bus)
+        if dmin is not None:
+            self.tag.value_min = dmin
+        if dmax is not None:
+            self.tag.value_max = dmax
+        self.byte = (int(word) - 1) * 2
+
+    def update_tag(self, time_us):
+        """Unpack from modbus registers to tag value if different."""
+        if self.bit is not None:
+            word_value = unpack_from('>H', self.data, self.byte)[0]
+            bit_num = int(self.bit)
+            value = (word_value >> bit_num) & 1
+        elif self.src_type == 'int16':
+            value = unpack_from('>h', self.data, self.byte)[0]
+        elif self.src_type == 'uint16':
+            value = unpack_from('>H', self.data, self.byte)[0]
+        elif self.src_type == 'int32':
+            value = unpack_from('>i', self.data, self.byte)[0]
+        elif self.src_type == 'uint32':
+            value = unpack_from('>I', self.data, self.byte)[0]
+        elif self.src_type == 'int64':
+            value = unpack_from('>q', self.data, self.byte)[0]
+        elif self.src_type == 'uint64':
+            value = unpack_from('>Q', self.data, self.byte)[0]
+        elif self.src_type == 'float32':
+            value = unpack_from('>f', self.data, self.byte)[0]
+        elif self.src_type == 'float64':
+            value = unpack_from('>d', self.data, self.byte)[0]
+        else:
+            return
+        if value != self.tag.value:
+            logging.info(f'updating {self.tag.name} from {self.tag.value}'
+                         f' to {value}')
+            self.tag.value = value, time_us, self.map_bus
+
+    def tag_value_ext(self, tag: Tag):
+        """Call external tag value update to write remote table."""
+        logging.info(f'tag_value_changed {tag.name} {tag.value}')
+        if self.src_type == 'int16':
+            self.value_chg(self.data_file, self.byte, pack('>h', tag.value))
+        elif self.src_type == 'uint16':
+            self.value_chg(self.data_file, self.byte, pack('>H', tag.value))
+        elif self.src_type == 'int32':
+            self.value_chg(self.data_file, self.byte, pack('>i', tag.value))
+        elif self.src_type == 'uint32':
+            self.value_chg(self.data_file, self.byte, pack('>I', tag.value))
+        elif self.src_type == 'int64':
+            self.value_chg(self.data_file, self.byte, pack('>q', tag.value))
+        elif self.src_type == 'uint64':
+            self.value_chg(self.data_file, self.byte, pack('>Q', tag.value))
+        elif self.src_type == 'float32':
+            self.value_chg(self.data_file, self.byte, pack('>f', tag.value))
+        elif self.src_type == 'float64':
+            self.value_chg(self.data_file, self.byte, pack('>d', tag.value))
+
+
+class ModbusClientMaps():
+    """Shared modbus mapping."""
+
+    def __init__(self, tags):
+        """Singular please."""
+        self.tags = tags
+        self.data = {}
+        self.value_chg = {}
+        self.maps = {}
+
+    def add_data_table(self, tables, value_chg):
+        """Add a bytes data table."""
+        for table in tables:
+            self.data[table] = bytearray(2 * (tables[table] - 1))
+            self.value_chg[table] = value_chg
+
+    def make_map(self):
+        """Make the maps."""
+        for tagname, v in self.tags.items():
+            dtype = v['type']
+            try:
+                addr = v['read']
+            except KeyError:
+                addr = v['addr']
+            map = ModbusClientMap(tagname, dtype, addr, self.data, self.value_chg)
+            size = DTYPES[dtype][3]
+            name, unit, file, word, _bit = tag_split(addr)
+            for i in range(0, size):
+                word_addr = f'{name}:{unit}:{file}:{int(word) + i}'
+                if word_addr not in self.maps:
+                    self.maps[word_addr] = []
+                self.maps[word_addr].append(map)
+
+    def set_data(self, name: str, unit: int, file: str, pdu_start: int,
+                 pdu_count: int, data: bytearray):
+        """Set data, start and end in byte count."""
+        time_us = int(time() * 1e6)
+        start = pdu_start * 2
+        end = start + pdu_count * 2
+        data_file = f'{name}:{unit}:{file}'
+        self.data[data_file][start:end] = data
+        maps: set[ModbusClientMap] = set()
+        for word_count in range(1, pdu_count + 1):
+            word = word_count + pdu_start
+            word_addr = f'{name}:{unit}:{file}:{word}'
+            try:
+                word_maps = self.maps[word_addr]
+                maps.update(word_maps)
+            except KeyError:
+                pass
+        logging.debug(f'set_data {name} {unit} {file} {start} {end}')
+        for map in maps:
+            map.update_tag(time_us)
+        pass
 
 
 class ModbusClientProtocol(asyncio.Protocol):
@@ -13,7 +182,6 @@ class ModbusClientProtocol(asyncio.Protocol):
     def __init__(self, process):
         """Modbus client protocol."""
         self.process = process
-        self._mbap_tr = 0  # start at 0
         self.buffer = b""
         self.peername = None
         self.sockname = None
@@ -45,11 +213,12 @@ class ModbusClientProtocol(asyncio.Protocol):
     def unpack_mb(self):
         """Return complete modbus packets and trim the buffer."""
         start = 0
+        end = 0
         while True:
             buf_len = len(self.buffer)
             if buf_len < 6 + start:  # enough to unpack length
                 break
-            mbap_tr, mbap_pr, mbap_len = unpack_from(">3H", self.buffer, start)
+            _mbap_tr, _mbap_pr, mbap_len = unpack_from(">3H", self.buffer, start)
             if buf_len < start + 6 + mbap_len:  # there is a complete message
                 break
             end = start + 6 + mbap_len
@@ -75,7 +244,7 @@ class ModbusClientConnector:
     """Poll Modbus device, write on change in write range."""
 
     def __init__(self, name: str, ip: str, port: int, rate: int, tcp_udp: str,
-                 poll: list, mapping: ModbusMaps):
+                 poll: list, mapping: ModbusClientMaps):
         """
         Set up polling client.
 
@@ -88,7 +257,6 @@ class ModbusClientConnector:
         self.transport = None
         self.protocol = None
         self.read = poll
-        self.writeok = None
         self.periodic = Periodic(self.poll, rate)
         self.mapping = mapping
         self.sent = {}
@@ -113,8 +281,11 @@ class ModbusClientConnector:
             data = msg[9:]
             self.mapping.set_data(name=self.name, data=data,
                                   **self.sent[mbap_tr])
-            del self.sent[mbap_tr]
-        elif pdu_fc == 16:
+            try:
+                del self.sent[mbap_tr]
+            except KeyError:
+                logging.warning(f"mbap_tr {mbap_tr} not found in sent")
+        elif pdu_fc == 16:  # provision for future
             pdu_start, pdu_count = unpack_from(">2H", msg, 8)
             pass
         elif pdu_fc > 128:
@@ -142,7 +313,7 @@ class ModbusClientConnector:
                         lambda: ModbusClientProtocol(self.process),
                         self.ip, self.port)
         except Exception as e:
-            logging.warn(f'start_connection {e}')
+            logging.warning(f'start_connection {e}')
 
     def mbap_tr(self):
         """Global transaction number provider."""
@@ -164,15 +335,15 @@ class ModbusClientConnector:
             pdu = pack(">B2H", pdu_fc, pdu_start, pdu_count)
             pdu_len = 5
         else:
-            logging.warn(f"no support for {file}")
+            logging.warning(f"no support for {file}")
             return
         mbap_len = pdu_len + 1
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
         if self.tcp_udp == "udp":
-            self.transport.sendto(msg)
+            self.transport.sendto(msg)  # type: ignore
         else:
-            self.transport.write(msg)
+            self.transport.write(msg)  # type: ignore
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
 
@@ -192,17 +363,17 @@ class ModbusClientConnector:
             # logging.info(f"{pdu_fc} {start} {count} "
             #          f"{count * 2} {data} {pdu.hex()}")
         else:
-            logging.warn(f"no support for {file}")
+            logging.warning(f"no support for {file}")
             return
         mbap_len = pdu_len + 1
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
         if self.tcp_udp == "udp":
             logging.info(f"UDP write {mbap_unit} {file} {start} {end}")
-            self.transport.sendto(msg)
+            self.transport.sendto(msg)  # type: ignore
         else:
             logging.info(f"TCP write {mbap_unit} {file} {start} {end}")
-            self.transport.write(msg)
+            self.transport.write(msg)  # type: ignore
 
     def write_tag_update(self, addr: str, byte: int, data: bytes):
         """Write out any tag updates."""
@@ -239,19 +410,16 @@ class ModbusClient:
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  rtus: dict = {}, tags: dict = {}) -> None:
         """
-        Connect to bus on bus_ip:bus_port, serve on ip:port for webclient.
+        Connect to bus on bus_ip:bus_port.
 
-        Serves the webclient files at /, as a relative path. The webclient uses
-        a websocket connection to request and set tag values and subscribe to
-        changes.
-
+        Makes connections to Modbus PLCs to read and write data.
         Event loop must be running.
         """
         self.busclient = None
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port,
                                        module='Modbus Client')
-        self.mapping = ModbusMaps(tags)
+        self.mapping = ModbusClientMaps(tags)
         self.connections: list[ModbusClientConnector] = []
         for rtu in rtus:
             connection = ModbusClientConnector(**rtu, mapping=self.mapping)
@@ -259,7 +427,7 @@ class ModbusClient:
         self.mapping.make_map()
 
     async def start(self):
-        """Provide a web server."""
+        """Provide a modbus client."""
         if self.busclient is not None:
             await self.busclient.start()
         for connection in self.connections:

@@ -132,6 +132,7 @@ class WSHandler():
         elif tag.type is bytes:
             rta_id = unpack_from('>H', tag.value)[0]
             if rta_id in [0, self.rta_id]:
+                logging.info(f'{self.rta_id}: {tag.name} bytes matches id')
                 self.queue.put_nowait((True, pack(
                     f'!HHQ{len(tag.value)}s',  # Network big-endian
                     tag.id,             # Uint16

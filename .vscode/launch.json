@@ -161,7 +161,8 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["modbusclient", "--verbose"],
+            "args": ["modbusclient", "--verbose",
+                "--config", "../config/modbusclient.yaml"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

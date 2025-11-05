@@ -33,6 +33,7 @@ class Files():
         self.rta = Tag(rta_tag, dict)
         self.rta.value = {}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
+        self.busclient.add_tag(self.rta)
 
     def rta_cb(self, request):
         """Respond to Request to Author and publish on rta_tag as needed."""

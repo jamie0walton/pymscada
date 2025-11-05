@@ -27,8 +27,22 @@ DTYPES = {
     'uint32': [int, 0, 4294967295, 2],
     'uint64': [int, 0, 2**64 - 1, 4],
     'float32': [float, None, None, 2],
-    'float64': [float, None, None, 4]
+    'float64': [float, None, None, 4],
+    'bool': [int, 0, 1, 1]
 }
+
+
+def tag_split(modbus_tag: str):
+    """Split the address into rtu, variable, element and bit."""
+    name, unit, file, word = modbus_tag.split(':')
+    bit_loc = word.find('.')
+    if bit_loc == -1:
+        bit = None
+        word = word
+    else:
+        bit = word[bit_loc + 1:]
+        word = word[:bit_loc]
+    return name, unit, file, word, bit
 
 
 class ModbusMap:
@@ -37,11 +51,12 @@ class ModbusMap:
     def __init__(self, tagname: str, src_type: str, addr: str, data: dict,
                  value_chg: dict):
         """Initialise modbus map and Tag."""
-        name, unit, file, word = addr.split(':')
+        name, unit, file, word, bit = tag_split(addr)
         self.data_file = f'{name}:{unit}:{file}'
         self.data = data[self.data_file]
         self.value_chg = value_chg[self.data_file]
         self.src_type = src_type
+        self.bit = bit
         dtype, dmin, dmax = DTYPES[src_type][0:3]
         self.tag = Tag(tagname, dtype)
         self.map_bus = id(self)

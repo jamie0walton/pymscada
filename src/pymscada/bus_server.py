@@ -111,7 +111,8 @@ class BusConnection():
                 head = await self.reader.readexactly(14)
                 _, cmd, tag_id, size, time_us = unpack('!BBHHQ', head)
             except (ConnectionResetError, asyncio.IncompleteReadError,
-                    asyncio.CancelledError):
+                    asyncio.CancelledError) as e:
+                logging.warning(f'{self.addr} read error: {e}')
                 break
             # if the command packet indicates data, get that too
             if size == 0:
@@ -121,7 +122,8 @@ class BusConnection():
                 payload = await self.reader.readexactly(size)
                 data = unpack(f'!{size}s', payload)[0]
             except (ConnectionResetError, asyncio.IncompleteReadError,
-                    asyncio.CancelledError):
+                    asyncio.CancelledError) as e:
+                logging.warning(f'{self.addr} read payload error: {e}')
                 break
             # if MAX_LEN then a continuation packet is required
             if size == pc.MAX_LEN:
@@ -201,15 +203,21 @@ class BusServer:
             try:
                 tag = BusTags._tag_by_id[tag_id]
             except KeyError:
+                logging.warning(f'RTA KeyError {tag_id}')
                 self.connections[bus_id].write(
                     pc.COMMAND.ERR, tag_id, time_us,
                     f"RTA KeyError {tag_id}".encode())
+                return
             try:
+                logging.info(f'RTA forwarding {tag.name} from_bus={tag.from_bus} '
+                            f'to bus_id={tag.from_bus}')
                 self.connections[tag.from_bus].write(
                     pc.COMMAND.RTA, tag_id, tag.time_us, data)
             except KeyError:
-                logging.warning(f'likely busclient for {tag.name} is gone')
+                logging.warning(f'RTA forwarding failed: busclient for '
+                              f'{tag.name} (from_bus={tag.from_bus}) is gone')
             except Exception as e:
+                logging.warning(f'RTA forwarding error {tag.name}: {e}')
                 self.connections[bus_id].write(
                     pc.COMMAND.ERR, tag_id, time_us,
                     f"RTA {tag_id} {e}".encode())
@@ -288,6 +296,8 @@ class BusServer:
     def read_callback(self, command):
         """Process read messages, delete broken connections."""
         bus_id, cmd, tag_id, time_us, data = command
+        logging.info(f'recv cmd={cmd} tag_id={tag_id} bus_id={bus_id} '
+                     f'size={(0 if data is None else len(data))}')
         if cmd is None:
             # Clean up tag subscriptions before deleting it
             for tag in BusTags._tag_by_id.values():

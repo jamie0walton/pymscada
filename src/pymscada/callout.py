@@ -145,6 +145,7 @@ class Callout:
                           'groups': self.groups,
                           'escalation': self.escalation}
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
+        self.busclient.add_tag(self.rta)
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
     def alarms_cb(self, alm_tag):

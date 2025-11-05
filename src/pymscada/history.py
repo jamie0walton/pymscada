@@ -272,6 +272,7 @@ class History():
         self.rta = Tag(rta_tag, bytes)
         self.rta.value = b'\x00\x00\x00\x00\x00\x00'  # rta_id is 0
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
+        self.busclient.add_tag(self.rta)
 
     def rta_cb(self, request: Request):
         """Respond to bus requests for data to publish on rta."""
