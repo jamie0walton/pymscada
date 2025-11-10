@@ -12,7 +12,7 @@ class OpNotes:
 
     def __init__(
         self,
-        bus_ip: str = '127.0.0.1',
+        bus_ip: str|None = '127.0.0.1',
         bus_port: int = 1324,
         db: str | None = None,
         table: str = 'opnotes',
@@ -104,14 +104,19 @@ class OpNotes:
         """Respond to Request to Author and publish on rta_tag as needed."""
         local_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(f'[{local_time}] RTA callback received: {request}')
-        logging.info(f'[{local_time}] DEBUG: rta_tag.id={self.rta.id}, rta_tag.name={self.rta.name}')
-        
         if 'action' not in request:
             logging.warning(f'rta_cb malformed {request}')
         elif request['action'] == 'ADD':
             try:
-                logging.info(f'[{local_time}] ADD request: {request}')
                 with self.connection:
+                    if not isinstance(request, dict) or \
+                            'date_ms' not in request or \
+                            'site' not in request or \
+                            'by' not in request or \
+                            'note' not in request or \
+                            'abnormal' not in request:
+                        logging.warning(f'rta_cb ADD malformed {request}')
+                        return
                     self.cursor.execute(
                         f'INSERT INTO {self.table} '
                         '(date_ms, site, by, note, abnormal) '
@@ -129,13 +134,20 @@ class OpNotes:
                         'abnormal': res[5]
                     }
                     self.rta.value = response
-                    logging.info(f'[{local_time}] ADD response sent: {response}')
-            except sqlite3.IntegrityError as error:
+            except sqlite3.Error as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'MODIFY':
             try:
-                logging.info(f'[{local_time}] MODIFY request: {request}')
                 with self.connection:
+                    if not isinstance(request, dict) or \
+                            'id' not in request or \
+                            'date_ms' not in request or \
+                            'site' not in request or \
+                            'by' not in request or \
+                            'note' not in request or \
+                            'abnormal' not in request:
+                        logging.warning(f'rta_cb MODIFY malformed {request}')
+                        return
                     self.cursor.execute(
                         f'REPLACE INTO {self.table} VALUES(:id, :date_ms, '
                         ':site, :by, :note, :abnormal) RETURNING *;', request)
@@ -149,20 +161,22 @@ class OpNotes:
                         'note': res[4],
                         'abnormal': res[5]
                     }
-            except sqlite3.IntegrityError as error:
+            except sqlite3.Error as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'DELETE':
             try:
-                logging.info(f'[{local_time}] DELETE request: {request}')
                 with self.connection:
+                    if not isinstance(request, dict) or \
+                            'id' not in request:
+                        logging.warning(f'rta_cb DELETE malformed {request}')
+                        return
                     self.cursor.execute(
                         f'DELETE FROM {self.table} WHERE id = :id;', request)
                     self.rta.value = {'__rta_id__': 0, 'id': request['id']}
-            except sqlite3.IntegrityError as error:
+            except sqlite3.Error as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'HISTORY':
             try:
-                logging.info(f'[{local_time}] HISTORY request: {request}')
                 with self.connection:
                     self.cursor.execute(
                         f'SELECT * FROM {self.table} WHERE date_ms > :date_ms '
@@ -177,11 +191,10 @@ class OpNotes:
                             'note': res[4],
                             'abnormal': res[5]
                         }
-            except sqlite3.IntegrityError as error:
+            except sqlite3.Error as error:
                 logging.warning(f'OpNotes rta_cb {error}')
         elif request['action'] == 'BULK HISTORY':
             try:
-                logging.info(f'[{local_time}] BULK HISTORY request: {request}')
                 with self.connection:
                     self.cursor.execute(
                         f'SELECT * FROM {self.table} WHERE date_ms > :date_ms '
@@ -189,8 +202,7 @@ class OpNotes:
                     results = list(self.cursor.fetchall())
                     response = {'__rta_id__': request['__rta_id__'], 'data': results}
                     self.rta.value = response
-                    logging.info(f'[{local_time}] BULK HISTORY response sent: {len(results)} records for rta_id {request["__rta_id__"]}')
-            except sqlite3.IntegrityError as error:
+            except sqlite3.Error as error:
                 logging.warning(f'OpNotes rta_cb {error}')
 
     async def start(self):

@@ -50,7 +50,7 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
     assert tag.value['note'] == 'hi'
     record['action'] = 'DELETE'
     db.rta_cb(record)
-    assert tag.value == {'id': 1}
+    assert tag.value == {'__rta_id__': 0, 'id': 1}
 
 
 def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
@@ -83,4 +83,4 @@ def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
     for i in range(1, 11):  # sqlite3 id counts from 1
         rq = {'action': 'DELETE', 'id': i}
         db.rta_cb(rq)
-    assert o_values[-1] == {'id': 10}
+    assert o_values[-1] == {'__rta_id__': 0, 'id': 10}

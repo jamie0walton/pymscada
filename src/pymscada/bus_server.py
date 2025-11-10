@@ -18,8 +18,7 @@ class BusTags(type):
         """Return existing tag if tagname already exists."""
         if tagname in cls._tag_by_name:
             return cls._tag_by_name[tagname]
-        tag: 'BusTag' = cls.__new__(cls, tagname)
-        tag.__init__(tagname)
+        tag: 'BusTag' = super().__call__(tagname)
         tag.id = cls._next_id
         cls._next_id += 1
         cls._tag_by_name[tagname] = tag
@@ -35,10 +34,10 @@ class BusTag(metaclass=BusTags):
     def __init__(self, name: bytes):
         """Name and id must be unique."""
         self.name = name
-        self.id = None
+        self.id = 0
         self.time_us: int = 0
         self.value: bytes = b''
-        self.from_bus: 'BusConnection' = None
+        self.from_bus: int = 0
         self.pub = []
 
     def add_callback(self, callback, bus_id):
@@ -51,7 +50,7 @@ class BusTag(metaclass=BusTags):
         if (callback, bus_id) in self.pub:
             self.pub.remove((callback, bus_id))
 
-    def update(self, data: bytes, time_us: int, from_bus: 'BusConnection'):
+    def update(self, data: bytes, time_us: int, from_bus: int):
         """Assign value and update subscribers."""
         self.value = data
         self.time_us = time_us
@@ -291,7 +290,7 @@ class BusServer:
                 self.bus_tag.value = f'\x03{client_addr}: {log_msg}'.encode()
                 self.bus_tag.time_us = int(time.time() * 1e6)
         else:  # consider disconnecting
-            logging.warn(f'invalid message {cmd}')
+            logging.warning(f'invalid message {cmd}')
 
     def read_callback(self, command):
         """Process read messages, delete broken connections."""

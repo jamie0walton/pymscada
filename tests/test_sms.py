@@ -2,6 +2,7 @@
 import asyncio
 from datetime import datetime
 import os
+import socket
 import pytest
 from pymscada.iodrivers.sms import SMS, RUT241
 from pymscada.tag import Tag
@@ -38,6 +39,13 @@ async def test_rut241_login(env):
 async def test_rut241_listen_sms(env):
     event = asyncio.Event()
     data = None
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(('', env['listen_port']))
+    except OSError:
+        pytest.skip('listen port in use')
+    finally:
+        sock.close()
 
     def callback(received_data):
         nonlocal data
@@ -59,6 +67,13 @@ async def test_rut241_listen_sms(env):
 async def test_sms_send_recv(env):
     event = asyncio.Event()
     data = None
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(('', env['listen_port']))
+    except OSError:
+        pytest.skip('listen port in use')
+    finally:
+        sock.close()
 
     def callback(tag: Tag):
         nonlocal data

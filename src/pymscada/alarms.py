@@ -117,6 +117,8 @@ class Alarm():
         self.tag.add_callback(self.callback)
         self.group = group
         self.state_cb = state_cb
+        self.timing_value = None
+        self.timing_us = None
         self.alarm = split_operator(alarm)
         self.in_alarm = False
         self.disabled_until = 0
@@ -143,9 +145,15 @@ class Alarm():
         if new_in_alarm:
             if self.alarm['for'] > 0:
                 self.state_cb(self, TIMING)
+                self.timing_us = tag.time_us
+                self.timing_value = value
             else:
                 self.state_cb(self, ALM)
         else:
+            if self.timing_us is not None:
+                if tag.time_us - self.timing_us >= self.alarm['for'] * 1000000:
+                    self.state_cb(self, ALM)
+            self.timing_us = None
             self.state_cb(self, RTN)
         self.in_alarm = new_in_alarm
 
@@ -220,17 +228,14 @@ class Alarms:
         self.connection = sqlite3.connect(db)
         self.table = table
         self.cursor = self.connection.cursor()
-        
-        # Check SQLite version for RETURNING clause support (requires >= 3.35.0)
         sqlite_version = sqlite3.sqlite_version_info
         self.has_returning = sqlite_version >= (3, 35, 0)
         if not self.has_returning:
             logging.warning(
-                f'SQLite version {sqlite3.sqlite_version} is older than 3.35.0. '
+                f'SQLite {sqlite3.sqlite_version} is older than 3.35.0. '
                 f'RETURNING clause not supported, using fallback method. '
                 f'Consider upgrading SQLite for better performance.'
             )
-        
         query = (
             'CREATE TABLE IF NOT EXISTS ' + self.table + ' '
             '(id INTEGER PRIMARY KEY ASC, '
@@ -242,7 +247,6 @@ class Alarms:
         )
         self.cursor.execute(query)
         self.connection.commit()
-        
         startup_record = {
             'action': 'ADD',
             'date_ms': int(time.time() * 1000),
@@ -278,6 +282,8 @@ class Alarms:
     def generate_alarm(self, alarm: Alarm, kind: int):
         """Generate alarm message."""
         value = alarm.tag.value
+        if alarm.timing_us is not None:
+            value = alarm.timing_value
         time_us = alarm.tag.time_us
         logging.warning(f'Alarm {alarm.alarm_id} {value} {KIND[kind]}')
         self.rta_cb({

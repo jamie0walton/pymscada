@@ -1,3 +1,3 @@
-- Check the actual tag behaviour of the Tag class
-- Only use RTA callbacks for tags for an RTA tag owner
-- Only use methods and properties that exist
+ALWAYS check for a .venv for running python.
+Check docs\tags.md as this includes key information.
+Tag callbacks must be synchronous, never async.

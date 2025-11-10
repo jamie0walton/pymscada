@@ -77,10 +77,6 @@ class BusClient:
         jsonstr = json.dumps(request).encode()
         size = len(jsonstr)
         data = struct.pack(f'>B{size}s', pc.TYPE.JSON, jsonstr)
-        action = request.get("action", "unknown")
-        tag_id = self.tag_by_name[tagname].id
-        logging.info(f'{self.module}: RTA sending {tagname} {action} to'
-                     f' tag_id {tag_id}')
         self.write(pc.COMMAND.RTA, self.tag_by_name[tagname].id, time_us, data)
 
     def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
@@ -221,9 +217,8 @@ class BusClient:
             data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
                                       )[0].decode()
             data = json.loads(data)
-            action = data.get("action", "unknown")
-            logging.info(f'{self.module}: RTA received {tag.name} {action} '
-                        f'from tag_id {tag_id}')
+            logging.info(f'{self.module}: RTA received {tag.name} {data} '
+                         f'from tag_id {tag_id}')
             try:
                 self.rta_handlers[tag.name](data)
             except KeyError:

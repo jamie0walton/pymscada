@@ -21,10 +21,10 @@ TYPES = {
 class UniqueTag(type):
     """Super Tag class only create unique tags for unique tag names."""
 
-    __cache = {}
+    __cache: dict[str, 'Tag'] = {}
     __notify = None
 
-    def __call__(cls, tagname: str, tagtype: type = None):
+    def __call__(cls, tagname: str, tagtype: type | None = None):
         """Each time a new tag is created, check if it is really new."""
         if tagname in cls.__cache:
             tag = cls.__cache[tagname]
@@ -33,8 +33,7 @@ class UniqueTag(type):
         else:
             if tagtype is None:
                 raise TypeError(f"{tagname} type is undefined.")
-            tag = cls.__new__(cls, tagname, tagtype)
-            tag.__init__(tagname, tagtype)
+            tag: Tag = super().__call__(tagname, tagtype)
             tag.id = None
             cls.__cache[tagname] = tag
             if cls.__notify is not None:
@@ -43,11 +42,11 @@ class UniqueTag(type):
 
     def tagnames(cls) -> list[str]:
         """Return all tagnames of class Tag."""
-        return cls.__cache.keys()
+        return cls.__cache.keys()  # type: ignore
 
-    def tags(cls) -> list:
+    def tags(cls) -> list['Tag']:
         """Return all tags of class Tag."""
-        return cls.__cache.values()
+        return cls.__cache.values()  # type: ignore
 
     def set_notify(cls, callback):
         """Set ONE routine to notify when new tags are added."""

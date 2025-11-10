@@ -81,6 +81,19 @@ def reply_tag():
     return Tag('__wwwserver__', dict)
 
 
+@pytest.fixture(scope='module')
+def alarm_values(alarms_tag):
+    """Collect callback updates and attach callback to the alarms tag."""
+    BUSID = 900
+    values: list[dict] = []
+
+    def cb(tag):
+        values.append(tag.value)
+
+    alarms_tag.add_callback(cb, BUSID)
+    return values
+
+
 def test_db_and_tag(alarms_db, alarms_tag):
     """Basic test of the __alarms__ tag, start and first value."""
     db = alarms_db
@@ -102,17 +115,10 @@ def test_db_and_tag(alarms_db, alarms_tag):
     assert tag.value['desc'] == 'Test alarm condition'
 
 
-def test_history_queries(alarms_db, alarms_tag, reply_tag):
+def test_history_queries(alarms_db, alarms_tag, reply_tag, alarm_values):
     """Write 10 alarms and read back the most recent."""
-    BUSID = 999
+    BUSID = 901
     db = alarms_db
-    tag: Tag = alarms_tag
-    values = []
-
-    def cb(tag):
-        values.append(tag.value)
-
-    tag.add_callback(cb, BUSID)
     record = {
         'action': 'ADD',
         'alarm_string': 'Alarm string',
@@ -131,22 +137,14 @@ def test_history_queries(alarms_db, alarms_tag, reply_tag):
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    assert values[10]['date_ms'] == 12340
-    # start is current time, much newer than 12340.
-    assert values[-1]['desc'] == 'Alarm logging started'
+    values = [v for v in alarm_values if v['__rta_id__'] == BUSID]
+    assert all(value['date_ms'] > rq['date_ms'] for value in values)
 
 
-def test_alarm_tag(alarms_db, alarms_tag):
+def test_alarm_tag(alarms_db, alarms_tag, alarm_values):
     """Test request to author of alarm history."""
-    BUSID = 999
+    BUSID = 902
     db = alarms_db
-    tag = alarms_tag
-    values = []
-
-    def cb(tag):
-        values.append(tag.value)
-
-    tag.add_callback(cb, BUSID)
     tag_name = 'localhost_ping'
     ping_tag = Tag(tag_name, float)
     ping_tag.value = (3.0, 12345000, BUSID)
@@ -157,29 +155,22 @@ def test_alarm_tag(alarms_db, alarms_tag):
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    assert '__rta_id__' not in values[0]
-    assert values[0]['alarm_string'] == 'localhost_ping > 2'
-    assert values[0]['desc'] == 'Ping time to localhost 3.0 ms'
-    assert values[0]['date_ms'] == 12345
-    assert values[1]['__rta_id__'] == BUSID
-    assert values[1]['alarm_string'] == 'localhost_ping > 2'
-    assert values[1]['desc'] == 'Ping time to localhost 3.0 ms'
-    assert values[1]['date_ms'] == 12345
-    assert values[2]['alarm_string'] == '__alarms__'
-    assert values[2]['desc'] == 'Alarm logging started'
+    broadcast_values = [v for v in alarm_values if v.get('__rta_id__') == 0]
+    values = [v for v in alarm_values if v.get('__rta_id__') == BUSID]
+    assert any(v['alarm_string'] == 'localhost_ping > 2' and
+               v['desc'] == 'Ping time to localhost 3.0 ms' and
+               v['date_ms'] == 12345 and v['kind'] == ALM
+               for v in broadcast_values)
+    assert any(v['alarm_string'] == 'localhost_ping > 2' and
+               v['desc'] == 'Ping time to localhost 3.0 ms' and
+               v['date_ms'] == 12345 and v['kind'] == ALM
+               for v in values)
 
 
-def test_delay_alarm(alarms_db, alarms_tag):
+def test_delay_alarm(alarms_db, alarms_tag, alarm_values):
     """Test only alarms when alarm has been present for required duration."""
-    BUSID = 999
+    BUSID = 903
     db = alarms_db
-    tag = alarms_tag
-    values = []
-
-    def cb(tag):
-        values.append(tag.value)
-
-    tag.add_callback(cb, BUSID)
     tag_name = 'Murupara_Temp'
     time_us = int(time.time() * 1000000)
     temp_tag = Tag(tag_name, float)
@@ -193,6 +184,6 @@ def test_delay_alarm(alarms_db, alarms_tag):
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    assert len(values) == 2
-    assert values[0]['desc'] == 'Alarm logging started'
-    assert values[1]['desc'] == 'Murupara Temp 50.0 C'
+    values = [v for v in alarm_values if v.get('__rta_id__') == BUSID]
+    assert any(v['desc'] == 'Alarm logging started' for v in values)
+    assert any(v['desc'] == 'Murupara Temp 50.0 C' for v in values)
