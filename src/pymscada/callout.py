@@ -108,7 +108,7 @@ class Callout:
         status_tag: str | None = None,
         callees: list = [],
         groups: dict = {},
-        escalation: list[dict] = []
+        escalation: dict = {}
     ) -> None:
         """
         Connect to bus_ip:bus_port, monitor alarms and manage callouts.
@@ -162,13 +162,19 @@ class Callout:
             self.status = None
         self.busclient = BusClient(bus_ip, bus_port, module='Callout')
         self.rta = Tag(rta_tag, dict)
-        self.rta.value = {'__rta_id__': 0,
-                          'callees': self.callees,
-                          'groups': self.groups,
-                          'escalation': self.escalation}
+        self.set_rta_value(rta_id=0)
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
-        self.busclient.add_tag(self.rta)
         self.periodic = Periodic(self.periodic_cb, 1.0)
+
+    def set_rta_value(self, rta_id: int):
+        """Publish the current configuration to the RTA tag."""
+        callees = [{'name': callee.name, 'sms': callee.sms, 'role': callee.role,
+                    'group': callee.group, 'delay_ms': callee.delay_ms}
+                    for callee in self.callees]
+        self.rta.value = {'__rta_id__': rta_id,
+                          'callees': callees,
+                          'groups': self.groups,
+                          'escalation': list(self.escalation.keys())}
 
     def alarms_cb(self, alm_tag):
         """Handle alarm messages from alarms.py."""
@@ -209,11 +215,7 @@ class Callout:
             logging.warning(f'rta_cb malformed {request}')
             return
         if request['action'] == 'GET CONFIG':
-            escalation = [list(d.keys())[0] for d in self.escalation]
-            self.rta.value = {'__rta_id__': request['__rta_id__'],
-                              'callees': self.callees,
-                              'groups': self.groups,
-                              'escalation': escalation}
+            self.set_rta_value(rta_id=request['__rta_id__'])
         elif request['action'] == 'MODIFY':
             for callee in self.callees:
                 if callee.name == request['name']:
@@ -222,15 +224,14 @@ class Callout:
                         return
                     role = request['role']
                     group = request['group']
-                    if role not in self.escalation or not group in self.groups:
+                    valid_role = role == '' or role in self.escalation
+                    valid_group = group == '' or group in self.groups
+                    if not valid_role or not valid_group:
                         logging.warning(f'rta_cb MODIFY invalid: {request}')
                         return
-                    callee.set_role(role, self.escalation[role])
+                    callee.set_role(role, self.escalation.get(role, 0))
                     callee.set_group(group)
-            self.rta.value = {'__rta_id__': 0,
-                              'callees': self.callees,
-                              'groups': self.groups,
-                              'escalation': self.escalation}
+            self.set_rta_value(rta_id=0)
 
     def check_callee_messages(self, callee, time_ms):
         if callee.role == '':
