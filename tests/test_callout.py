@@ -1,6 +1,6 @@
 '''Tests for callout components.'''
 import time
-from pymscada.callout import ALM, Callout, CalloutAlarm, CalloutCallee
+from pymscada.callout import ALM, Callout, CalloutAlarm, CalloutCallee, callee_in_group
 from pymscada.tag import Tag
 
 CALLEES = [
@@ -18,10 +18,10 @@ GROUPS = {
     }
 }
 
-ESCALATION = [
-    {'On Call': 60000},
-    {'Backup': 180000}
-]
+ESCALATION = {
+    'On Call': 60000,
+    'Backup': 180000
+}
 
 ALARMS = [
     {
@@ -50,7 +50,8 @@ ALARMS = [
 def test_callout_callee():
     '''CalloutCallee stores identity and configuration.'''
     callee = CalloutCallee(CALLEES[0])
-    callee.set_role('On Call', 60000)
+    callee.role = 'On Call'
+    callee.delay_ms = 60000
     assert callee.name == 'The Dude'
     assert callee.delay_ms == 60000
     assert callee.group == ''
@@ -64,10 +65,24 @@ def test_callout_alarm():
     callees = []
     for callee in CALLEES:
         callees.append(CalloutCallee(callee))
-    assert alarms[0].callee_in_group(callees[0], GROUPS)
-    assert alarms[0].callee_in_group(callees[1], GROUPS)
-    assert not alarms[0].callee_in_group(callees[2], GROUPS)
+    assert callee_in_group(alarms[0], callees[0], GROUPS)
+    assert callee_in_group(alarms[0], callees[1], GROUPS)
+    assert not callee_in_group(alarms[0], callees[2], GROUPS)
 
+
+def test_callee_in_group():
+    '''Check callee messages for notify and remind.'''
+    dude = CalloutCallee(CALLEES[0])
+    freddy = CalloutCallee(CALLEES[1])
+    south_0 = CalloutAlarm(ALARMS[0])
+    empty_1 = CalloutAlarm(ALARMS[1])
+    empty_2 = CalloutAlarm(ALARMS[2])
+    assert callee_in_group(south_0, dude, GROUPS)
+    assert callee_in_group(empty_1, dude, GROUPS)
+    assert callee_in_group(empty_2, dude, GROUPS)
+    assert callee_in_group(south_0, freddy, GROUPS)
+    assert not callee_in_group(empty_1, freddy, GROUPS)
+    assert not callee_in_group(empty_2, freddy, GROUPS)
 
 def test_callout():
     '''Callout sends SMS for assigned alarms.'''
@@ -114,8 +129,10 @@ def test_callout():
         groups=GROUPS,
         escalation=ESCALATION
     )
-    callout.callees[0].set_role('On Call', 60000)
-    callout.callees[1].set_role('Backup', 180000)
+    callout.callees[0].role = 'On Call'
+    callout.callees[0].delay_ms = 60000
+    callout.callees[1].role = 'Backup'
+    callout.callees[1].delay_ms = 180000
     for alarm in ALARMS:
         alarms_tag.value = alarm, 10000, BUSID
     callout.check_alarms()
@@ -124,8 +141,6 @@ def test_callout():
     for message in ['Lake Onslow Dam Phase Fail', 'Tower 1 Fault',
                     'Tower 2 Fault']:
         assert message in sms_sent[0]['alarms']
-        assert message in sms_sent[0]['reminders']
     assert sms_sent[1]['number'] == '+101'
     for message in ['Tower 1 Fault']:
         assert message in sms_sent[1]['alarms']
-        assert message in sms_sent[1]['reminders']

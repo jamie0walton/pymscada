@@ -208,8 +208,8 @@ class BusServer:
                     f"RTA KeyError {tag_id}".encode())
                 return
             try:
-                logging.info(f'RTA forwarding {tag.name} from_bus={tag.from_bus} '
-                            f'to bus_id={tag.from_bus}')
+                logging.info(f'RTA forwarding {tag.name} rta_bus={tag.from_bus} '
+                            f'bus_id={bus_id}')
                 self.connections[tag.from_bus].write(
                     pc.COMMAND.RTA, tag_id, tag.time_us, data)
             except KeyError:

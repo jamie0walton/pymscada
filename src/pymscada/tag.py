@@ -243,8 +243,8 @@ class Tag(metaclass=UniqueTag):
         self.__max = self.type(maximum)
 
     @property
-    def multi(self) -> int:
-        """Return the number order from the list."""
+    def multi(self) -> list[str] | None:
+        """Return the list of states."""
         return self.__multi
 
     @multi.setter

@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.2.6b8"
+version = "0.2.6b20"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
@@ -53,3 +53,13 @@ pymscada = "pymscada.__main__:cmd_line"
 
 [tool.pytest.ini_options]
 addopts = "-v -s"
+
+[tool.pyright]
+# typeCheckingMode = "off"
+# Difficult to find a sane subset of pyright options
+reportArgumentType = false
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportGeneralTypeIssues = false
+reportPossiblyUnboundVariable = false
+reportOperatorIssue = false

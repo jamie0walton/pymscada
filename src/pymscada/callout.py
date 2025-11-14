@@ -34,26 +34,35 @@ SENT = 0
 REMIND = 1
 
 
+def callee_in_group(alarm: 'CalloutAlarm', callee: 'CalloutCallee', groups: dict):
+    if callee.group == '':
+        return True
+    if callee.group not in groups:
+        return False
+    group = groups[callee.group]
+    if 'tagnames' in group:
+        for tagname in group['tagnames']:
+            if alarm.alarm_string.startswith(tagname):
+                return True
+    if 'groups' in group:
+        for subgroup in group['groups']:
+            if alarm.group == subgroup:
+                return True
+    return False
+
+
 class CalloutCallee:
     """Track status of callee for callout."""
 
     def __init__(self, callee: dict):
         if not isinstance(callee, dict) or 'name' not in callee or \
                 'sms' not in callee:
-            logging.warning(f'Callee malformed {callee}')
-            return
+            raise ValueError(f'Callee malformed {callee}')
         self.name = callee['name']
         self.sms = callee['sms']
         self.role = callee.get('role', '')
         self.group = callee.get('group', '')
         self.delay_ms = 0
-
-    def set_role(self, role: str, delay_ms: int):
-        self.role = role
-        self.delay_ms = delay_ms
-
-    def set_group(self, group: str):
-        self.group = group
 
 
 class CalloutAlarm:
@@ -65,32 +74,14 @@ class CalloutAlarm:
                 'alarm_string' not in alm_tag_value or \
                 'desc' not in alm_tag_value or \
                 'group' not in alm_tag_value or \
-                'kind' not in alm_tag_value or \
-                alm_tag_value['kind'] != ALM:
-            logging.warning(f'alarms_cb malformed {alm_tag_value}')
-            return
+                'kind' not in alm_tag_value:
+            raise ValueError(f'alarms_cb malformed {alm_tag_value}')
         self.date_ms = alm_tag_value['date_ms']
         self.alarm_string = alm_tag_value['alarm_string']
         self.desc = alm_tag_value['desc']
         self.group = alm_tag_value['group']
-        self.sent: set[CalloutCallee] = set()
-        self.remind: set[CalloutCallee] = set()
-
-    def callee_in_group(self, callee: CalloutCallee, groups: dict):
-        if callee.group == '':
-            return True
-        if callee.group not in groups:
-            return False
-        group = groups[callee.group]
-        if 'tagnames' in group:
-            for tagname in group['tagnames']:
-                if self.alarm_string.startswith(tagname):
-                    return True
-        if 'groups' in group:
-            for group in group['groups']:
-                if self.group in group:
-                    return True
-        return False
+        self.sent: list[str] = []
+        self.remind: list[str] = []
 
 
 class Callout:
@@ -142,6 +133,7 @@ class Callout:
 
         logging.warning(f'Callout {bus_ip} {bus_port} {rta_tag} '
                         f'{sms_send_tag} {sms_recv_tag}')
+        self.busclient = BusClient(bus_ip, bus_port, module='Callout')
         self.callees: list[CalloutCallee] = []
         for callee in callees:
             self.callees.append(CalloutCallee(callee))
@@ -160,7 +152,6 @@ class Callout:
             self.status = Tag(status_tag, int)
         else:
             self.status = None
-        self.busclient = BusClient(bus_ip, bus_port, module='Callout')
         self.rta = Tag(rta_tag, dict)
         self.set_rta_value(rta_id=0)
         self.busclient.add_callback_rta(rta_tag, self.rta_cb)
@@ -168,16 +159,23 @@ class Callout:
 
     def set_rta_value(self, rta_id: int):
         """Publish the current configuration to the RTA tag."""
-        callees = [{'name': callee.name, 'sms': callee.sms, 'role': callee.role,
-                    'group': callee.group, 'delay_ms': callee.delay_ms}
+        callees = [{'name': callee.name, 'sms': callee.sms,
+                    'role': callee.role, 'group': callee.group}
                     for callee in self.callees]
-        self.rta.value = {'__rta_id__': rta_id,
-                          'callees': callees,
-                          'groups': self.groups,
-                          'escalation': list(self.escalation.keys())}
+        escalation = list(self.escalation.keys())
+        value = {'__rta_id__': rta_id, 'callees': callees,
+                 'groups': self.groups, 'escalation': escalation}
+        logging.info(f'set_rta_value {rta_id} {value}')
+        self.rta.value = value
 
     def alarms_cb(self, alm_tag):
         """Handle alarm messages from alarms.py."""
+        if alm_tag.value['__rta_id__'] != 0:
+            logging.info(f'alarms_cb ignoring RTA!=0 for {alm_tag.name}')
+            return
+        logging.info(f'alarms_cb {alm_tag.value}')
+        if alm_tag.value['kind'] != ALM:
+            return
         alarm = CalloutAlarm(alm_tag.value)
         self.alarms.append(alarm)
         logging.info(f'Added alarm to list: {alarm}')
@@ -200,13 +198,20 @@ class Callout:
                 'message' not in sms_recv_tag.value:
             logging.warning(f'sms_recv_cb invalid {sms_recv_tag.value}')
             return
-        _number = sms_recv_tag.value['number']
+        number = sms_recv_tag.value['number']
+        name = [callee.name for callee in self.callees
+                if callee.sms == number][0]
         message = sms_recv_tag.value['message'][:2].upper()
-        if message in ['OK', 'AC', 'TH']:
-            self.alarms = []
+        if message in ['OK', 'AC', 'TH', 'YE']:
+            new_alarms = []
+            for alarm in self.alarms:
+                if name in alarm.sent:
+                    continue
+                new_alarms.append(alarm)
+            self.alarms = new_alarms
             if self.status is not None:
                 self.status.value = IDLE
-            logging.info('ACK: all alarms cleared')
+            logging.info(f'ACK: by {name} remaining alarms {len(new_alarms)}')
 
     def rta_cb(self, request):
         """Handle RTA requests for callout configuration."""
@@ -229,45 +234,44 @@ class Callout:
                     if not valid_role or not valid_group:
                         logging.warning(f'rta_cb MODIFY invalid: {request}')
                         return
-                    callee.set_role(role, self.escalation.get(role, 0))
-                    callee.set_group(group)
+                    callee.role = role
+                    callee.delay_ms = self.escalation.get(role, 0)
+                    callee.group = group
             self.set_rta_value(rta_id=0)
 
-    def check_callee_messages(self, callee, time_ms):
+    def check_callee_messages(self, callee: CalloutCallee, time_ms):
         if callee.role == '':
             return ''
-        callee_alarms = set()
+        callee_alarms: list[CalloutAlarm] = []
         for alarm in self.alarms:
-            if alarm.callee_in_group(callee, self.groups):
-                callee_alarms.add(alarm)
-        notify_message = ''
-        remind_message = ''
+            if callee_in_group(alarm, callee, self.groups):
+                callee_alarms.append(alarm)
+        notify = False
         notify_ms = time_ms - callee.delay_ms
-        remind_ms = notify_ms - 60000
-        notify = []
-        remind = []
+        remind = False
+        remind_ms = notify_ms - 120000
         for alarm in callee_alarms:
-            if not callee in alarm.sent and notify_ms > alarm.date_ms:
-                notify_message += f'{alarm.desc}\n'
-                alarm.sent.add(callee)
-            else:
-                notify.append(alarm)
-            if not callee in alarm.remind and remind_ms > alarm.date_ms:
-                remind_message += f'{alarm.desc}\n'
-                alarm.remind.add(callee)
-            else:
-                remind.append(alarm)
+            if callee.name not in alarm.sent:
+                if notify_ms > alarm.date_ms:
+                    notify = True
+            if callee.name not in alarm.remind:
+                if remind_ms > alarm.date_ms:
+                    remind = True
         message = ''
-        if notify_message != '':
-            message += f'ALARMS\n{notify_message}'
-            for alarm in notify:
-                message += f'{alarm.desc}\n'
-                alarm.sent.add(callee)
-        if remind_message != '':
-            message += f'REMINDERS\n{remind_message}'
-            for alarm in remind:
-                message += f'{alarm.desc}\n'
-                alarm.remind.add(callee)
+        if notify:
+            message += f'ALARMS {callee.role}'
+            for alarm in callee_alarms:
+                if callee.name in alarm.sent:
+                    continue
+                message += f'\n{alarm.desc}'
+                alarm.sent.append(callee.name)
+        elif remind:
+            message += f'REMINDERS {callee.role}'
+            for alarm in callee_alarms:
+                if callee.name in alarm.remind:
+                    continue
+                message += f'\n{alarm.desc}'
+                alarm.remind.append(callee.name)
         return message
 
     def check_alarms(self):
@@ -277,6 +281,7 @@ class Callout:
             message = self.check_callee_messages(callee, time_ms)
             if message == '':
                 continue
+            logging.info(f'Sending message to {callee.name}: {message}')
             self.sms_send_tag.value = {
                 'number': callee.sms,
                 'message': message

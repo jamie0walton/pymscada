@@ -12,7 +12,7 @@ from pymscada import Tag
 def test_create_tags():
     """Check some very basics."""
     try:
-        tag_0 = Tag('tag_0')
+        tag_0 = Tag('tag_0')  # type: ignore
         pytest.fail("TypeError type not declared.")
     except TypeError:
         assert True
