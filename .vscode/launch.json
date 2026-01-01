@@ -263,7 +263,17 @@
             "console":"integratedTerminal",
             "justMyCode":true
         },
-       {
+        {
+            "name":"picount",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/tools/get_pi_counts.py",
+            "args": ["2025-11-01", "2025-12-18"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name": "Python: Debug Tests",
             "type": "debugpy",
             "request": "launch",

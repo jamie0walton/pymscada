@@ -38,6 +38,8 @@ class UniqueTag(type):
             cls.__cache[tagname] = tag
             if cls.__notify is not None:
                 cls.__notify(tag)
+            else:
+                logging.warning(f'added {tagname} without bus is deprecated.')
         return tag
 
     def tagnames(cls) -> list[str]:
@@ -145,7 +147,7 @@ class Tag(metaclass=UniqueTag):
         return self.__value
 
     @value.setter
-    def value(self, value) -> None:
+    def value(self, value):
         """Set value, filter and store history. Won't force type."""
         if self.in_pub is not None:
             logging.critical(f"{self.name} attempt to set while __in_pub")
@@ -186,7 +188,10 @@ class Tag(metaclass=UniqueTag):
                 # only publish for > deadband change
                 for self.in_pub, bus_id in self.pub.items():
                     if from_bus != bus_id:
-                        self.in_pub(self)
+                        try:  # this causes pc.SUB pc.SET errors if missing
+                            self.in_pub(self)
+                        except Exception as e:
+                            logging.warning(f'tag publish exception {e}')
                 self.in_pub = None
         else:
             raise TypeError(f"{self.name} won't force {type(value)} "

@@ -24,7 +24,7 @@ def test_create_tags():
     except TypeError:
         assert True
     tag_1 = Tag('tag_1', float)
-    tag_2 = Tag('tag_1')  # returns same object
+    tag_2 = Tag('tag_1', float)  # returns same object
     assert tag_0.desc == ''
     assert tag_0.type == str
     assert tag_2.type == float
@@ -229,3 +229,30 @@ def test_history():
     a_value = h1.get(get_us)
     assert a_value in [50, 51]  # Sometimes time is too fast
     assert len(h1.values) == 100
+
+
+def test_deprecated_notify(caplog):
+    """Hi."""
+    new_tags = []
+
+    def callback(tag: Tag):
+        new_tags.append(tag)
+
+    Tag.del_notify()
+    warning_caught = False
+    exception_caught = False
+    try:
+        with caplog.at_level("WARNING"):
+            d1 = Tag('d1', str)
+            for record in caplog.records:
+                if record.msg == 'added d1 without bus is deprecated.':
+                    warning_caught = True
+                    break
+    except Exception:
+        exception_caught = True
+    assert warning_caught or exception_caught
+    Tag.set_notify(callback)
+    d2 = Tag('d2', str)
+    d1.value = 'A'
+    d2.value = 'B'
+    Tag.del_notify()

@@ -25,6 +25,8 @@ def rta_handler(tag: Tag):
 
 async def main(port):
     """Set up maps."""
+    client = BusClient(port=port, module="Bus Echo")
+    await client.start()
     tag = Tag('__bus_echo__', str)
     tag.value = 'started'
     tag1 = Tag('one', str)
@@ -39,9 +41,9 @@ async def main(port):
     tagspo = Tag('spipeout', str)
     tagspi = Tag('spipein', str)
     tagspo.add_callback(partial(callback, tagspi))
-    client = BusClient(port=port)
+#    client = BusClient(port=port, module="Bus Echo")
     client.add_callback_rta(tag.name, rta_handler(tag))
-    await client.start()
+#    await client.start()
     await asyncio.get_event_loop().create_future()
 
 if __name__ == '__main__':

@@ -184,7 +184,7 @@ class Console:
         # all to add '\r\n' to the logging output
         logger = logging.getLogger()
         handler = CustomHandler()
-        handler.setFormatter(logging.Formatter('%(levelname)s:console: '
+        handler.setFormatter(logging.Formatter('%(levelname)s console '
                                                '%(message)s'))
         logger.handlers.clear()
         logger.addHandler(handler)

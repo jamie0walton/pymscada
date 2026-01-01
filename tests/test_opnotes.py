@@ -55,7 +55,7 @@ def test_db_and_tag(opnotes_db, opnotes_tag):
 
 def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
     """Bigger queries."""
-    BUSID = 999
+    BUS_ID = 999
     db = opnotes_db
     o_tag: Tag = opnotes_tag
     o_values = []
@@ -63,7 +63,7 @@ def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
     def o_cb(tag):
         o_values.append(tag.value)
 
-    o_tag.add_callback(o_cb, BUSID)
+    o_tag.add_callback(o_cb, BUS_ID)
     record = {'action': 'ADD',
               'date_ms': 12345,
               'site': 'Site',
@@ -74,7 +74,7 @@ def test_history_queries(opnotes_db, opnotes_tag, reply_tag):
         record['date_ms'] -= 1
         db.rta_cb(record)  # id 1-10
     assert o_values[9]['id'] == 10
-    rq = {'__rta_id__': BUSID,
+    rq = {'__rta_id__': BUS_ID,
           'action': 'HISTORY',
           'date_ms': 12345 - 5.1,
           'reply_tag': '__wwwserver__'}

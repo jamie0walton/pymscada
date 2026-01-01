@@ -7,6 +7,8 @@ import logging
 from pymscada.tag import Tag
 import pymscada.protocol_constants as pc
 
+PROTOCOL_VERSION = 1
+
 
 class BusClient:
     """
@@ -28,7 +30,7 @@ class BusClient:
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
-        self.rta_handlers: dict[str, object] = {}
+        self.rta_handlers: dict[str, callable] = {}
         self.pending = {}
 
     def publish(self, tag: Tag):
@@ -39,7 +41,7 @@ class BusClient:
         source.
         """
         if tag.id is None:
-            logging.warning(f'queued {tag.name} {tag.value}')
+            logging.warning(f'queued id request {tag.name} = {tag.value}')
             self.to_publish[tag.name] = tag
             return
         if tag.type is float:
@@ -53,8 +55,9 @@ class BusClient:
             except struct.error as e:
                 logging.error(f'bus_client {tag.name} {e}')
         elif tag.type is str:
-            size = len(tag.value)
-            data = struct.pack(f'!B{size}s', pc.TYPE.STR, tag.value.encode())
+            tag_value: str = tag.value  # type: ignore
+            size = len(tag_value)
+            data = struct.pack(f'!B{size}s', pc.TYPE.STR, tag_value.encode())
         elif tag.type in [list, dict]:
             jsonstr = json.dumps(tag.value).encode()
             size = len(jsonstr)
@@ -93,16 +96,15 @@ class BusClient:
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
-            msg = struct.pack(f">BBHHQ{size}s", 1, command, tag_id, size,
-                              time_us, snip)
+            msg = struct.pack(f">BBHHQ{size}s", PROTOCOL_VERSION, command,
+                              tag_id, size, time_us, snip)
             try:
                 self.writer.write(msg)
-            except (asyncio.IncompleteReadError, ConnectionResetError):
-                self.read_task.cancel()
-            except AttributeError:
-                logging.warning(f'{self.module}: write AttributeError '
-                                f'cmd={command} '
+            except Exception as e:
+                logging.warning(f'{self.module}: write {e}  cmd={command} '
                                 f'tag_id={tag_id} size={size}')
+                # self.read_task.cancel()
+
 
     def add_tag(self, tag: Tag):
         """Add the new tag and get the tag's bus ID."""
@@ -137,18 +139,24 @@ class BusClient:
         while True:
             try:
                 head = await self.reader.readexactly(14)
-                _, cmd, tag_id, size, time_us = struct.unpack('>BBHHQ', head)
-            except (ConnectionResetError, asyncio.IncompleteReadError,
-                    asyncio.CancelledError):
+            except (ConnectionResetError, asyncio.CancelledError,
+                    asyncio.IncompleteReadError) as e:
+                logging.warning(f'connection lost {e}')
                 break
+            version, cmd, tag_id, size, time_us = struct.unpack('>BBHHQ', head)
+            if version != PROTOCOL_VERSION:
+                logging.critical(f'bad version or misaligned {head.decode()}')
+                raise SystemExit('Protocol Error')
             if size == 0:
                 self.process(cmd, tag_id, time_us, None)
                 continue
             try:
                 payload = await self.reader.readexactly(size)
-                data = struct.unpack(f'>{size}s', payload)[0]
-            except (ConnectionResetError, asyncio.IncompleteReadError):
+            except (ConnectionResetError, asyncio.CancelledError,
+                    asyncio.IncompleteReadError) as e:
+                logging.warning(f'connection lost {e}')
                 break
+            data = struct.unpack(f'>{size}s', payload)[0]
             # if MAX_LEN then a continuation packet is required
             if size == pc.MAX_LEN:
                 try:
@@ -175,7 +183,7 @@ class BusClient:
             self.tag_by_id[tag_id] = tag
             self.write(pc.COMMAND.SUB, tag.id, 0, b'')
             if tag.name in self.tag_by_name:
-                self.tag_by_id[tag.id] = tag
+                self.tag_by_id[tag_id] = tag
             if tag.name in self.to_publish:
                 self.publish(tag)
                 del self.to_publish[tag.name]
@@ -229,6 +237,8 @@ class BusClient:
     async def shutdown(self):
         """Shutdown starts with closing the writer."""
         self.writer.close()
+        if self.read_task:
+            self.read_task.cancel()
         await self.writer.wait_closed()
 
     async def start(self):

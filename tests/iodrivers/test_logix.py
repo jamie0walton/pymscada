@@ -1,10 +1,11 @@
 """Just test connections to a real PLC."""
 import asyncio
+import os
 import pytest
 from time import time
 from pymscada import Tag, LogixClient
 
-# You will require a Logix PLC at 172.26.7.196 with REAL and DINT
+# You will require a Logix PLC at MSCADA_LOGIX_IP with REAL and DINT
 # tags and arrays to match. The PLC must also write anything it
 # receives on IN to the matching OUT value.
 
@@ -14,7 +15,7 @@ CLIENT = {
     'rtus': [
         {
             'name': 'Ani',
-            'ip': '172.26.7.196',
+            'ip': None,
             'rate': '0.2',
             'poll': [
                 {'addr': 'Fout', 'type': 'REAL[]', 'start': 0, 'end': 99},
@@ -63,8 +64,11 @@ def tag_callback(tag: Tag):
 @pytest.mark.asyncio
 async def test_connect():
     """Test Logix."""
+    ip = os.getenv('MSCADA_LOGIX_IP')
+    if not ip:
+        pytest.skip("MSCADA_LOGIX_IP environment variable not set")
+    CLIENT['rtus'][0]['ip'] = ip
     # Check if PLC is reachable
-    ip = CLIENT['rtus'][0]['ip']
     try:
         proc = await asyncio.create_subprocess_exec(
             'ping', '-c', '1', '-W', '1', ip,

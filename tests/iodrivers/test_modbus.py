@@ -154,7 +154,7 @@ async def test_modbus_tcp():
         tags[tag1] = Tag(tag1, tagtype)
         tags[tag2] = Tag(tag2, tagtype)
         tags[tag1].value = set
-    await asyncio.sleep(0.01)
+    await asyncio.sleep(0.05)
     for tagtype, _, tag2, set, _ in MODBUS_TEST:
         if tagtype is int:
             assert tags[tag2].value == set

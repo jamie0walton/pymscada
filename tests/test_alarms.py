@@ -84,13 +84,13 @@ def reply_tag():
 @pytest.fixture(scope='module')
 def alarm_values(alarms_tag):
     """Collect callback updates and attach callback to the alarms tag."""
-    BUSID = 900
+    BUS_ID = 900
     values: list[dict] = []
 
     def cb(tag):
         values.append(tag.value)
 
-    alarms_tag.add_callback(cb, BUSID)
+    alarms_tag.add_callback(cb, BUS_ID)
     return values
 
 
@@ -117,7 +117,7 @@ def test_db_and_tag(alarms_db, alarms_tag):
 
 def test_history_queries(alarms_db, alarms_tag, reply_tag, alarm_values):
     """Write 10 alarms and read back the most recent."""
-    BUSID = 901
+    BUS_ID = 901
     db = alarms_db
     record = {
         'action': 'ADD',
@@ -131,32 +131,32 @@ def test_history_queries(alarms_db, alarms_tag, reply_tag, alarm_values):
         record['date_ms'] -= 1
         db.rta_cb(record)
     rq = {
-        '__rta_id__': BUSID,
+        '__rta_id__': BUS_ID,
         'action': 'HISTORY',
         'date_ms': 12345 - 5.1, # very old time.
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    values = [v for v in alarm_values if v['__rta_id__'] == BUSID]
+    values = [v for v in alarm_values if v['__rta_id__'] == BUS_ID]
     assert all(value['date_ms'] > rq['date_ms'] for value in values)
 
 
 def test_alarm_tag(alarms_db, alarms_tag, alarm_values):
     """Test request to author of alarm history."""
-    BUSID = 902
+    BUS_ID = 902
     db = alarms_db
     tag_name = 'localhost_ping'
     ping_tag = Tag(tag_name, float)
-    ping_tag.value = (3.0, 12345000, BUSID)
+    ping_tag.value = (3.0, 12345000, BUS_ID)
     rq = {
-        '__rta_id__': BUSID,
+        '__rta_id__': BUS_ID,
         'action': 'HISTORY',
         'date_ms': 10000,
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
     broadcast_values = [v for v in alarm_values if v.get('__rta_id__') == 0]
-    values = [v for v in alarm_values if v.get('__rta_id__') == BUSID]
+    values = [v for v in alarm_values if v.get('__rta_id__') == BUS_ID]
     assert any(v['alarm_string'] == 'localhost_ping > 2' and
                v['desc'] == 'Ping time to localhost 3.0 ms' and
                v['date_ms'] == 12345 and v['kind'] == ALM
@@ -169,21 +169,21 @@ def test_alarm_tag(alarms_db, alarms_tag, alarm_values):
 
 def test_delay_alarm(alarms_db, alarms_tag, alarm_values):
     """Test only alarms when alarm has been present for required duration."""
-    BUSID = 903
+    BUS_ID = 903
     db = alarms_db
     tag_name = 'Murupara_Temp'
     time_us = int(time.time() * 1000000)
     temp_tag = Tag(tag_name, float)
-    temp_tag.value = (50.0, time_us - 60000000, BUSID)
-    temp_tag.value = (0.0, time_us - 1000000, BUSID)
-    temp_tag.value = (200.0, time_us, BUSID)
+    temp_tag.value = (50.0, time_us - 60000000, BUS_ID)
+    temp_tag.value = (0.0, time_us - 1000000, BUS_ID)
+    temp_tag.value = (200.0, time_us, BUS_ID)
     rq = {
-        '__rta_id__': BUSID,
+        '__rta_id__': BUS_ID,
         'action': 'HISTORY',
         'date_ms': 10000,
         'reply_tag': '__wwwserver__'
     }
     db.rta_cb(rq)
-    values = [v for v in alarm_values if v.get('__rta_id__') == BUSID]
+    values = [v for v in alarm_values if v.get('__rta_id__') == BUS_ID]
     assert any(v['desc'] == 'Alarm logging started' for v in values)
     assert any(v['desc'] == 'Murupara Temp 50.0 C' for v in values)

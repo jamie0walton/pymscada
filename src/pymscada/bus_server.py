@@ -6,6 +6,8 @@ import logging
 import socket
 import pymscada.protocol_constants as pc
 
+PROTOCOL_VERSION = 1
+
 
 class BusTags(type):
     """Enforce unique name and ID."""
@@ -23,6 +25,7 @@ class BusTags(type):
         cls._next_id += 1
         cls._tag_by_name[tagname] = tag
         cls._tag_by_id[tag.id] = tag
+        logging.warning(f'assigned {tag.id} to {tagname}')
         return tag
 
 
@@ -90,15 +93,15 @@ class BusConnection():
         """Write a message."""
         if data is None:
             data = b''
-        logging.info(f'write {command.text} {tag_id}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
             size = len(snip)
-            msg = pack(f"!BBHHQ{size}s", 1, command, tag_id, size, time_us,
-                       snip)
+            msg = pack(f"!BBHHQ{size}s", PROTOCOL_VERSION, command, tag_id,
+                       size, time_us, snip)
             try:
                 self.writer.write(msg)
-            except (asyncio.IncompleteReadError, ConnectionResetError):
+            except (asyncio.IncompleteReadError, ConnectionResetError) as e:
+                logging.warning(f'write {BusTags._tag_by_id[tag_id]} {e}')
                 self.read_task.cancel()
 
     async def read(self):
@@ -108,22 +111,25 @@ class BusConnection():
             # start with the command packet, _always_ 14 bytes
             try:
                 head = await self.reader.readexactly(14)
-                _, cmd, tag_id, size, time_us = unpack('!BBHHQ', head)
             except (ConnectionResetError, asyncio.IncompleteReadError,
                     asyncio.CancelledError) as e:
                 logging.warning(f'{self.addr} read error: {e}')
                 break
+            version, cmd, tag_id, size, time_us = unpack('!BBHHQ', head)
+            if version != PROTOCOL_VERSION:
+                logging.critical(f'bad version or misaligned {head.decode()}')
+                raise SystemExit('Protocol Error')
             # if the command packet indicates data, get that too
             if size == 0:
                 self.read_callback((bus_id, cmd, tag_id, time_us, None))
                 continue
             try:
                 payload = await self.reader.readexactly(size)
-                data = unpack(f'!{size}s', payload)[0]
             except (ConnectionResetError, asyncio.IncompleteReadError,
                     asyncio.CancelledError) as e:
                 logging.warning(f'{self.addr} read payload error: {e}')
                 break
+            data = unpack(f'!{size}s', payload)[0]
             # if MAX_LEN then a continuation packet is required
             if size == pc.MAX_LEN:
                 try:

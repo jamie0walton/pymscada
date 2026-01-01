@@ -69,7 +69,7 @@ class Config(dict):
                 logging.warning(f'using demo config file {fp}')
             except FileNotFoundError:
                 raise SystemExit(f'config {filename} missing')
-        with open(fp, 'r') as fh:
+        with open(fp) as fh:
             try:
                 for data in safe_load_all(fh):
                     if '__vars__' in data:

@@ -7,6 +7,18 @@ from importlib.metadata import version
 from pymscada.module_config import ModuleFactory
 
 
+class LoggingFilter(logging.Filter):
+    """Filter for logging to add the module name to the logging."""
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.pymscada_name = name
+
+    def filter(self, record):
+        record.name = f'{self.pymscada_name} {record.name}'
+        return True
+
+
 def args():
     """Read commandline arguments."""
     parser = argparse.ArgumentParser(
@@ -27,17 +39,20 @@ async def run():
     if not options.module_name:
         print("Error: Please specify a module to run")
         sys.exit(1)
-    root_logger = logging.getLogger()
+    asynclogger = logging.getLogger('asyncio')
+    asynclogger.addFilter(LoggingFilter(options.module_name))
+    logger = logging.getLogger()
     handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(levelname)s:pymscada: %(message)s')
+    formatter = logging.Formatter(
+        f'%(levelname)s {options.module_name} %(message)s')
     handler.setFormatter(formatter)
-    root_logger.handlers.clear()  # Remove any existing handlers
-    root_logger.addHandler(handler)
-    root_logger.setLevel(logging.INFO)
+    logger.handlers.clear()  # Remove any existing handlers
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
     logging.info(f'Python Mobile SCADA {version("pymscada")} starting '
                  f'{options.module_name}')
     if not options.verbose:
-        root_logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.WARNING)
     factory = ModuleFactory()
     module = factory.create_module(options)
     if module is not None:

@@ -25,6 +25,7 @@ ESCALATION = {
 
 ALARMS = [
     {
+        '__rta_id__': 0,    
         'date_ms': 5000,
         'alarm_string': 'MtT1Fa == 1 for 3',
         'desc': 'Tower 1 Fault',
@@ -32,6 +33,7 @@ ALARMS = [
         'kind': ALM
     },
     {
+        '__rta_id__': 0,    
         'date_ms': 5000,
         'alarm_string': 'MtT2Fa == 1 for 3',
         'desc': 'Tower 2 Fault',
@@ -39,6 +41,7 @@ ALARMS = [
         'kind': ALM
     },
     {
+        '__rta_id__': 0,    
         'date_ms': 5000,
         'alarm_string': 'OnDmDIPhFa == 1',
         'desc': 'Lake Onslow Dam Phase Fail',
@@ -86,7 +89,7 @@ def test_callee_in_group():
 
 def test_callout():
     '''Callout sends SMS for assigned alarms.'''
-    BUSID = 999
+    BUS_ID = 999
     alarms_tag = Tag('alarm_tag', dict)
     sms_send_tag = Tag('send_tag', dict)
     sms_recv_tag = Tag('recv_tag', dict)
@@ -119,7 +122,7 @@ def test_callout():
                          'alarms': alarms,
                          'reminders': reminders})
 
-    sms_send_tag.add_callback(cb, BUSID)
+    sms_send_tag.add_callback(cb, BUS_ID)
     callout = Callout(
         bus_ip=None,
         alarms_tag=alarms_tag.name,
@@ -134,7 +137,7 @@ def test_callout():
     callout.callees[1].role = 'Backup'
     callout.callees[1].delay_ms = 180000
     for alarm in ALARMS:
-        alarms_tag.value = alarm, 10000, BUSID
+        alarms_tag.value = alarm, 10000, BUS_ID
     callout.check_alarms()
     assert len(sms_sent) == 2  # +102 never gets an alarm
     assert sms_sent[0]['number'] == '+100'

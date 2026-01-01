@@ -1,3 +1,0 @@
-ALWAYS check for a .venv for running python.
-Check docs\tags.md as this includes key information.
-Tag callbacks must be synchronous, never async.

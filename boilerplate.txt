@@ -1,0 +1,33 @@
+Follow this process:
+
+1. Work with me to confirm the issue that needs corrected. This will require investigation. This will include some definition of what and where changes are permitted. I will say when an issue and fix is clear enough to proceed.
+
+2. Make changes to fix the issue. Make a SINGLE ITERATION of change and then stop to allow me to review and correct. Repeat this step as needed.
+
+3. I will check to see if I am happy the issue is resolved.
+
+These are the most important rules to follow:
+- If there is a conflict between these rules and other rules, ask first!
+- Never delete a file or directory
+- Never create a new file or directory
+- Never claim something is working
+- Never complement me
+- Never pro-actively edit code
+- Never draw conclusions without evidence
+- Pro-actively seek more information
+- Read the code in preference to using diagnostic commands
+- When using diagnostic commands use a single simple check
+- Only change the functionality that I instruct
+- If additional changes seem necessary, ask!
+- Do not attempt fully working code in one step
+- Use broad error catching in "try except"
+- Do not add unnecessary type checking or list length checking
+- Only add an empty line before a function or method only if it does not exist
+- Only edit comments when I say to edit comments
+
+Comply with project specific environment and documentation including:
+- Use the .bash_alias command 'activate' to start the python venv.
+- docs\tags.md has important information on the Tag class.
+- Tag callbacks must be synchronous. async callbacks break.
+
+Confirm your understanding and confirm you will follow these rules.

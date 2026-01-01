@@ -191,12 +191,13 @@ READ_TESTS = [
 
 def test_read_rta_cb(t0: TagHistory):
     """Test the RTA request data."""
+    BUS_ID = 999
     history = History(path='tests/test_assets',
                       tag_info={'hist_tag_0': {'type': 'int'}})
     history_tag = Tag('__history__', bytes)
     hist_tag_0 = Tag('hist_tag_0', int)
     for time_us, value in zip(TIMES[50:], VALUES[50:]):
-        hist_tag_0.value = value, time_us, 999
+        hist_tag_0.value = value, time_us, BUS_ID
     history_tag.id = 1  # no bus running in test so force this
     hist_tag_0.id = 2
     assert history_tag.value == b'\x00\x00\x00\x00\x00\x00'
@@ -219,7 +220,7 @@ def test_read_rta_cb(t0: TagHistory):
             result['dat'].append(unpack_from('!Qq', results, offset=offset))
         return result
 
-    history_tag.add_callback(history_cb, 999)  # fake non-local bus
+    history_tag.add_callback(history_cb, BUS_ID)  # fake non-local bus
     """Read in middle of range crossing two files."""
     for test, resp in READ_TESTS:
         history.rta_cb(test)

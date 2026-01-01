@@ -65,6 +65,7 @@ async def test_rut241_listen_sms(env):
 
 @pytest.mark.asyncio
 async def test_sms_send_recv(env):
+    BUS_ID = 999
     event = asyncio.Event()
     data = None
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,7 +83,7 @@ async def test_sms_send_recv(env):
 
     send = Tag('send', dict)
     recv = Tag('recv', dict)
-    recv.add_callback(callback, bus_id=999)
+    recv.add_callback(callback, BUS_ID)
     sms = SMS(bus_ip=None, bus_port=None,
               sms_send_tag='send',
               sms_recv_tag='recv',
@@ -93,7 +94,7 @@ async def test_sms_send_recv(env):
     send.value = ({
         'number': env['phone'],
         'message': f'Hi {datetime.now().strftime("%H:%M:%S")}'
-    }, 1234, 999)
+    }, 1234, BUS_ID)
     await event.wait()
     assert data is not None
     assert data['number'] == env['phone']

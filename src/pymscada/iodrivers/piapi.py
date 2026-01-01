@@ -10,6 +10,25 @@ from pymscada.bus_client import BusClient
 from pymscada.periodic import Periodic
 from pymscada.tag import Tag
 
+
+class PIPoint:
+    """PI Point."""
+
+    def __init__(self, tagname: str, web_id: str):
+        self.tagname = tagname
+        self.web_id = web_id
+        self.pointid = None
+        self.count = None
+        self.compdev = None
+        self.compmax = None
+        self.excdev = None
+        self.excmax = None
+        self.engunits = None
+        self.descriptor = None
+        self.zero = None
+        self.span = None
+
+
 class PIWebAPIClient:
     """Get tag data from OSI PI WebAPI."""
 
@@ -49,9 +68,11 @@ class PIWebAPIClient:
             self.busclient = BusClient(bus_ip, bus_port, module='PIWebAPI')
         self.proxy = proxy
         self.base_url = api['url'].rstrip('/')
-        self.webid = api['webid']
+        self.web_id = api['webid']
+        self.points_id = api.get('points_id', None)
         self.averaging = api.get('averaging', 300)
         self.tags = {}
+        self.points: dict[str, PIPoint] = {}
         self.pitag_map = {}
         self.scale = {}
         for tagname, config in tags.items():
@@ -99,19 +120,70 @@ class PIWebAPIClient:
         time = now - (now % self.averaging)
         start_time = datetime.fromtimestamp(time - self.averaging * 12).isoformat()
         end_time = datetime.fromtimestamp(time).isoformat()
-        url = f"{self.base_url}/piwebapi/streamsets/{self.webid}/summary?" \
+        url = f"{self.base_url}/piwebapi/streamsets/{self.web_id}/summary?" \
             f"startTime={start_time}&endTime={end_time}" \
             "&summaryType=Average&calculationBasis=TimeWeighted" \
             f"&summaryDuration={self.averaging}s"
         async with self.session.get(url) as response:
             return await response.json()
 
+
+    def set_session(self):
+        """Get or create a session."""
+        if self.session is None:
+            connector = aiohttp.TCPConnector(ssl=False)
+            self.session = aiohttp.ClientSession(connector=connector)
+
+
+    async def get_pi_points_ids(self):
+        """Get PI points IDs from PI WebAPI."""
+        self.set_session()
+        url = f"{self.base_url}/piwebapi/dataservers/{self.points_id}/points"
+        async with self.session.get(url) as response:
+            json_data = await response.json()
+        self.points = {}
+        for data in json_data['Items']:
+            point = PIPoint(data['Name'], data['WebId'])
+            self.points[data['Name']] = point
+
+
+    async def get_pi_points_attributes(self):
+        """Get PI point data from PI WebAPI."""
+        self.set_session()
+        for tagname in self.points:
+            point = self.points[tagname]
+            url = f"{self.base_url}/piwebapi/points/{point.web_id}/attributes"
+            async with self.session.get(url) as response:
+                json_data = await response.json()
+                # Parse Items array where each item has Name and Value
+                attributes = {item['Name']: item['Value'] for item in json_data.get('Items', [])}
+                point.compdev = attributes.get('CompDev')
+                point.compmax = attributes.get('CompMax')
+                point.excdev = attributes.get('ExcDev')
+                point.excmax = attributes.get('ExcMax')
+                point.engunits = attributes.get('EngUnits')
+                point.descriptor = attributes.get('Descriptor')
+
+
+    async def get_pi_points_count(self, now: int):
+        """Get PI point data from PI WebAPI."""
+        self.set_session()
+        start_time = datetime.fromtimestamp(now - 86400).isoformat()
+        end_time = datetime.fromtimestamp(now).isoformat()
+        for tagname in self.points:
+            point = self.points[tagname]
+            url = f"{self.base_url}/piwebapi/streams/{point.web_id}/summary?" \
+                f"startTime={start_time}&endTime={end_time}" \
+                "&summaryType=Count&calculationBasis=EventWeighted"
+            async with self.session.get(url) as r2:
+                json_data = await r2.json()
+                point.count = json_data['Items'][0]['Value']['Value']
+
+
     async def fetch_data(self, now):
         """Fetch values from PI Web API."""
+        self.set_session()
         try:
-            if self.session is None:
-                connector = aiohttp.TCPConnector(ssl=False)
-                self.session = aiohttp.ClientSession(connector=connector)
             json_data = await self.get_pi_data(now)
             if json_data:
                 await self.queue.put(json_data)

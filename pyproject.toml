@@ -9,7 +9,6 @@ dependencies = [
     "PyYAML>=6.0.1",          # all
     "aiohttp>=3.8.5",         # www_server
     "pymscada-html>=0.2.6b0",   # www_server
-    "cerberus>=1.3.5",        # validate
     "pycomm3>=1.2.14",        # logix_client
     "pysnmplib>=5.0.24",      # DON'T use pysnmp, dead
 ]

@@ -131,7 +131,7 @@ class TagHistory():
         self.chunk: bytearray = bytearray(CHUNK_SIZE)
         self.chunk_idx: int = 0
         self.chunks: int = 0
-        self.file: Path = None
+        self.file = self.path.joinpath(f'{self.name}_NULL_.dat')
 
     def read_bytes(self, start_us: int = 0, end_us: int = -1):
         """Read in partial store on start-up, or read-in older data."""
@@ -276,28 +276,30 @@ class History():
 
     def rta_cb(self, request: Request):
         """Respond to bus requests for data to publish on rta."""
+        rta_id = request.get('__rta_id__', 0)
+        tagname = request.get('tagname', '')
+        if tagname not in self.hist_tags:
+            logging.warning(f'rta_cb hist_tags has no {tagname}')
+            return
+        start_us = request.get('start_us', 0) or 0
+        end_us = request.get('end_us', 0) or 0
         if 'start_ms' in request:
-            request['start_us'] = request['start_ms'] * 1000
-            request['end_us'] = request['end_ms'] * 1000
-        rta_id = request['__rta_id__']
-        tagname = request['tagname']
-        start_time = time.asctime(time.localtime(
-            request['start_us'] / 1000000))
-        end_time = time.asctime(time.localtime(
-            request['end_us'] / 1000000))
+            start_us = (request.get('start_ms', 0) or 0) * 1000
+            end_us = (request.get('end_ms', 0) or 0) * 1000
+        start_time = time.asctime(time.localtime(start_us / 1000000))
+        end_time = time.asctime(time.localtime(end_us / 1000000))
         logging.info(f"RTA {tagname} {start_time} {end_time}")
         try:
-            data = self.hist_tags[request['tagname']].read_bytes(
-                request['start_us'], request['end_us'])
-            tagid = self.tags[request['tagname']].id
-            tagtype = self.tags[request['tagname']].type
+            data = self.hist_tags[tagname].read_bytes(start_us, end_us)
+            tagid = self.tags[tagname].id
+            tagtype = self.tags[tagname].type
             packtype = 0
             if tagtype == int:
                 packtype = 1
             elif tagtype == float:
                 packtype = 2
             self.rta.value = pack('>HHH', rta_id, tagid, packtype) + data
-            logging.info(f'sent {len(data)} bytes for {request["tagname"]}')
+            logging.info(f'sent {len(data)} bytes for {tagname}')
             self.rta.value = b'\x00\x00\x00\x00\x00\x00'  # rta_id is 0
         except Exception as e:
             logging.error(f'history rta_cb {e}')

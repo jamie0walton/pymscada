@@ -56,7 +56,6 @@ async def bus_server():
     server_port = server.sockets[0].getsockname()[1]
 
 
-@pytest.mark.asyncio
 @pytest_asyncio.fixture(scope='module')
 async def bus_echo(bus_server):
     """Run an echo client for testing."""
@@ -90,7 +89,7 @@ PROTOCOL_TESTS = [
 ]
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_protocol_message(bus_server):
     """Connect to the server and test the protocol."""
     global server_port
@@ -163,7 +162,7 @@ def msg_callback(msg: str):
     queue.put_nowait(msg)
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_client_init(bus_server):
     """Check a busclient cleans up on deletion."""
     global server_port
@@ -197,7 +196,7 @@ async def test_client_init(bus_server):
     mytag.del_callback(tag_callback)
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_tag_info(bus_server):
     """Check tag info init works."""
     global server_port
@@ -208,7 +207,8 @@ async def test_tag_info(bus_server):
     }
     ftag1 = Tag('ftag1', float)
     dtag1 = Tag('dtag1', dict)
-    client = BusClient(port=server_port, tag_info=tag_info)
+    client = BusClient(port=server_port, tag_info=tag_info,
+                       module='test_tag_info')
     await client.start()
     # must get None from bus before initialising
     await asyncio.sleep(0.1)
@@ -221,13 +221,13 @@ async def test_tag_info(bus_server):
     gc.collect()
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_client_speed(capsys, bus_echo):
     """Test for round-trip speed of small packets."""
     global server_port
     global queue
     TEST_COUNT = 1000  # shorter troublesome in windows
-    client = BusClient(port=server_port)
+    client = BusClient(port=server_port, module='test_client_speed')
     await client.start()
     tagpi = Tag('pipein', int)
     tagpo = Tag('pipeout', int)
@@ -250,7 +250,7 @@ async def test_client_speed(capsys, bus_echo):
     tagpi.del_callback(tag_callback)
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_client_big(capsys, bus_echo):
     """Test a message that needs multiple packets."""
     global server_port
@@ -259,7 +259,7 @@ async def test_client_big(capsys, bus_echo):
     tagspi = Tag('spipein', str)
     tagspo = Tag('spipeout', str)
     tagspi.add_callback(tag_callback)
-    client = BusClient(port=server_port)
+    client = BusClient(port=server_port, module='test_client_big')
     await client.start()
     value = '0123456789' * TEST_LENGTH
     t0 = process_time_ns()
@@ -275,12 +275,12 @@ async def test_client_big(capsys, bus_echo):
     tagspi.del_callback(tag_callback)
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_client_echo(capsys, bus_echo):
     """Test echo from a separate process."""
     global server_port
     global queue
-    client = BusClient(port=server_port)
+    client = BusClient(port=server_port, module='test_client_echo')
     await client.start()
     tag_send_str = Tag('one', str)
     tag_send_int = Tag('three', int)
@@ -298,12 +298,12 @@ async def test_client_echo(capsys, bus_echo):
     tag_recv_int.del_callback(tag_callback)
 
 
-@pytest.mark.asyncio(scope='module')
+@pytest.mark.asyncio(loop_scope='module')
 async def test_client_rta(bus_echo):
     """Test request to author (RTA) with __bus_echo__."""
     global server_port
     global queue
-    client = BusClient(port=server_port)
+    client = BusClient(port=server_port, module='test_client_rta')
     await client.start()
     be = Tag('__bus_echo__', str)
     be.add_callback(tag_callback)
