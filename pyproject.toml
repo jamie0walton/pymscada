@@ -56,9 +56,9 @@ addopts = "-v -s"
 [tool.pyright]
 # typeCheckingMode = "off"
 # Difficult to find a sane subset of pyright options
-reportArgumentType = false
-reportOptionalMemberAccess = false
-reportOptionalSubscript = false
-reportGeneralTypeIssues = false
-reportPossiblyUnboundVariable = false
-reportOperatorIssue = false
+# reportArgumentType = false
+# reportOptionalMemberAccess = false
+# reportOptionalSubscript = false
+# reportGeneralTypeIssues = false
+# reportPossiblyUnboundVariable = false
+# reportOperatorIssue = false

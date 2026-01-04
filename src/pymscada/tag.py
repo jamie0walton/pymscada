@@ -4,9 +4,13 @@ Shared value tags.
 Configured to NOT use asyncio.
 bus_id is python id(), 0 is null pointer in c, 0 is local bus.
 """
-import time
 import array
+from collections.abc import Callable
+import json
 import logging
+import struct
+import time
+import pymscada.protocol_constants as pc
 
 TYPES = {
     'int': int,
@@ -97,24 +101,20 @@ class Tag(metaclass=UniqueTag):
         self.units = None
         self.dp = None
 
-    def add_callback(self, callback, bus_id: int = 0):
+    def add_callback(self, callback: Callable, bus_id: int = 0):
         """Add a callback to update the value when a change is seen."""
-        if not callable(callback):
-            raise TypeError(f"{callback} must be callable.")
         self.pub[callback] = bus_id
 
-    def del_callback(self, callback):
+    def del_callback(self, callback: Callable):
         """Remove the callback."""
         del self.pub[callback]
 
-    def add_callback_id(self, callback):
+    def add_callback_id(self, callback: Callable):
         """Add a callback for when a process needs to know the id is live."""
-        if not callable(callback):
-            raise TypeError(f"{callback} must be callable.")
         if callback not in self.pub_id:
             self.pub_id.append(callback)
 
-    def del_callback_id(self, callback):
+    def del_callback_id(self, callback: Callable):
         """Remove the callback."""
         if callback in self.pub_id:
             self.pub_id.remove(callback)
@@ -196,6 +196,58 @@ class Tag(metaclass=UniqueTag):
         else:
             raise TypeError(f"{self.name} won't force {type(value)} "
                             f"to {self.type}")
+
+    def set_value(self, value, time_us: int, bus: int | None):
+        self.value = (value, time_us, bus)
+
+    def set_packed_value(self, value: bytes, time_us: int, bus: int):
+        """Unpack packed value and set it."""
+        data_type = struct.unpack_from('!B', value, offset=0)[0]
+        if data_type == pc.TYPE.FLOAT:
+            data = struct.unpack_from('!d', value, offset=1)[0]
+        elif data_type == pc.TYPE.INT:
+            data = struct.unpack_from('!q', value, offset=1)[0]
+        elif data_type == pc.TYPE.BYTES:
+            data = struct.unpack_from(f'!{len(value) - 1}s', value,
+                                      offset=1)[0]
+        elif data_type == pc.TYPE.STR:
+            data = struct.unpack_from(f'!{len(value) - 1}s', value,
+                                      offset=1)[0].decode()
+        elif data_type == pc.TYPE.JSON:
+            data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
+                                                 value, offset=1
+                                                 )[0].decode())
+        else:
+            raise ValueError(f'{self.name} unknown data type {data_type}')
+        self.set_value(data, time_us, bus)
+
+    @property
+    def is_none(self) -> bool:
+        """Check if value is None."""
+        return self.__value is None
+
+    @property
+    def packed_value(self):
+        """Return packed int value for bus protocol."""
+        if self.type is float:
+            data = struct.pack('!Bd', pc.TYPE.FLOAT, self.value)
+        elif self.type is int:
+            data = struct.pack('!Bq', pc.TYPE.INT, self.value)
+        elif self.type is bytes:
+            size = len(self.value)
+            try:
+                data = struct.pack(f'!B{size}s', pc.TYPE.BYTES, self.value)
+            except struct.error as e:
+                raise SystemExit(f'tag packed_value {self.name} {e}')
+        elif self.type is str:
+            tag_value: str = self.value  # type: ignore
+            size = len(tag_value)
+            data = struct.pack(f'!B{size}s', pc.TYPE.STR, tag_value.encode())
+        elif self.type in [list, dict]:
+            jsonstr = json.dumps(self.value).encode()
+            size = len(jsonstr)
+            data = struct.pack(f'!B{size}s', pc.TYPE.JSON, jsonstr)
+        return data
 
     @property
     def id(self):

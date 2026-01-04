@@ -24,26 +24,26 @@ async def test_bustag():
     tag_0 = BusTag(b'tag_0')
     tag_1 = BusTag(b'tag_1')
     tag_2 = BusTag(b'tag_0')
-    assert tag_0.id == 1  # 0th tag_id is invalid
-    assert tag_1.id == 2
-    assert tag_2.id == 1
-    assert BusTags._tag_by_id[2].name == b'tag_1'
-    assert BusTags._tag_by_name[b'tag_1'].id == 2
+    # did start from id 1 at one point however other tests made this invalid
+    assert tag_1.id != tag_0.id
+    assert tag_2.id == tag_0.id
+    assert BusTags._tag_by_id[tag_1.id].name == b'tag_1'
+    assert BusTags._tag_by_name[b'tag_1'].id == tag_1.id
     cb0 = None
 
     def cb(tag: BusTag, bus_id):
         nonlocal cb0
-        cb0 = tag.name + b' ' + str(tag.id).encode() + b' ' + tag.value
+        cb0 = tag.name + b' ' + tag.value
 
     tag_0.add_callback(cb, None)
     tag_0.update(b'new', 1000, 55)
-    assert cb0 == b'tag_0 1 new'
+    assert cb0 == b'tag_0 new'
     tag_2.update(b'newer', 0, 22)
-    assert cb0 == b'tag_0 1 newer'
+    assert cb0 == b'tag_0 newer'
     """TODO the following is wrong."""
     tag_2.del_callback(cb, None)  # deletes callback on tag_0 as same tag
     tag_0.update(b'new again', 1000, 55)
-    assert cb0 == b'tag_0 1 newer'
+    assert cb0 == b'tag_0 newer'
     tag_0.del_callback(cb, None)
 
 

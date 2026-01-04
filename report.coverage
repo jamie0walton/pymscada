@@ -1,30 +1,31 @@
-Name                                      Stmts   Miss  Cover
--------------------------------------------------------------
+Name                                      Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------
 src/pymscada/__init__.py                     15      0   100%
-src/pymscada/alarms.py                      275    111    60%
-src/pymscada/bus_client.py                  184     25    86%
-src/pymscada/bus_server.py                  225     47    79%
-src/pymscada/callout.py                     205     81    60%
-src/pymscada/config.py                       60      6    90%
+src/pymscada/alarms.py                      275    111    60%   52, 58, 63, 67, 72-73, 82, 86-87, 90, 93-94, 129, 135-142, 162-163, 189, 193-200, 202, 204, 213, 234, 262-264, 277, 302, 316-325, 335-336, 338-378, 396-466, 471-472
+src/pymscada/bus_client.py                  154     17    89%   69, 72-73, 128-129, 135-138, 186-197
+src/pymscada/bus_client_tag.py              393     91    77%   93, 107, 112, 117, 127, 132-133, 135, 143-144, 156-157, 171-175, 205, 213, 217, 232-233, 238, 242, 267, 273, 281, 291, 303, 307-311, 334, 340, 352, 367-368, 373, 377, 382, 392, 402, 412, 424, 428-432, 449, 455, 460-461, 465-470, 487, 493, 498-502, 506-511, 528, 534, 539-541, 545-551, 568, 574, 579-581, 585-591
+src/pymscada/bus_server.py                  225     47    79%   95, 103-105, 120-121, 128-131, 171-172, 174, 192-193, 203-204, 210-215, 221-226, 233-234, 253-254, 260-266, 270-272, 278-286, 291, 299
+src/pymscada/callout.py                     205     81    60%   44-46, 60, 78, 117-124, 126, 128, 130, 132, 149-150, 152, 174-175, 178, 183, 187-191, 195-214, 218-240, 265, 268-274, 290, 294, 298-299
+src/pymscada/config.py                       60      6    90%   48-49, 52, 54, 79-80
 src/pymscada/demo/__init__.py                 0      0   100%
-src/pymscada/history.py                     222     32    86%
+src/pymscada/history.py                     222     32    86%   48, 51, 54, 107, 113, 116, 181, 204-205, 243, 246-247, 249, 251, 253, 255, 257, 266, 282-283, 287-288, 299-300, 304-305, 309, 315-319
 src/pymscada/iodrivers/__init__.py            0      0   100%
-src/pymscada/iodrivers/accuweather.py        69     56    19%
-src/pymscada/iodrivers/logix_client.py       52     38    27%
-src/pymscada/iodrivers/logix_map.py         102     88    14%
-src/pymscada/iodrivers/modbus_client.py     298     34    89%
-src/pymscada/iodrivers/modbus_map.py        135     22    84%
-src/pymscada/iodrivers/modbus_server.py     110     13    88%
-src/pymscada/iodrivers/openweather.py       132     50    62%
-src/pymscada/iodrivers/piapi.py             147     62    58%
-src/pymscada/iodrivers/sms.py               136     72    47%
-src/pymscada/iodrivers/witsapi.py           146     32    78%
+src/pymscada/iodrivers/accuweather.py        69     56    19%   21-32, 36-66, 70-76, 80-90, 94-98
+src/pymscada/iodrivers/logix_client.py       52     38    27%   15-27, 31-36, 40-44, 48, 61-68, 72-73, 77-80
+src/pymscada/iodrivers/logix_map.py         102     88    14%   17-38, 46-73, 77-78, 82-88, 92-100, 109-120, 124-126, 130-144
+src/pymscada/iodrivers/modbus_client.py     298     34    89%   46-47, 76-78, 96, 145-146, 191, 195, 199, 223, 286-287, 291-297, 315-316, 322, 338-339, 366-367, 381, 392-394, 398, 420, 432
+src/pymscada/iodrivers/modbus_map.py        135     22    84%   43-44, 66, 118-134, 190-191
+src/pymscada/iodrivers/modbus_server.py     110     13    88%   26, 30, 49, 84-89, 101-106, 164, 176
+src/pymscada/iodrivers/openweather.py       132     50    62%   32-35, 37, 39, 41, 45, 64-65, 72-83, 87-88, 111, 129-133, 149-167, 172, 188-192, 197-201, 205-209
+src/pymscada/iodrivers/piapi.py             147     62    58%   18-29, 55-58, 60, 62, 64, 68, 103-104, 140-147, 152-165, 170-180, 190-191, 195-197, 201-205
+src/pymscada/iodrivers/sms.py               136     72    47%   30, 32, 34, 43, 62, 67, 69, 80-81, 97-98, 103-123, 126-127, 151-184, 188-193, 197, 204, 208-212
+src/pymscada/iodrivers/witsapi.py           146     32    78%   35-38, 40, 42, 46, 84-89, 114-119, 124, 129, 179, 191-192, 196-198, 202-206
 src/pymscada/misc.py                         17      0   100%
-src/pymscada/opnotes.py                     104     43    59%
+src/pymscada/opnotes.py                     104     43    59%   32, 36-43, 45, 47, 75-77, 81-99, 108, 118-119, 137-138, 149-150, 164-165, 171-172, 176-177, 194-206, 210
 src/pymscada/pdf/__init__.py                  0      0   100%
-src/pymscada/periodic.py                     29      2    93%
+src/pymscada/periodic.py                     29      2    93%   32-33
 src/pymscada/protocol_constants.py           21      0   100%
-src/pymscada/samplers.py                     56     10    82%
-src/pymscada/tag.py                         196     29    85%
--------------------------------------------------------------
-TOTAL                                      2936    853    71%
+src/pymscada/samplers.py                     56     10    82%   9, 16-21, 33, 48, 52
+src/pymscada/tag.py                         236     30    87%   36, 51, 55, 114-115, 119-120, 130-131, 136, 142, 179, 211, 221, 240-241, 261-262, 265, 277-278, 285, 295, 305, 311, 313, 321, 328, 342, 346
+-----------------------------------------------------------------------
+TOTAL                                      3339    937    72%

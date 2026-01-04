@@ -1,10 +1,12 @@
 """Bus client."""
 import asyncio
+from collections.abc import Callable
 import struct
 import json
 import time
 import logging
 from pymscada.tag import Tag
+from pymscada.bus_client_tag import TagTyped
 import pymscada.protocol_constants as pc
 
 PROTOCOL_VERSION = 1
@@ -30,8 +32,9 @@ class BusClient:
         self.tag_by_id: dict[int, Tag] = {}
         self.tag_by_name: dict[str, Tag] = {}
         self.to_publish: dict[str, Tag] = {}
-        self.rta_handlers: dict[str, callable] = {}
+        self.rta_handlers: dict[str, Callable] = {}
         self.pending = {}
+        TagTyped.set_bus_callback(self.add_tag)
 
     def publish(self, tag: Tag):
         """
@@ -41,38 +44,15 @@ class BusClient:
         source.
         """
         if tag.id is None:
-            logging.warning(f'queued id request {tag.name} = {tag.value}')
+            logging.warning(f'queued id request {tag.name}')
             self.to_publish[tag.name] = tag
             return
-        if tag.type is float:
-            data = struct.pack('!Bd', pc.TYPE.FLOAT, tag.value)
-        elif tag.type is int:
-            data = struct.pack('!Bq', pc.TYPE.INT, tag.value)
-        elif tag.type is bytes:
-            size = len(tag.value)
-            try:
-                data = struct.pack(f'!B{size}s', pc.TYPE.BYTES, tag.value)
-            except struct.error as e:
-                logging.error(f'bus_client {tag.name} {e}')
-        elif tag.type is str:
-            tag_value: str = tag.value  # type: ignore
-            size = len(tag_value)
-            data = struct.pack(f'!B{size}s', pc.TYPE.STR, tag_value.encode())
-        elif tag.type in [list, dict]:
-            jsonstr = json.dumps(tag.value).encode()
-            size = len(jsonstr)
-            data = struct.pack(f'!B{size}s', pc.TYPE.JSON, jsonstr)
-        else:
-            logging.warning(f'publish {tag.name} unhandled {tag.type}')
-            return
+        data = tag.packed_value
         self.write(pc.COMMAND.SET, tag.id, tag.time_us, data)
 
-    def add_callback_rta(self, tagname, handler):
+    def add_callback_rta(self, tagname, handler: Callable):
         """Collect callback handlers."""
-        if callable(handler):
-            self.rta_handlers[tagname] = handler
-        else:
-            logging.error(f'invalid RTA handler for {tagname}')
+        self.rta_handlers[tagname] = handler
 
     def rta(self, tagname: str, request: dict):
         """Send a Request Set message."""
@@ -85,12 +65,7 @@ class BusClient:
     def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
               data: bytes):
         """Write a message."""
-        if data is None:
-            data = b''
-        try:
-            size_total = len(data)
-        except Exception:
-            size_total = 0
+        size_total = len(data)
         logging.info(f'{self.module}: write cmd={command} tag_id={tag_id} '
                      f'size_total={size_total}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
@@ -106,11 +81,11 @@ class BusClient:
                 # self.read_task.cancel()
 
 
-    def add_tag(self, tag: Tag):
+    def add_tag(self, tag: Tag | TagTyped):
         """Add the new tag and get the tag's bus ID."""
         tag.add_callback(self.publish, id(self))
         self.tag_by_name[tag.name] = tag
-        if tag.value is not None:
+        if not tag.is_none:
             self.to_publish[tag.name] = tag
         self.write(pc.COMMAND.ID, 0, 0, tag.name.encode())
 
@@ -197,30 +172,12 @@ class BusClient:
                     data = self.tag_info[tag.name]['init']
                     time_us = int(time.time() * 1e6)
                     bus_id = None  # needed to pub to connected webclients
-                    tag.value = data, time_us, bus_id
+                    tag.set_value(data, time_us, bus_id)
                     logging.warning(f'{tag.name} init value {data}')
                 except KeyError:
                     pass
                 return
-            data_type = struct.unpack_from('!B', value, offset=0)[0]
-            if data_type == pc.TYPE.FLOAT:
-                data = struct.unpack_from('!d', value, offset=1)[0]
-            elif data_type == pc.TYPE.INT:
-                data = struct.unpack_from('!q', value, offset=1)[0]
-            elif data_type == pc.TYPE.BYTES:
-                data = struct.unpack_from(f'!{len(value) - 1}s', value,
-                                          offset=1)[0]
-            elif data_type == pc.TYPE.STR:
-                data = struct.unpack_from(f'!{len(value) - 1}s', value,
-                                          offset=1)[0].decode()
-            elif data_type == pc.TYPE.JSON:
-                data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
-                                                     value, offset=1
-                                                     )[0].decode())
-            else:
-                logging.warning(f'process error {tag.name} {tag.type} {value}')
-                return
-            tag.value = data, time_us, id(self)
+            tag.set_packed_value(value, time_us, id(self))
         elif cmd == pc.COMMAND.RTA:
             data = struct.unpack_from(f'!{len(value) - 1}s', value, offset=1
                                       )[0].decode()
@@ -240,6 +197,7 @@ class BusClient:
         if self.read_task:
             self.read_task.cancel()
         await self.writer.wait_closed()
+        TagTyped.del_bus_callback()
 
     async def start(self):
         """Start async."""
