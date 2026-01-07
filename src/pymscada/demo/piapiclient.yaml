@@ -1,0 +1,19 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+proxy:
+api:
+  url: ${MSCADA_PI_URL}
+  webid: ${MSCADA_PI_WEBID}
+  averaging: 300
+tags:
+  I_An_G1_MW:
+    read: AnG1.AIMw
+  I_An_G2_MW:
+    read: AnG2.AIMw
+  I_Ko_Gn_MW:
+    read: KoGn.AIkW
+    scale: 1000
+  I_OtOs_Test:
+    read: OtOs.Test
+    write: OtOs.Test
+    averaging: 0

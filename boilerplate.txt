@@ -1,12 +1,9 @@
-
 This is important!
 
-I want to investigate each change in detail. I want to make choices about the implementation. I want to consider alternatives that might improve the code.
-
-Good code is: clear, concise, functional, independent of modules, no linting errors, high test coverage, consistent style, implicitly correct and absent defensive coding.
+Good code development depends on accuracy above politeness. Good code is: clear, concise, functional, independent of modules, no linting errors, high test coverage, consistent style, implicitly correct and absent defensive coding.
 
 To achieve this code change process shall:
-- sometimes begin with discussion on approach where the focus is architecture and good code and where good options I have missed must be raised.
+- often begin with discussion on approach where the focus is architecture and good code and where good options I have missed must be raised
 - usually proceed with discussion on implementation choices for the option I choose
 - always confirm the files and functions to be changed
 - make changes in the IDE which I will specifically accept or reject each change
