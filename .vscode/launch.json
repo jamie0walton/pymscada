@@ -220,6 +220,18 @@
             "justMyCode":true
         },
         {
+            "name":"pi_api_client",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["piapiclient", "--verbose",
+                "--config", "../config/piapiclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wits_api",
             "type":"debugpy",
             "request":"launch",
@@ -269,21 +281,12 @@
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/tools/get_pi_counts.py",
-            "args": ["2025-11-01", "2025-12-18"],
+            "args": ["2026-01-07"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
         {
-            "name": "Python: Debug Tests",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "purpose": ["debug-test"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Python: Current File",
+            "name": "Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",

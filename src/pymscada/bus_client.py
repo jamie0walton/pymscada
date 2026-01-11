@@ -201,5 +201,7 @@ class BusClient:
 
     async def start(self):
         """Start async."""
+        if self.ip is None or self.port is None:
+            return
         await self.open_connection()
         self.read_task = asyncio.create_task(self.read())

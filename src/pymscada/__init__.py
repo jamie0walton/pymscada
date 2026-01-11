@@ -7,7 +7,7 @@ from pymscada.iodrivers.accuweather import AccuWeatherClient
 from pymscada.iodrivers.logix_client import LogixClient
 from pymscada.iodrivers.modbus_client import ModbusClient
 from pymscada.iodrivers.modbus_server import ModbusServer
-# from pymscada.iodrivers.piapi_client import PIWebAPIClient
+from pymscada.iodrivers.piapi_client import PIWebAPIClient
 from pymscada.iodrivers.sms import SMS
 from pymscada.iodrivers.witsapi import WitsAPIClient
 from pymscada.misc import find_nodes, ramp
@@ -23,7 +23,7 @@ __all__ = [
     'LogixClient',
     'ModbusClient',
     'ModbusServer',
-#     'PIWebAPIClient',
+    'PIWebAPIClient',
     'SMS',
     'WitsAPIClient',
     'find_nodes', 'ramp',

@@ -25,7 +25,7 @@ class PIPoint:
         self.excmax = None
         self.engunits = None
         self.descriptor = None
-        self.sourcetag = None
+        self.instrumenttag = None
         self.zero = None
         self.span = None
 
@@ -171,7 +171,7 @@ class PIWebAPI:
             if len(items) == 0:
                 break
             for data in items:
-                if contains is None or contains not in data['Name']:
+                if contains is not None and contains not in data['Name']:
                     continue
                 point = PIPoint(data['Name'], data['WebId'])
                 self.points[data['Name']] = point
@@ -192,7 +192,7 @@ class PIWebAPI:
                 point.excmax = attributes.get('excmax')
                 point.engunits = attributes.get('engunits')
                 point.descriptor = attributes.get('descriptor')
-                point.sourcetag = attributes.get('sourcetag')
+                point.instrumenttag = attributes.get('instrumenttag')
 
     async def get_pi_points_count(self, now: int):
         """Get PI point data from PI WebAPI."""

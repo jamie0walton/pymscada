@@ -170,8 +170,14 @@ def create_module_registry():
         ),
         ModuleDefinition(
             name='piapi',
-            help='poll WITS GXP pricing real time dispatch and forecast',
-            module_class='pymscada.iodrivers.piapi:PIWebAPIClient',
+            help='poll OSI PI WebAPI for tag values',
+            module_class='pymscada.iodrivers.piapi:PIWebAPI',
+            tags=False
+        ),
+        ModuleDefinition(
+            name='piapiclient',
+            help='poll/write PI WebAPI tags',
+            module_class='pymscada.iodrivers.piapi_client:PIWebAPIClient',
             tags=False
         ),
         ModuleDefinition(

@@ -7,13 +7,19 @@ api:
   averaging: 300
 tags:
   I_An_G1_MW:
-    read: AnG1.AIMw
+    pi_point: AnG1.AIMw
+    webid_name: 5M
+    mode: r
   I_An_G2_MW:
-    read: AnG2.AIMw
+    pi_point: AnG2.AIMw
+    webid_name: 5M
+    mode: r
   I_Ko_Gn_MW:
-    read: KoGn.AIkW
+    pi_point: KoGn.AIkW
+    webid_name: 5M
+    mode: r
     scale: 1000
   I_OtOs_Test:
-    read: OtOs.Test
-    write: OtOs.Test
-    averaging: 0
+    pi_point: OtOs.Test
+    webid_name: RT
+    mode: rw

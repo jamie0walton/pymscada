@@ -2,11 +2,9 @@
 import argparse
 import asyncio
 import re
-import sys
 import time
 from pathlib import Path
-
-from pymscada.iodrivers.piapi import PIWebAPIClient
+from pymscada.iodrivers.piapi import PIWebAPI
 
 
 async def main():
@@ -28,8 +26,9 @@ async def main():
         'averaging': 300,
         'points_id': 'F1DSiiISXjUSX0eXU1yhlT-iHgUEdQSQ'
     }
-    client = PIWebAPIClient(bus_ip=None, api=api_config)
+    client = PIWebAPI(bus_ip=None, api=api_config)
     await client.get_pi_points_ids()
+    await client.get_pi_points_attributes()
     counts = {}
     for day in args.dates:
         sec = int(time.mktime(time.strptime(day, '%Y-%m-%d')))
@@ -38,8 +37,18 @@ async def main():
             if point not in counts:
                 counts[point] = []
             counts[point].append(client.points[point].count)
+    print('PI Tag, compdev, compmax, excdev, excmax, engunits, description, instrumenttag,'
+          f'{",".join(args.dates)}')
     for point in counts:
-        print(f'{point},{",".join(str(c) for c in counts[point])}')
+        compdev = client.points[point].compdev
+        compmax = client.points[point].compmax
+        excdev = client.points[point].excdev
+        excmax = client.points[point].excmax
+        engunits = client.points[point].engunits
+        description = client.points[point].descriptor
+        instrumenttag = client.points[point].instrumenttag
+        print(f'{point},{compdev},{compmax},{excdev},{excmax},"{engunits}","{description}",'
+              f'"{instrumenttag}",{",".join(str(c) for c in counts[point])}')
 
 
 if __name__ == '__main__':

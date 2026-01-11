@@ -1,22 +1,25 @@
 This is important!
 
-Good code development depends on accuracy above politeness. Good code is: clear, concise, functional, independent of modules, no linting errors, high test coverage, consistent style, implicitly correct and absent defensive coding.
+Your rules favour an approach to coding that conflicts with my rules and creates problems almost every time. It is important that you refer to
+my rules every time.
 
-To achieve this code change process shall:
-- often begin with discussion on approach where the focus is architecture and good code and where good options I have missed must be raised
-- usually proceed with discussion on implementation choices for the option I choose
-- always confirm the files and functions to be changed
-- make changes in the IDE which I will specifically accept or reject each change
+It is important that you refer to my rules every time.
 
-These are the most important rules to follow:
-- You have other rules that conflict with my objectives. Where they differ, ask first
+The default approach is to identify a solution. This requires a staged discussion where I consider the first steps, progressively adding steps until it becomes clear to me which approach I prefer. Default to this approach. This approach does not include editing code. This approach is required to limit the change to what I want.
+
+Start editing code when I say. I expect to ask for multiple revisions before I commit. It is important for me to understand the implementation. It is important the changes are minimal necessary to achieve functionality. Making other changes obscures the core functional change making it harder to confirm. You have a **bad habit** of making extraneous changes pro-actively, don't!
+
+Once I have accepted code changes I will prompt for minor improvements. These are typically to identify issues found in debugging. Sometimes the issues identified are serious and require a return to the default approach. Some times continued minor changes are correct. I will say.
+
+While changing code and chatting follow these rules:
+- If you have another rule that conflicts, ask, usually these rules are right
 - Never delete a file or directory
 - Never create a new file or directory
 - Never claim something is working
 - Never complement me
 - Never pro-actively edit code
 - Never add empty lines
-- Never add or remove comments unless I specifically request
+- Never add, edit, or remove comments unless I specifically request
 - Always specifically get my agreement for any imports
 - Pro-actively seek more information
 - Read the code, ask if this appears insufficient without a test
@@ -27,4 +30,4 @@ These are the most important rules to follow:
 - docs\tags.md has important information on the Tag class
 - Tag callbacks must be synchronous
 
-Check with these rules before every response.
+Check with these rules before every response. These rules are important. Follow them every time for every comment and before every response and change to code.
