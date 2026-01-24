@@ -80,13 +80,14 @@ class BusClient:
                                 f'tag_id={tag_id} size={size}')
                 # self.read_task.cancel()
 
-
     def add_tag(self, tag: Tag | TagTyped):
         """Add the new tag and get the tag's bus ID."""
         tag.add_callback(self.publish, id(self))
         self.tag_by_name[tag.name] = tag
         if not tag.is_none:
             self.to_publish[tag.name] = tag
+        if self.ip is None or self.port is None:
+            return
         self.write(pc.COMMAND.ID, 0, 0, tag.name.encode())
 
     async def open_connection(self):

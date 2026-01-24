@@ -1,7 +1,7 @@
 """Modbus Client."""
 import asyncio
 import logging
-from struct import pack, unpack_from
+from struct import pack, unpack_from, unpack
 from time import time
 from pymscada.bus_client import BusClient
 from pymscada.tag import Tag
@@ -69,6 +69,7 @@ class ModbusClientMap:
         if dmax is not None:
             self.tag.value_max = dmax
         self.byte = (int(word) - 1) * 2
+        self.swap = bytearray(4)
 
     def update_tag(self, time_us):
         """Unpack from modbus registers to tag value if different."""
@@ -81,16 +82,25 @@ class ModbusClientMap:
         elif self.src_type == 'uint16':
             value = unpack_from('>H', self.data, self.byte)[0]
         elif self.src_type == 'int32':
-            value = unpack_from('>i', self.data, self.byte)[0]
+            self.swap[0:2] = self.data[self.byte+2:self.byte+4]
+            self.swap[2:4] = self.data[self.byte:self.byte+2]
+            value = unpack('>i', self.swap)[0]
         elif self.src_type == 'uint32':
-            value = unpack_from('>I', self.data, self.byte)[0]
+            self.swap[0:2] = self.data[self.byte+2:self.byte+4]
+            self.swap[2:4] = self.data[self.byte:self.byte+2]
+            value = unpack('>I', self.swap)[0]
         elif self.src_type == 'int64':
+            logging.error(f'{self.src_type} likely needs word swap')
             value = unpack_from('>q', self.data, self.byte)[0]
         elif self.src_type == 'uint64':
+            logging.error(f'{self.src_type} likely needs word swap')
             value = unpack_from('>Q', self.data, self.byte)[0]
         elif self.src_type == 'float32':
-            value = unpack_from('>f', self.data, self.byte)[0]
+            self.swap[0:2] = self.data[self.byte+2:self.byte+4]
+            self.swap[2:4] = self.data[self.byte:self.byte+2]
+            value = unpack('>f', self.swap)[0]
         elif self.src_type == 'float64':
+            logging.error(f'{self.src_type} likely needs word swap')
             value = unpack_from('>d', self.data, self.byte)[0]
         else:
             return

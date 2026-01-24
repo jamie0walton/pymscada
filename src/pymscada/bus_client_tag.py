@@ -35,7 +35,8 @@ class UniqueTagTyped(type):
                 )
             return existing
         tag: TagTyped = super().__call__(tagname)
-        tag.id = None
+# TODO pretty sure this is not needed
+#        tag.id = None
         cls.__cache[tagname] = tag
         cls.__bus_callback(tag)
         return tag

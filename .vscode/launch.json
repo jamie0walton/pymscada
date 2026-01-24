@@ -162,7 +162,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["modbusclient", "--verbose",
-                "--config", "../config/modbusclient.yaml"],
+                "--config", "../modbusclient.yaml"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -250,16 +250,6 @@
             "cwd":"${workspaceFolder}/..",
             "program":"pymscada/src/pymscada/__main__.py",
             "args": ["checkout", "--verbose", "--diff"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"validate",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["validate", "--path", "/home/mscada/pymscada/config"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

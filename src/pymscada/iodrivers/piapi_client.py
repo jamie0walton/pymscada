@@ -180,6 +180,7 @@ class PIWebAPIClientConnector:
         pi_link = self.mapping.pi_link_lookup[pi_point]
         endpoint = f"piwebapi/streams/{pi_link.web_id}/value"
         payload = {'Timestamp': '*', 'Value': value}
+        logging.warning(f"writing PI point {pi_point} {payload}")
         return await self.api_request('POST', endpoint, pi_point, payload)
 
     async def get_pi_averaged_values(self, time_s: int, webid_name: str):
@@ -244,8 +245,8 @@ class PIWebAPIClient:
         """Set up PI client."""
         self.busclient = BusClient(bus_ip, bus_port, module='PIWebAPIClient')
         self.proxy = proxy
-        self.mapping = PIWebAPIClientMaps(tags, self._write_handler)
         self.api = api
+        self.tag_config = tags
 
     def _write_handler(self, pi_point: str, value: float):
         """Handle tag write by creating async task."""
@@ -253,8 +254,12 @@ class PIWebAPIClient:
 
     async def start(self):
         """Start polling."""
-        if self.busclient is not None:
-            await self.busclient.start()
+        await self.busclient.start()
+        while True:
+            if self.busclient.writer is not None:
+                break
+            await asyncio.sleep(0.5)
+        self.mapping = PIWebAPIClientMaps(self.tag_config, self._write_handler)
         self.connector = PIWebAPIClientConnector(self.api, self.mapping)
         await self.connector.get_attributes()
         await self.connector.start()
