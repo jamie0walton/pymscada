@@ -47,14 +47,14 @@ Working files are:
 
 # Steps
 
-7. **Generator**
-- expand test_generator
+8. **RadialGate**
+- create test_radial_gate
 - check test
 - review coverage
 - iteratively improve coverage
 
 98. **Elements with No Tests**
-- Generator, RadialGate, FlapGate, Ramp, Noise, BidPeriod, inclass(), Canal, Observer
+- RadialGate, FlapGate, Ramp, Noise, BidPeriod, inclass(), Canal, Observer
 
 99. **Canal**
 - this element has never worked
