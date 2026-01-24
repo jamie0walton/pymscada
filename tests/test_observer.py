@@ -31,7 +31,7 @@ model:
     element_type: valve
     flow: 20.0
     rate: 0.0166667
-    dstnode: Galatea_River_site
+    dstnode: Lake_Aniwhenua
   Lake_Aniwhenua:
     element_type: storage_rain_est
     # as tested on 4 days recorded data
@@ -371,13 +371,14 @@ def test_river(o, t):
 
 def test_storage_rain_est(o, t):
     storage = o.model['Lake_Aniwhenua']
-    storage.level = 145.00
+    inflow = o.model['RainFlow_2']
+    outflow = o.model['Aniwhenua_G1']
+    inflow.link()
+    outflow.link()
+    storage.level = 146.70
     storage.initialise()
-    assert storage.volume == 0.0
-    assert storage.level == 145.00
+    assert storage.volume == 1922927
     storage.sim_step()
-    assert storage.volume == 0.0
-    assert storage.level == 145.00
     storage.volume = 90601.0
     storage.update_level()
     assert pytest.approx(storage.level) == 145.10
