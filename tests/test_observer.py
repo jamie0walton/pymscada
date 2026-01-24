@@ -331,6 +331,7 @@ def test_observer_create_with_valve_flow(o):
 
 
 def test_valve(o, t):
+    """Test valve simulation."""
     valve_1 = o.model['System_Inflow']
     valve_2 = o.model['RainFlow_1']
     valve_3 = o.model['RainFlow_2']
@@ -354,7 +355,26 @@ def test_valve(o, t):
     assert valve_3.flow == 20.0
 
 
+def test_summing(o, t):
+    """Test summing, simulation and following are identical."""
+    inflow_1 = o.model['System_Inflow']
+    inflow_2 = o.model['RainFlow_1']
+    summing = o.model['Galatea_River_site']
+    outflow = o.model['Upper']
+    inflow_1.link()
+    inflow_2.link()
+    with pytest.raises(ValueError, match="one river required"):
+        summing.follow_step()
+    outflow.link()
+    t['I_Galatea_flow'].set_value(5.0, int(time.time() * 1e6), BUS_ID)
+    inflow_1.sim_step()  # need to simulate valve, not follow
+    inflow_2.flow = 3.0  # directly sets, no sim_step reqd
+    summing.follow_step()
+    assert outflow.inflow == pytest.approx(5.0 + 3.0)
+
+
 def test_river(o, t):
+    """Test river delay line. Simulation and following are identical."""
     river = o.model['Upper']
     river.inflow = 12.3
     river.initialise()  # fills delayline with inflow
@@ -375,27 +395,33 @@ def test_storage_rain_est(o, t):
     outflow = o.model['Aniwhenua_G1']
     inflow.link()
     outflow.link()
+    inflow.flow = 40.0
+    outflow.flow = 50.0
     storage.level = 146.70
     storage.initialise()
     assert storage.volume == 1922927
-    storage.sim_step()
+    for _ in range(10):
+        storage.sim_step()
+        storage.volume += 5.0 * storage.p.timebase
+        storage.update_level()
+        storage.follow_step()
+    assert pytest.approx(storage.rainflow, abs=0.1) == 5.0
     storage.volume = 90601.0
     storage.update_level()
     assert pytest.approx(storage.level) == 145.10
 
 
-def test_summing(o, t):
-    inflow_1 = o.model['System_Inflow']
-    inflow_2 = o.model['RainFlow_1']
-    summing = o.model['Galatea_River_site']
-    outflow = o.model['Upper']
-    inflow_1.link()
-    inflow_2.link()
-    with pytest.raises(ValueError, match="one river required"):
-        summing.sim_step()
-    outflow.link()
-    t['I_Galatea_flow'].set_value(5.0, int(time.time() * 1e6), BUS_ID)
-    inflow_1.sim_step()  # valve needs to get tag value
-    inflow_2.flow = 3.0  # directly sets, no sim_step reqd
-    summing.sim_step()
-    assert outflow.inflow == pytest.approx(5.0 + 3.0)
+def test_generator(o, t):
+    generator = o.model['Aniwhenua_G1']
+    generator.initialise()
+    assert generator.flow == 0.0
+    generator.MW = 10.0
+    generator.follow_step()
+    assert pytest.approx(generator.flow) == 29.0
+    generator.MW = 0.0
+    generator.setMW = 10.0
+    generator.rate = 0.01
+    generator.sim_step()
+    assert generator.MW == pytest.approx(6)
+    generator.sim_step()
+    assert generator.MW == pytest.approx(10)

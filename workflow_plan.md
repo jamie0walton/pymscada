@@ -1,7 +1,7 @@
 # Workflow Plan
 
-This workflow plan defines the changes to be made with me. This plan sets the rules
-that must be followed for changes in this project.
+This workflow plan defines the changes to be made with me, incrementally. This plan sets the
+rules that must be followed for changes in this project.
 
 # Rules
 
@@ -15,11 +15,12 @@ that must be followed for changes in this project.
 - Never complement me
 - Never add empty lines
 - Never add, edit, or remove comments unless I explicitly request a change to comments
-- Always ask permission for ```import``` statements
+- Always ask permission for new ```import``` statements
 - Do not attempt fully working code in one step
 - Code should be concise, minimum necessary to achieve functionality
 - Code should have clear separation of responsibilities (SRP)
-- Code should be correct, pass lint tests and exclude defensive programming
+- Code should be logically correct and exclude defensive programming
+- Code should use type hints minimally, placed strategically so types are always clear
 - Respect an 80 character line limit
 - Mix between Test Driven Development and writing code then tests
 - Use the bash alias command ```activate``` in command-line to set the correct ```python``` venv
@@ -46,12 +47,24 @@ Working files are:
 
 # Steps
 
-5. **StorageRainEst**
-   - confirm test passes
-   - identify needed corrections
-   - review coverage
-   - identify plan to achieve coverage with concise tests
+7. **Generator**
+- expand test_generator
+- check test
+- review coverage
+- iteratively improve coverage
 
-5. **Elements with No Tests**
-   - Storage, Generator, RadialGate, FlapGate, Ramp, Noise, BidPeriod, inclass(), Canal, Observer
+98. **Elements with No Tests**
+- Generator, RadialGate, FlapGate, Ramp, Noise, BidPeriod, inclass(), Canal, Observer
+
+99. **Canal**
+- this element has never worked
+
+100. **Storage**
+- add new test_storage function
+- test function can be a simpler version of StorageRainEst
+- will need additional storage elements
+- check test
+- review coverage
+- iteratively improve coverage
+
 

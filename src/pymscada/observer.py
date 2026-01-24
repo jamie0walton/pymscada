@@ -222,13 +222,13 @@ class Storage(Node):
     def net_inflow(self):
         self.inflow = 0.0
         for src in self.inflows:
-            if self.p.model[src].flow is not None:
+            if hasattr(self.p.model[src], 'flow'):
                 self.inflow += self.p.model[src].flow
             else:  # must be riverlike
                 self.inflow += self.p.model[src].outflow
         self.outflow = 0.0
         for dst in self.outflows:
-            if self.p.model[dst].flow is not None:
+            if hasattr(self.p.model[dst], 'flow'):
                 self.outflow += self.p.model[dst].flow
             else:  # must be the one required river
                 logging.error(
@@ -251,8 +251,7 @@ class StorageRainEst(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
     def __init__(self, p: 'Observer', name: str, element_type: str,
-
-                 level=None, volume=None, alpha: float = 1.0,
+                 level=0, volume=0, alpha: float = 1.0,
                  Q: list[list[float]]=[[]], R:list[list[float]]=[[]],
                  F=None, H=None, P=None, LV=[],
                  level_read_tag: str = '', rainflow_write_tag: str = ''):
@@ -265,7 +264,8 @@ class StorageRainEst(Node):
         self.R = R
         self.alpha = alpha
         if F is None:
-            self.F = [[1, 60, 60],
+            tb = self.p.timebase
+            self.F = [[1, tb, tb],
                       [0, 1, 0],
                       [0, 0, 1]]
         else:
@@ -302,7 +302,7 @@ class StorageRainEst(Node):
     def net_inflow(self):
         self.inflow = 0.0
         for src in self.inflows:
-            if self.p.model[src].flow is not None:
+            if hasattr(self.p.model[src], 'flow'):
                 logging.info(f"{self.name} inflow {src} {self.p.model[src].flow:.3f}")
                 self.inflow += self.p.model[src].flow
             else:  # must be riverlike
@@ -312,7 +312,7 @@ class StorageRainEst(Node):
                 self.inflow += self.p.model[src].outflow
         self.outflow = 0.0
         for dst in self.outflows:
-            if self.p.model[dst].flow is not None:
+            if hasattr(self.p.model[dst], 'flow'):
                 logging.info(f"{self.name} outflow {dst} {self.p.model[dst].flow:.3f}")
                 self.outflow += self.p.model[dst].flow
             else:  # must be the one required river
@@ -462,14 +462,21 @@ class Generator(Arc):
     def __init__(self, p: 'Observer', name: str, element_type: str,
                  srcnode: str = '', dstnode: str = '', flow: float = 0.0,
                  MW: float = 0.0, setMW: float = 0.0, rate: float = 0.1,
-                 min: float = 0.0, max: float = 0.0, nosim: bool = False,
+                 min: float|None = None, max: float|None = None,
+                 nosim: bool = False,
                  K: float = 1.0, bestMW: float = 0.0, maxMW: float = 0.0,
                  SNLflow: float = 0.1, PQ: list = [],
                  MW_read_tag: str = '', flow_write_tag: str = ''):
         super().__init__(p, name, element_type, srcnode, dstnode)
         self.flow = flow
-        self.min = min
-        self.max = max
+        if min is None:
+            self.min = PQ[0][0]
+        else:
+            self.min = min
+        if max is None:
+            self.max = PQ[-1][0]
+        else:
+            self.max = max
         self.MW = MW
         self.setMW = setMW
         self.rate = rate
