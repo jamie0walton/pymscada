@@ -24,12 +24,11 @@ rules that must be followed for changes in this project.
 - Respect an 80 character line limit
 - Mix between Test Driven Development and writing code then tests
 - Use the bash alias command ```activate``` in command-line to set the correct ```python``` venv
-- Use broad error catching in ```try except``` blocks
 
 # Documentation
 
 See files:
-- ~/docs/raised_errors.md
+- ~/docs/policies.md
 - ~/docs/tags.md
 
 Most code must work well with the following files:
@@ -47,14 +46,14 @@ Working files are:
 
 # Steps
 
-8. **RadialGate**
-- create test_radial_gate
-- check test
-- review coverage
-- iteratively improve coverage
+13. **Observer Element behaviour**
+- follow_step is intended to run on a preset interval
+  add exception_step where [attribute]_read_tag is present and
+  add_callback can be used with the Tag to generate a by exception update
+  describe implementation approach asking questions where approach is unclear
 
 98. **Elements with No Tests**
-- RadialGate, FlapGate, Ramp, Noise, BidPeriod, inclass(), Canal, Observer
+- Ramp, Noise, BidPeriod, inclass(), Canal, Observer
 
 99. **Canal**
 - this element has never worked

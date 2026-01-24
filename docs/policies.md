@@ -1,8 +1,8 @@
-# Raised Error Policy
+# Policies
 
-Policy for exception types used in this project.
+## Exceptions
 
-## Exception Types
+Favour broad try except constructs. Exception types used in this project shall be:
 
 **SystemExit**: Fatal errors where the program cannot continue safely (initialization errors, invalid state).
 
@@ -14,3 +14,10 @@ Policy for exception types used in this project.
 
 **ArithmeticError**: Mathematical operation errors where operations cannot be performed (matrix shape mismatches, invalid matrix operations).
 
+## Tests
+
+Use ```python -m pytest tests/[file] --cov=pymscada.[module] --cov-report=term-missing -q``` to check
+coverage.
+
+When using assert have the unadorned return value compared to the pytest.approx(expected constant) or
+expected constant as appropriate.

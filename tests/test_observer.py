@@ -386,7 +386,7 @@ def test_river(o, t):
     for _ in range(30):
         river.sim_step()
         volume += river.outflow * 600
-    assert pytest.approx(volume) == 169740  # 12.3 * 23 * 600
+    assert volume == pytest.approx(169740)  # 12.3 * 23 * 600
 
 
 def test_storage_rain_est(o, t):
@@ -405,10 +405,10 @@ def test_storage_rain_est(o, t):
         storage.volume += 5.0 * storage.p.timebase
         storage.update_level()
         storage.follow_step()
-    assert pytest.approx(storage.rainflow, abs=0.1) == 5.0
+    assert storage.rainflow == pytest.approx(5.0, abs=0.1)
     storage.volume = 90601.0
     storage.update_level()
-    assert pytest.approx(storage.level) == 145.10
+    assert storage.level == pytest.approx(145.10)
 
 
 def test_generator(o, t):
@@ -417,7 +417,7 @@ def test_generator(o, t):
     assert generator.flow == 0.0
     generator.MW = 10.0
     generator.follow_step()
-    assert pytest.approx(generator.flow) == 29.0
+    assert generator.flow == pytest.approx(29.0)
     generator.MW = 0.0
     generator.setMW = 10.0
     generator.rate = 0.01
@@ -425,3 +425,37 @@ def test_generator(o, t):
     assert generator.MW == pytest.approx(6)
     generator.sim_step()
     assert generator.MW == pytest.approx(10)
+
+
+def test_radial_gate(o, t):
+    gate = o.model['RadialGate_1']
+    gate.initialise()
+    assert gate.flow == 0.0
+    gate.position = 5.0
+    gate.level = 146.6
+    gate.follow_step()
+    assert gate.flow == pytest.approx(30, abs=1.0)
+    gate.position = 0.0
+    gate.setposition = 50.0
+    gate.rate = 0.01
+    gate.sim_step()
+    assert gate.position == pytest.approx(6)
+    gate.sim_step()
+    assert gate.position == pytest.approx(12)
+
+
+def test_flap_gate(o, t):
+    gate = o.model['FlapGate_1']
+    gate.initialise()
+    assert gate.flow == 0.0
+    gate.position = 50.0
+    gate.level = 145.776 + 0.2
+    gate.follow_step()
+    assert gate.flow == pytest.approx(1.643746629)
+    gate.position = 0.0
+    gate.setposition = 50.0
+    gate.rate = 0.01
+    gate.sim_step()
+    assert gate.position == pytest.approx(0.01 * 600)
+    gate.sim_step()
+    assert gate.position == pytest.approx(0.02 * 600)
