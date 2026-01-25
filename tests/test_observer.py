@@ -7,6 +7,7 @@ from pymscada.bus_client_tag import TagFloat, TagInt
 from pymscada.observer import Observer, Valve
 
 BUS_ID = 999
+TEN_MINUTES = 600_000_000
 CONFIG_YAML = """
 model:
   System_Inflow:
@@ -17,7 +18,7 @@ model:
   RainFlow_1:
     element_type: valve
     flow: 1.1
-    rate: 0.000166667  # 10 minutes
+    rate_per_sec: 0.000166667
     dstnode: Galatea_River_site
   Galatea_River_site:
     element_type: summing
@@ -30,7 +31,7 @@ model:
   RainFlow_2:
     element_type: valve
     flow: 20.0
-    rate: 0.0166667
+    rate_per_sec: 0.0166667
     dstnode: Lake_Aniwhenua
   Lake_Aniwhenua:
     element_type: storage_rain_est
@@ -306,7 +307,7 @@ CONFIG = yaml.safe_load(CONFIG_YAML)
 def o():
     """Create BusClient and set callback, but never start it."""
     client = BusClient(None, None)
-    observer = Observer(CONFIG, 600)
+    observer = Observer(CONFIG, int(TEN_MINUTES / 1000000))
     yield observer
 
 
@@ -335,23 +336,24 @@ def test_valve(o, t):
     valve_1 = o.model['System_Inflow']
     valve_2 = o.model['RainFlow_1']
     valve_3 = o.model['RainFlow_2']
-    valve_1.initialise()  # Null action
-    # timing of flow propagation
-    t['I_Galatea_flow'].set_value(123.0, int(time.time() * 1e6), BUS_ID)
+    valve_1.initialise(0)
     assert valve_1.flow == 0.0
-    valve_1.sim_step()
+    t['I_Galatea_flow'].set_value(123.0, TEN_MINUTES, BUS_ID)
     assert valve_1.flow == 123.0
     # ramp up
     valve_3.flow = 10.0
     valve_3.setFlow = 50.0
-    valve_3.rate = 0.1
-    valve_3.sim_step()
+    valve_3.rate_per_sec = 0.1
+    valve_3.sim_step(TEN_MINUTES)
     assert valve_3.flow == 50.0
     # ramp down
     valve_3.flow = 100.0
     valve_3.setFlow = 20.0
-    valve_3.rate = 0.2
-    valve_3.sim_step()
+    valve_3.sim_step(TEN_MINUTES)
+    assert valve_3.flow == 100.0
+    valve_3.sim_step(TEN_MINUTES * 2)
+    assert valve_3.flow == 40.0
+    valve_3.sim_step(TEN_MINUTES * 3)
     assert valve_3.flow == 20.0
 
 
@@ -364,12 +366,12 @@ def test_summing(o, t):
     inflow_1.link()
     inflow_2.link()
     with pytest.raises(ValueError, match="one river required"):
-        summing.follow_step()
+        summing.follow_step(0)
     outflow.link()
-    t['I_Galatea_flow'].set_value(5.0, int(time.time() * 1e6), BUS_ID)
-    inflow_1.sim_step()  # need to simulate valve, not follow
+    t['I_Galatea_flow'].set_value(5.0, 0, BUS_ID)
+    inflow_1.sim_step(0)  # need to simulate valve, not follow
     inflow_2.flow = 3.0  # directly sets, no sim_step reqd
-    summing.follow_step()
+    summing.follow_step(0)
     assert outflow.inflow == pytest.approx(5.0 + 3.0)
 
 
@@ -377,15 +379,17 @@ def test_river(o, t):
     """Test river delay line. Simulation and following are identical."""
     river = o.model['Upper']
     river.inflow = 12.3
-    river.initialise()  # fills delayline with inflow
+    river.initialise(0)  # fills delayline with inflow
     assert len(river.delayline) == 23  # 13800 sec / 10 minutes
     river.inflow = 0.0
-    river.sim_step()
+    river.sim_step(TEN_MINUTES)
     assert t['SO_Galatea_delay_flow'].value == 12.3
     volume = t['SO_Galatea_delay_flow'].value * 600
+    time_us = TEN_MINUTES * 2
     for _ in range(30):
-        river.sim_step()
+        river.sim_step(time_us)
         volume += river.outflow * 600
+        time_us += TEN_MINUTES
     assert volume == pytest.approx(169740)  # 12.3 * 23 * 600
 
 
@@ -398,13 +402,13 @@ def test_storage_rain_est(o, t):
     inflow.flow = 40.0
     outflow.flow = 50.0
     storage.level = 146.70
-    storage.initialise()
+    storage.initialise(0)
     assert storage.volume == 1922927
-    for _ in range(10):
-        storage.sim_step()
-        storage.volume += 5.0 * storage.p.timebase
+    for i in range(10):
+        storage.sim_step(TEN_MINUTES * (i + 1))
+        storage.volume += 5.0 * storage.p.timebase_s
         storage.update_level()
-        storage.follow_step()
+        storage.follow_step(TEN_MINUTES * (i + 1))
     assert storage.rainflow == pytest.approx(5.0, abs=0.1)
     storage.volume = 90601.0
     storage.update_level()
@@ -413,49 +417,52 @@ def test_storage_rain_est(o, t):
 
 def test_generator(o, t):
     generator = o.model['Aniwhenua_G1']
-    generator.initialise()
+    generator.initialise(0)
     assert generator.flow == 0.0
     generator.MW = 10.0
-    generator.follow_step()
+    time_us = 1000000
+    generator.follow_step(time_us)
     assert generator.flow == pytest.approx(29.0)
     generator.MW = 0.0
     generator.setMW = 10.0
-    generator.rate = 0.01
-    generator.sim_step()
+    generator.rate_per_sec = 0.01
+    generator.sim_step(time_us)
     assert generator.MW == pytest.approx(6)
-    generator.sim_step()
+    generator.sim_step(time_us)
     assert generator.MW == pytest.approx(10)
 
 
 def test_radial_gate(o, t):
     gate = o.model['RadialGate_1']
-    gate.initialise()
+    gate.initialise(0)
     assert gate.flow == 0.0
     gate.position = 5.0
     gate.level = 146.6
-    gate.follow_step()
+    time_us = 1000000
+    gate.follow_step(time_us)
     assert gate.flow == pytest.approx(30, abs=1.0)
     gate.position = 0.0
     gate.setposition = 50.0
-    gate.rate = 0.01
-    gate.sim_step()
+    gate.rate_per_sec = 0.01
+    gate.sim_step(time_us)
     assert gate.position == pytest.approx(6)
-    gate.sim_step()
+    gate.sim_step(time_us)
     assert gate.position == pytest.approx(12)
 
 
 def test_flap_gate(o, t):
     gate = o.model['FlapGate_1']
-    gate.initialise()
+    gate.initialise(0)
     assert gate.flow == 0.0
     gate.position = 50.0
     gate.level = 145.776 + 0.2
-    gate.follow_step()
+    time_us = 1000000
+    gate.follow_step(time_us)
     assert gate.flow == pytest.approx(1.643746629)
     gate.position = 0.0
     gate.setposition = 50.0
-    gate.rate = 0.01
-    gate.sim_step()
+    gate.rate_per_sec = 0.01
+    gate.sim_step(time_us)
     assert gate.position == pytest.approx(0.01 * 600)
-    gate.sim_step()
+    gate.sim_step(time_us)
     assert gate.position == pytest.approx(0.02 * 600)

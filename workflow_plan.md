@@ -52,6 +52,27 @@ Working files are:
   add_callback can be used with the Tag to generate a by exception update
   describe implementation approach asking questions where approach is unclear
 
+14. **Valve**
+- correct tests broken by step 13.
+
+15. **Summing**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
+16. **River**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
+17. **StorageRainEst**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
+18. **Generator**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
+19. **RadialGate**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
+20. **FlapGate**
+- correct tests broken by step 13, consider test_valve as template for changes for this step.
+
 98. **Elements with No Tests**
 - Ramp, Noise, BidPeriod, inclass(), Canal, Observer
 
