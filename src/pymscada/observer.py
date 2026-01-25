@@ -178,7 +178,7 @@ class Summing(Node):
     def __init__(self, p: 'Observer', name: str, element_type: str):
         super().__init__(p, name, element_type)
 
-    def recalc_flow(self):
+    def recalc_flow(self, time_us: int):
         riverdst = None
         inflow = 0.0
         for src in self.inflows:
@@ -198,15 +198,16 @@ class Summing(Node):
             raise ValueError(f"{self.name} one river required")
         else:
             self.p.model[riverdst].inflow = inflow - outflow
+        self.calc_time_us = time_us
 
-    def initialise(self):
-        self.recalc_flow()
+    def initialise(self, time_us: int):
+        self.recalc_flow(time_us)
 
     def sim_step(self, time_us: int):
-        self.recalc_flow()
+        self.recalc_flow(time_us)
 
     def follow_step(self, time_us: int):
-        self.recalc_flow()
+        self.recalc_flow(time_us)
 
 
 class Storage(Node):
@@ -217,17 +218,18 @@ class Storage(Node):
         super().__init__(p, name, element_type)
         self.level = level
         self.volume = volume
+        self.netflow = 0
         self.LV = LV if LV is not None else []
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
 
-    def update_level(self):
+    def recalc_level(self):
         self.level = interp(self.volume, self.LV_ys, self.LV_xs)
 
-    def update_volume(self):
+    def recalc_volume(self):
         self.volume = interp(self.level, self.LV_xs, self.LV_ys)
 
-    def net_inflow(self):
+    def recalc_netflow(self):
         self.inflow = 0.0
         for src in self.inflows:
             if hasattr(self.p.model[src], 'flow'):
@@ -242,25 +244,23 @@ class Storage(Node):
                 logging.error(
                     f"{self.name} river {self.p.model[dst].name} not permitted"
                 )
+        self.netflow = self.inflow - self.outflow
 
     def initialise(self, time_us: int):
-        self.update_volume()
+        self.recalc_volume()
 
-    def step_volume(self, time_us: int):
+    def sim_step(self, time_us: int):
         if self.calc_time_us > 0:
             delta_t = (time_us - self.calc_time_us) / 1e6
         else:
             delta_t = self.p.timebase_s
-        self.volume += (self.inflow - self.outflow) * delta_t
+        self.volume += self.netflow * delta_t
         self.calc_time_us = time_us
-        self.update_level()
-
-    def sim_step(self, time_us: int):
-        self.net_inflow()
-        self.step_volume(time_us)
+        self.recalc_level()
+        self.recalc_netflow()
 
     def follow_step(self, time_us: int):
-        self.update_volume()
+        self.recalc_volume()
         self.calc_time_us = time_us
 
 
@@ -275,6 +275,7 @@ class StorageRainEst(Node):
         super().__init__(p, name, element_type)
         self.level = level
         self.volume = volume
+        self.netflow = 0
         self.known_flow = None
         self.rainflow = None
         self.Q = Q
@@ -311,13 +312,13 @@ class StorageRainEst(Node):
         if rainflow_write_tag != '':
             self.rainflow_write_tag = TagFloat(rainflow_write_tag)
 
-    def update_level(self):
+    def recalc_level(self):
         self.level = interp(self.volume, self.LV_ys, self.LV_xs)
 
-    def update_volume(self):
+    def recalc_volume(self):
         self.volume = interp(self.level, self.LV_xs, self.LV_ys)
 
-    def net_inflow(self):
+    def recalc_netflow(self):
         self.inflow = 0.0
         for src in self.inflows:
             if hasattr(self.p.model[src], 'flow'):
@@ -340,33 +341,30 @@ class StorageRainEst(Node):
         self.netflow = self.inflow - self.outflow
 
     def initialise(self, time_us: int):
-        self.update_volume()
-        self.net_inflow()
+        self.recalc_volume()
+        self.recalc_netflow()
         x0 = [[self.volume],
               [self.netflow],
               [0]]
         self.kf = KalmanFilter(F=self.F, H=self.H, Q=self.Q, R=self.R,
                                P=self.P, x0=x0, alpha=self.alpha)
 
-    def step_volume(self, time_us: int):
+    def sim_step(self, time_us: int):
+        # need to check if this object makes sense as simulation
         if self.calc_time_us > 0:
             delta_t = (time_us - self.calc_time_us) / 1e6
         else:
             delta_t = self.p.timebase_s
         self.volume += self.netflow * delta_t
         self.calc_time_us = time_us
-        self.update_level()
-
-    def sim_step(self, time_us: int):
-        # need to check if this object makes sense as simulation
-        self.net_inflow()
-        self.step_volume(time_us)
+        self.recalc_level()
+        self.recalc_netflow()
 
     def follow_step(self, time_us: int):
         if self._Dt <= 0.0:
             self._Dt = 60
-            self.net_inflow()
-            self.update_volume()
+            self.recalc_netflow()
+            self.recalc_volume()
             self.kf.predict()
             update = self.kf.update([[self.volume],
                                      [self.netflow],
@@ -384,7 +382,7 @@ class StorageRainEst(Node):
         if self.level_read_tag is not None and tag is self.level_read_tag:
             if tag.time_us > self.calc_time_us:
                 self.level = tag.value
-                self.update_volume()
+                self.recalc_volume()
                 self.calc_time_us = tag.time_us
 
 

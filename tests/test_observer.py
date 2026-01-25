@@ -407,11 +407,11 @@ def test_storage_rain_est(o, t):
     for i in range(10):
         storage.sim_step(TEN_MINUTES * (i + 1))
         storage.volume += 5.0 * storage.p.timebase_s
-        storage.update_level()
+        storage.recalc_level()
         storage.follow_step(TEN_MINUTES * (i + 1))
     assert storage.rainflow == pytest.approx(5.0, abs=0.1)
     storage.volume = 90601.0
-    storage.update_level()
+    storage.recalc_level()
     assert storage.level == pytest.approx(145.10)
 
 

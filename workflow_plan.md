@@ -46,38 +46,11 @@ Working files are:
 
 # Steps
 
-13. **Observer Element behaviour**
-- follow_step is intended to run on a preset interval
-  add exception_step where [attribute]_read_tag is present and
-  add_callback can be used with the Tag to generate a by exception update
-  describe implementation approach asking questions where approach is unclear
-
-14. **Valve**
-- correct tests broken by step 13.
-
-15. **Summing**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-16. **River**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-17. **StorageRainEst**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-18. **Generator**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-19. **RadialGate**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-20. **FlapGate**
-- correct tests broken by step 13, consider test_valve as template for changes for this step.
-
-98. **Elements with No Tests**
-- Ramp, Noise, BidPeriod, inclass(), Canal, Observer
-
-99. **Canal**
-- this element has never worked
+18. **Refactor Arc Node naming**
+- proposal rename Arc to Flow, rename Node to Netflow
+  identify the suitability of Summing and River as Netflow
+  identify the potential to move recalc_netflow to Netflow
+- update this step in line with the agreed plan
 
 100. **Storage**
 - add new test_storage function
