@@ -415,7 +415,7 @@ class ModbusClientConnector:
 
 
 class ModbusClient:
-    """Connect to bus on bus_ip:bus_post, serve on ip:port for modbus."""
+    """Connect to bus on bus_ip:bus_port, serve on ip:port for modbus."""
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  rtus: dict = {}, tags: dict = {}) -> None:

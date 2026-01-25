@@ -5,25 +5,25 @@ model:
     element_type: valve
     flow: 0.0
     flow_read_tag: I_Galatea_flow
-    dstnode: Galatea_River_site
+    destination: Galatea_River_site
   Galatea_River_site:
     element_type: summing
   Upper:
     element_type: river
-    srcnode: Galatea_River_site
-    dstnode: Lake_Aniwhenua
+    source: Galatea_River_site
+    destination: Lake_Aniwhenua
     delay: 13800 # 230 minutes OK at 35 cumecs, faster at higher flows
     outflow_write_tag: SO_Galatea_delay_flow
   Lake_Aniwhenua:
     element_type: storage_rain_est
     # as tested on 4 days recorded data
-    alpha: 1.001
+    alpha: 1.001  # inflates predicted P each step
     Q:  # covariance of the process noise
-    - [0.001, 0, 0]  # volume model good
-    - [0, 1, 0]  # flow model OK
-    - [0, 0, 0]
+    - [0.001,  0.002,  0.002] # volume model good, some correlation with flows
+    - [0.002,      1, 0.0005] # flow model OK, less correlation between flows
+    - [0.002, 0.0005,   0.01] # some rainflow drift is ok
     R:  # covariance of the observation noise
-    - [100000, 0, 0]  # volume measurement is OK
+    - [100000, 0, 0]  # large as volume and sensitivity to sensor bounce
     - [0, 1, 0]  # flow measurement is OK
     - [0, 0, 1]
     LV: # mRL, m3
@@ -61,7 +61,7 @@ model:
     element_type: generator
     MW: 0.0
     flow: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PQ:
       - [0.0,  0.0]
       - [0.1,  0.0]
@@ -84,7 +84,7 @@ model:
     element_type: generator
     MW: 0.0
     flow: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PQ: # power vs. flow
       - [0.0,  0.0]
       - [0.1,  0.0]
@@ -108,7 +108,7 @@ model:
     position: 0.0
     flow: 0.0
     level: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     width: 9.65
     crest: 137.8
     PO: # position vs. opening
@@ -141,7 +141,7 @@ model:
     position: 0.0
     flow: 0.0
     level: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     width: 9.65
     crest: 137.8
     PO: # position vs. opening
@@ -174,7 +174,7 @@ model:
     position: 0.0
     flow: 0.0
     level: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PC: # position vs. crest
       - [0.0, 146.88]
       - [6.0, 146.812]
@@ -211,7 +211,7 @@ model:
     position: 0.0
     flow: 0.0
     level: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PC: # position vs. crest
       - [0.0, 146.88]
       - [6.0, 146.812]
@@ -248,7 +248,7 @@ model:
     position: 0.0
     flow: 0.0
     level: 0.0
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PC: # position vs. crest
       - [0.0, 146.88]
       - [6.0, 146.812]

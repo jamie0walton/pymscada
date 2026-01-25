@@ -70,6 +70,12 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
+            name='observer',
+            help='run hydraulic observer model',
+            module_class='pymscada.observer:Observer',
+            tags=False
+        ),
+        ModuleDefinition(
             name='checkout',
             help='create example config files',
             module_class='pymscada.checkout:Checkout',

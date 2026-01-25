@@ -1,11 +1,11 @@
 [Unit]
-    Description=pymscada - operator notes
+    Description=pymscada - observer
     BindsTo=pymscada-bus.service
     After=pymscada-bus.service
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ opnotes --config __DIR__/config/opnotes.yaml
+    ExecStart=__PYMSCADA__ observer --config __DIR__/config/observer.yaml
     Restart=always
     RestartSec=5
     User=__USER__

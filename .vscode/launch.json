@@ -85,6 +85,18 @@
             "justMyCode":true
         },
         {
+            "name":"observer",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["observer", "--verbose",
+                "--config", "../config/observer.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"sms",
             "type":"debugpy",
             "request":"launch",

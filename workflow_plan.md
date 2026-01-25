@@ -40,14 +40,16 @@ Older modules use the deprecated option in tags.py instead of bus_client_tags.py
 # Working Files
 
 Working files are:
+- ~/src/pymscada/module_config.py
 - ~/src/pymscada/observer.py
 - ~/tests/test_observer.py
 - ~/src/pymscada/demo/observer.yaml
 
 # Steps
 
-18. **Refactor Arc Node naming**
-- assess the code structure of observer.py to identify potential structural improvements.
+21. **Make Observer callable**
+- Identify the changes needed to make ```pymscada observer``` work.
+- make no changes
 
 100. **Storage**
 - add new test_storage function
