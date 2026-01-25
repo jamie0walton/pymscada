@@ -344,16 +344,16 @@ def test_valve(o, t):
     valve_3.flow = 10.0
     valve_3.setFlow = 50.0
     valve_3.rate_per_sec = 0.1
-    valve_3.sim_step(TEN_MINUTES)
+    valve_3.simulate_step(TEN_MINUTES)
     assert valve_3.flow == 50.0
     # ramp down
     valve_3.flow = 100.0
     valve_3.setFlow = 20.0
-    valve_3.sim_step(TEN_MINUTES)
+    valve_3.simulate_step(TEN_MINUTES)
     assert valve_3.flow == 100.0
-    valve_3.sim_step(TEN_MINUTES * 2)
+    valve_3.simulate_step(TEN_MINUTES * 2)
     assert valve_3.flow == 40.0
-    valve_3.sim_step(TEN_MINUTES * 3)
+    valve_3.simulate_step(TEN_MINUTES * 3)
     assert valve_3.flow == 20.0
 
 
@@ -369,8 +369,8 @@ def test_summing(o, t):
         summing.follow_step(0)
     outflow.link()
     t['I_Galatea_flow'].set_value(5.0, 0, BUS_ID)
-    inflow_1.sim_step(0)  # need to simulate valve, not follow
-    inflow_2.flow = 3.0  # directly sets, no sim_step reqd
+    inflow_1.simulate_step(0)  # need to simulate valve, not follow
+    inflow_2.flow = 3.0  # directly sets, no simulate_step reqd
     summing.follow_step(0)
     assert outflow.inflow == pytest.approx(5.0 + 3.0)
 
@@ -382,12 +382,12 @@ def test_river(o, t):
     river.initialise(0)  # fills delayline with inflow
     assert len(river.delayline) == 23  # 13800 sec / 10 minutes
     river.inflow = 0.0
-    river.sim_step(TEN_MINUTES)
+    river.simulate_step(TEN_MINUTES)
     assert t['SO_Galatea_delay_flow'].value == 12.3
     volume = t['SO_Galatea_delay_flow'].value * 600
     time_us = TEN_MINUTES * 2
     for _ in range(30):
-        river.sim_step(time_us)
+        river.simulate_step(time_us)
         volume += river.outflow * 600
         time_us += TEN_MINUTES
     assert volume == pytest.approx(169740)  # 12.3 * 23 * 600
@@ -405,7 +405,7 @@ def test_storage_rain_est(o, t):
     storage.initialise(0)
     assert storage.volume == 1922927
     for i in range(10):
-        storage.sim_step(TEN_MINUTES * (i + 1))
+        storage.simulate_step(TEN_MINUTES * (i + 1))
         storage.volume += 5.0 * storage.p.timebase_s
         storage.recalc_level()
         storage.follow_step(TEN_MINUTES * (i + 1))
@@ -426,9 +426,9 @@ def test_generator(o, t):
     generator.MW = 0.0
     generator.setMW = 10.0
     generator.rate_per_sec = 0.01
-    generator.sim_step(time_us)
+    generator.simulate_step(time_us)
     assert generator.MW == pytest.approx(6)
-    generator.sim_step(time_us)
+    generator.simulate_step(time_us)
     assert generator.MW == pytest.approx(10)
 
 
@@ -444,9 +444,9 @@ def test_radial_gate(o, t):
     gate.position = 0.0
     gate.setposition = 50.0
     gate.rate_per_sec = 0.01
-    gate.sim_step(time_us)
+    gate.simulate_step(time_us)
     assert gate.position == pytest.approx(6)
-    gate.sim_step(time_us)
+    gate.simulate_step(time_us)
     assert gate.position == pytest.approx(12)
 
 
@@ -462,7 +462,7 @@ def test_flap_gate(o, t):
     gate.position = 0.0
     gate.setposition = 50.0
     gate.rate_per_sec = 0.01
-    gate.sim_step(time_us)
+    gate.simulate_step(time_us)
     assert gate.position == pytest.approx(0.01 * 600)
-    gate.sim_step(time_us)
+    gate.simulate_step(time_us)
     assert gate.position == pytest.approx(0.02 * 600)

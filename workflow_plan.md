@@ -47,10 +47,7 @@ Working files are:
 # Steps
 
 18. **Refactor Arc Node naming**
-- proposal rename Arc to Flow, rename Node to Netflow
-  identify the suitability of Summing and River as Netflow
-  identify the potential to move recalc_netflow to Netflow
-- update this step in line with the agreed plan
+- assess the code structure of observer.py to identify potential structural improvements.
 
 100. **Storage**
 - add new test_storage function

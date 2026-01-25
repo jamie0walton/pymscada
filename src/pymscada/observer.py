@@ -35,7 +35,7 @@ class Element():
     def exception_step(self, tag: TagFloat | TagInt):
         pass
 
-    def sim_step(self, time_us: int):
+    def simulate_step(self, time_us: int):
         pass
 
 
@@ -86,7 +86,7 @@ class Ramp(Element):
         self.control_max = control_max
         self.rate_per_sec = rate_per_sec
 
-    def sim_step(self, time_us: int):
+    def simulate_step(self, time_us: int):
         error = self.setpoint - self.process
         if error > self.deadband:
             self.control += self.rate_per_sec * self.p.timebase_s
@@ -111,7 +111,7 @@ class Noise(Element):
         self.interval = interval
         self._interval = 0
 
-    def sim_step(self, time_us: int):
+    def simulate_step(self, time_us: int):
         self._interval += 1
         if self._interval >= self.interval:
             self._interval = 0
@@ -145,7 +145,7 @@ class BidPeriod(Element):
             self.low = self.dispatch - self.db
             self.high = self.dispatch + self.db
 
-    def sim_step(self, time_us: int):
+    def simulate_step(self, time_us: int):
         t = int(time.time())
         period = bid_period(t)
         jitter = 90 * ((period > 24.5) - (period < 24.5))
@@ -178,7 +178,7 @@ class Summing(Node):
     def __init__(self, p: 'Observer', name: str, element_type: str):
         super().__init__(p, name, element_type)
 
-    def recalc_flow(self, time_us: int):
+    def recalc_riverdst(self, time_us: int):
         riverdst = None
         inflow = 0.0
         for src in self.inflows:
@@ -201,13 +201,13 @@ class Summing(Node):
         self.calc_time_us = time_us
 
     def initialise(self, time_us: int):
-        self.recalc_flow(time_us)
-
-    def sim_step(self, time_us: int):
-        self.recalc_flow(time_us)
+        self.recalc_riverdst(time_us)
 
     def follow_step(self, time_us: int):
-        self.recalc_flow(time_us)
+        self.recalc_riverdst(time_us)
+
+    def simulate_step(self, time_us: int):
+        self.recalc_riverdst(time_us)
 
 
 class Storage(Node):
@@ -249,7 +249,11 @@ class Storage(Node):
     def initialise(self, time_us: int):
         self.recalc_volume()
 
-    def sim_step(self, time_us: int):
+    def follow_step(self, time_us: int):
+        self.recalc_volume()
+        self.calc_time_us = time_us
+
+    def simulate_step(self, time_us: int):
         if self.calc_time_us > 0:
             delta_t = (time_us - self.calc_time_us) / 1e6
         else:
@@ -258,10 +262,6 @@ class Storage(Node):
         self.calc_time_us = time_us
         self.recalc_level()
         self.recalc_netflow()
-
-    def follow_step(self, time_us: int):
-        self.recalc_volume()
-        self.calc_time_us = time_us
 
 
 class StorageRainEst(Node):
@@ -349,17 +349,6 @@ class StorageRainEst(Node):
         self.kf = KalmanFilter(F=self.F, H=self.H, Q=self.Q, R=self.R,
                                P=self.P, x0=x0, alpha=self.alpha)
 
-    def sim_step(self, time_us: int):
-        # need to check if this object makes sense as simulation
-        if self.calc_time_us > 0:
-            delta_t = (time_us - self.calc_time_us) / 1e6
-        else:
-            delta_t = self.p.timebase_s
-        self.volume += self.netflow * delta_t
-        self.calc_time_us = time_us
-        self.recalc_level()
-        self.recalc_netflow()
-
     def follow_step(self, time_us: int):
         if self._Dt <= 0.0:
             self._Dt = 60
@@ -385,6 +374,17 @@ class StorageRainEst(Node):
                 self.recalc_volume()
                 self.calc_time_us = tag.time_us
 
+    def simulate_step(self, time_us: int):
+        # need to check if this object makes sense as simulation
+        if self.calc_time_us > 0:
+            delta_t = (time_us - self.calc_time_us) / 1e6
+        else:
+            delta_t = self.p.timebase_s
+        self.volume += self.netflow * delta_t
+        self.calc_time_us = time_us
+        self.recalc_level()
+        self.recalc_netflow()
+
 
 class Valve(Arc):
     """Ramps to a flow setpoint."""
@@ -404,7 +404,13 @@ class Valve(Arc):
         if self.rate_per_sec == 0.0:
             raise ValueError(f"{self.name} rate_per_sec cannot be zero")
 
-    def sim_step(self, time_us: int):
+    def exception_step(self, tag):
+        if tag is self.flow_read_tag:
+            self.flow = tag.value
+        else:
+            logging.error(f"Valve: {self.name} got {tag.name}")
+
+    def simulate_step(self, time_us: int):
         if self.flow_read_tag is not None:
             self.flow = self.flow_read_tag.value
             return
@@ -419,12 +425,6 @@ class Valve(Arc):
                 self.flow = self.setFlow
         self.calc_time_us = time_us
 
-    def exception_step(self, tag):
-        if tag is self.flow_read_tag:
-            self.flow = tag.value
-        else:
-            logging.error(f"Valve: {self.name} got {tag.name}")
-
 
 class Canal(Arc):
     """Links flow driven by head difference."""
@@ -438,7 +438,7 @@ class Canal(Arc):
         self.HQ_xs = [x[0] for x in self.HQ]
         self.HQ_ys = [x[1] for x in self.HQ]
 
-    def sim_step(self, time_us: int):
+    def simulate_step(self, time_us: int):
         leveldelta = self.p.model[self.srcnode].level - self.p.model[self.dstnode].level
         drivenflow = interp(leveldelta, self.HQ_xs, self.HQ_ys)
         self.flow = self.flow * self.lag + drivenflow * (1 - self.lag)
@@ -511,9 +511,6 @@ class River(Arc):
         self.volume = self.inflow * step_in_new_s
         self.calc_time_us = step_calc_time_us
 
-    def sim_step(self, time_us: int):
-        self.follow_step(time_us)
-
     def follow_step(self, time_us: int):
         self.recalc_flow(time_us)
 
@@ -522,6 +519,10 @@ class River(Arc):
             if tag.time_us > self.calc_time_us:
                 self.recalc_flow(tag.time_us)
                 self.inflow = tag.value
+
+    def simulate_step(self, time_us: int):
+        self.follow_step(time_us)
+
 
 class Generator(Arc):
     """Ramp MW, calculates flow."""
@@ -571,7 +572,19 @@ class Generator(Arc):
     def initialise(self, time_us: int):
         self.recalc_flow()
 
-    def sim_step(self, time_us: int):
+    def follow_step(self, time_us: int):
+        """Calculate flow given MW, keep doing for nosim mode."""
+        self.recalc_flow()
+        self.calc_time_us = time_us
+
+    def exception_step(self, tag):
+        if self.MW_read_tag is not None and tag is self.MW_read_tag:
+            if tag.time_us > self.calc_time_us:
+                self.MW = tag.value
+                self.recalc_flow()
+                self.calc_time_us = tag.time_us
+
+    def simulate_step(self, time_us: int):
         if self.nosim:
             self.follow_step(time_us)
             return
@@ -588,18 +601,6 @@ class Generator(Arc):
         elif self.MW < self.min:
             self.MW = self.min
         self.follow_step(time_us)
-
-    def follow_step(self, time_us: int):
-        """Calculate flow given MW, keep doing for nosim mode."""
-        self.recalc_flow()
-        self.calc_time_us = time_us
-
-    def exception_step(self, tag):
-        if self.MW_read_tag is not None and tag is self.MW_read_tag:
-            if tag.time_us > self.calc_time_us:
-                self.MW = tag.value
-                self.recalc_flow()
-                self.calc_time_us = tag.time_us
 
 
 class RadialGate(Arc):
@@ -651,21 +652,6 @@ class RadialGate(Arc):
     def initialise(self, time_us: int):
         self.recalc_flow()
 
-    def sim_step(self, time_us: int):
-        if self.position < self.setposition:
-            self.position += self.rate_per_sec * self.p.timebase_s
-            if self.position > self.setposition:
-                self.position = self.setposition
-        elif self.position > self.setposition:
-            self.position -= self.rate_per_sec * self.p.timebase_s
-            if self.position < self.setposition:
-                self.position = self.setposition
-        if self.position > self.max:
-            self.position = self.max
-        elif self.position < self.min:
-            self.position = self.min
-        self.follow_step(time_us)
-
     def follow_step(self, time_us: int):
         self.recalc_flow()
         self.calc_time_us = time_us
@@ -683,6 +669,21 @@ class RadialGate(Arc):
         if updated:
             self.recalc_flow()
             self.calc_time_us = tag.time_us
+
+    def simulate_step(self, time_us: int):
+        if self.position < self.setposition:
+            self.position += self.rate_per_sec * self.p.timebase_s
+            if self.position > self.setposition:
+                self.position = self.setposition
+        elif self.position > self.setposition:
+            self.position -= self.rate_per_sec * self.p.timebase_s
+            if self.position < self.setposition:
+                self.position = self.setposition
+        if self.position > self.max:
+            self.position = self.max
+        elif self.position < self.min:
+            self.position = self.min
+        self.follow_step(time_us)
 
 
 class FlapGate(Arc):
@@ -732,21 +733,6 @@ class FlapGate(Arc):
     def initialise(self, time_us: int):
         self.recalc_flow()
 
-    def sim_step(self, time_us: int):
-        if self.position < self.setposition:
-            self.position += self.rate_per_sec * self.p.timebase_s
-            if self.position > self.setposition:
-                self.position = self.setposition
-        elif self.position > self.setposition:
-            self.position -= self.rate_per_sec * self.p.timebase_s
-            if self.position < self.setposition:
-                self.position = self.setposition
-        if self.position > self.max:
-            self.position = self.max
-        elif self.position < self.min:
-            self.position = self.min
-        self.follow_step(time_us)
-
     def follow_step(self, time_us: int):
         self.recalc_flow()
         self.calc_time_us = time_us
@@ -765,6 +751,21 @@ class FlapGate(Arc):
             self.recalc_flow()
             self.calc_time_us = tag.time_us
 
+    def simulate_step(self, time_us: int):
+        if self.position < self.setposition:
+            self.position += self.rate_per_sec * self.p.timebase_s
+            if self.position > self.setposition:
+                self.position = self.setposition
+        elif self.position > self.setposition:
+            self.position -= self.rate_per_sec * self.p.timebase_s
+            if self.position < self.setposition:
+                self.position = self.setposition
+        if self.position > self.max:
+            self.position = self.max
+        elif self.position < self.min:
+            self.position = self.min
+        self.follow_step(time_us)
+
 
 def inclass(*args):
     """Repeat isinstance() for each class, return True if any."""
@@ -780,7 +781,7 @@ class Observer():
     Reads node / arc hyraulic model and simulates.
 
     For an observer more values are fixed, use follow_step.
-    For a simulation more values are free, use sim_step.
+    For a simulation more values are free, use simulate_step.
     """
 
     def __init__(self, config, timebase_s: int):
@@ -839,28 +840,6 @@ class Observer():
             if inclass(e, Ramp, Noise, BidPeriod):
                 e.initialise(time_us)
 
-    def sim_step(self):
-        """Simulate the system, setting unknowns."""
-        time_us = int(time.time() * 1e6)
-        if self.runinit:
-            self.initialise()
-        # Before flows to set head for head driven flows
-        for e in self.model.values():
-            if inclass(e, Storage, StorageRainEst):
-                e.sim_step(time_us)
-        for e in self.model.values():
-            if inclass(e, Valve, Canal, Generator, RadialGate, FlapGate):
-                e.sim_step(time_us)
-        for e in self.model.values():
-            if inclass(e, Summing):
-                e.sim_step(time_us)
-        for e in self.model.values():
-            if inclass(e, River):
-                e.sim_step(time_us)
-        for e in self.model.values():
-            if inclass(e, Ramp, Noise, BidPeriod):
-                e.sim_step(time_us)
-
     def follow_step(self):
         """Follow the running system, observing unknowns."""
         time_us = int(time.time() * 1e6)
@@ -882,3 +861,25 @@ class Observer():
         for e in self.model.values():
             if inclass(e, Ramp, Noise, BidPeriod):
                 e.follow_step(time_us)
+
+    def simulate_step(self):
+        """Simulate the system, setting unknowns."""
+        time_us = int(time.time() * 1e6)
+        if self.runinit:
+            self.initialise()
+        # Before flows to set head for head driven flows
+        for e in self.model.values():
+            if inclass(e, Storage, StorageRainEst):
+                e.simulate_step(time_us)
+        for e in self.model.values():
+            if inclass(e, Valve, Canal, Generator, RadialGate, FlapGate):
+                e.simulate_step(time_us)
+        for e in self.model.values():
+            if inclass(e, Summing):
+                e.simulate_step(time_us)
+        for e in self.model.values():
+            if inclass(e, River):
+                e.simulate_step(time_us)
+        for e in self.model.values():
+            if inclass(e, Ramp, Noise, BidPeriod):
+                e.simulate_step(time_us)
