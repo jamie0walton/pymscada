@@ -91,7 +91,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["observer", "--verbose",
-                "--config", "../config/observer.yaml",
+                "--config", "../ani/config/observer.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true

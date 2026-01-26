@@ -1,4 +1,5 @@
 """Observer."""
+import asyncio
 from collections import deque
 from collections.abc import Callable
 import logging
@@ -63,6 +64,20 @@ class Arc(Element):
             self.p.model[self.source].outflows.append(self.name)
         if self.destination != '':
             self.p.model[self.destination].inflows.append(self.name)
+
+
+class Math(Element):
+    """Math element performs calculations on inputs."""
+
+    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+                 calc: list[dict] = []):
+        super().__init__(p, name, element_type)
+        self.calc = calc
+        for x in self.calc:
+            pass
+        
+    def recalc(self):
+        pass
 
 
 class Summing(Node):
@@ -192,7 +207,8 @@ class StorageRainEst(Node):
         self.level_read_tag = None
         if level_read_tag != '':
             self.level_read_tag = TagFloat(level_read_tag)
-            self.level_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.level_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[level_read_tag] = self.level_read_tag
         self.rainflow_write_tag = None
         if rainflow_write_tag != '':
             self.rainflow_write_tag = TagFloat(rainflow_write_tag)
@@ -249,6 +265,8 @@ class StorageRainEst(Node):
                 f" inflow {self.inflow:.3f} outflow {self.outflow:.3f}"
                 f" rainflow {self.rainflow:.3f}"
             )
+            if self.rainflow_write_tag is not None:
+                self.rainflow_write_tag.value = self.rainflow
         self._Dt -= 1
 
     def tag_callback(self, tag):
@@ -276,7 +294,8 @@ class Valve(Arc):
         self.flow_read_tag = None
         if flow_read_tag != '':
             self.flow_read_tag = TagFloat(flow_read_tag)
-            self.flow_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.flow_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[flow_read_tag] = self.flow_read_tag
         self.rate = rate
         if self.rate == 0.0:
             raise ValueError(f"{self.name} rate cannot be zero")
@@ -326,7 +345,8 @@ class River(Arc):
         self.inflow_read_tag = None
         if inflow_read_tag != '':
             self.inflow_read_tag = TagFloat(inflow_read_tag)
-            self.inflow_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.inflow_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[inflow_read_tag] = self.inflow_read_tag
         self.outflow_write_tag = None
         if outflow_write_tag != '':
             self.outflow_write_tag = TagFloat(outflow_write_tag)
@@ -398,7 +418,8 @@ class Generator(Arc):
         self.MW_read_tag = None
         if MW_read_tag != '':
             self.MW_read_tag = TagFloat(MW_read_tag)
-            self.MW_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.MW_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[MW_read_tag] = self.MW_read_tag
         self.flow_write_tag = None
         if flow_write_tag != '':
             self.flow_write_tag = TagFloat(flow_write_tag)
@@ -454,11 +475,13 @@ class RadialGate(Arc):
         self.position_read_tag = None
         if position_read_tag != '':
             self.position_read_tag = TagFloat(position_read_tag)
-            self.position_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.position_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[position_read_tag] = self.position_read_tag
         self.level_read_tag = None
         if level_read_tag != '':
             self.level_read_tag = TagFloat(level_read_tag)
-            self.level_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.level_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[level_read_tag] = self.level_read_tag
         self.flow_write_tag = None
         if flow_write_tag != '':
             self.flow_write_tag = TagFloat(flow_write_tag)
@@ -519,11 +542,13 @@ class FlapGate(Arc):
         self.position_read_tag = None
         if position_read_tag != '':
             self.position_read_tag = TagFloat(position_read_tag)
-            self.position_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.position_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[position_read_tag] = self.position_read_tag
         self.level_read_tag = None
         if level_read_tag != '':
             self.level_read_tag = TagFloat(level_read_tag)
-            self.level_read_tag.add_callback(self.tag_callback, bus_id=0)
+            self.level_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[level_read_tag] = self.level_read_tag
         self.flow_write_tag = None
         if flow_write_tag != '':
             self.flow_write_tag = TagFloat(flow_write_tag)
@@ -573,6 +598,7 @@ class ObserverModel():
     def __init__(self, model):
         """Just set the main timebase. 1.0 works."""
         self.model = {}
+        self.input_tags = {}
         for e in model:
             self.add_element(e, model[e])
         self.periodic = Periodic(self.periodic_cb, 1.0)
@@ -651,6 +677,15 @@ class ObserverModel():
         self.follow_step()
 
     async def start(self):
+        """Start the observer."""
+        while True:
+            await asyncio.sleep(1)
+            done = True
+            for tag in self.input_tags.values():
+                if tag.is_none:
+                    done = False
+            if done:
+                break
         self.initialise()
         await self.periodic.start()
 
@@ -667,12 +702,13 @@ class Observer:
         Event loop must be running.
         """
         self.busclient = None
+        self.model = model
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='Observer')
-        self.model = ObserverModel(model)
     
     async def start(self):
         """Provide observer."""
         if self.busclient is not None:
             await self.busclient.start()
-        await self.model.start()
+        self.observer = ObserverModel(self.model)
+        await self.observer.start()

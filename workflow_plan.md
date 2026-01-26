@@ -47,9 +47,8 @@ Working files are:
 
 # Steps
 
-21. **Make Observer callable**
-- Identify the changes needed to make ```pymscada observer``` work.
-- make no changes
+23. **runs in production tests broken**
+- identify test_observer.py errors and corrections needed in the tests
 
 100. **Storage**
 - add new test_storage function

@@ -6,6 +6,10 @@ api:
   webid: ${MSCADA_PI_WEBID}
   averaging: 300
 tags:
+  PEL_AniBudget_Target:
+    webid_name: RT
+    pi_point: PEL.AniBudget.Target
+    mode: rw
   I_An_G1_MW:
     pi_point: AnG1.AIMw
     webid_name: 5M
