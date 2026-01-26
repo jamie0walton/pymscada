@@ -606,6 +606,7 @@ class ObserverModel():
     def add_element(self, name: str, e: dict):
         """Add an element, node or arc to the model."""
         by_type = {
+            'math': Math,
             'summing': Summing,
             'storage': Storage,
             'storage_rain_est': StorageRainEst,

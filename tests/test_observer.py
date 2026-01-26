@@ -8,20 +8,21 @@ from pymscada.observer import ObserverModel, Valve
 
 BUS_ID = 999
 CONFIG_YAML = """
+math:
+  element_type: math
+  SO_Sum_Gen:
+  - {action: add, tagname: I_Aniwhenua_G1_MW}
+  - {action: add, tagname: I_Aniwhenua_G2_MW}
+  SO_Barrage_flow:
+  - {action: add, tagname: SO_RadialGate_1_flow}
+  - {action: add, tagname: SO_RadialGate_2_flow}
+  - {action: add, tagname: SO_FlapGate_1_flow}
+  - {action: add, tagname: SO_FlapGate_2_flow}
+  - {action: add, tagname: SO_FlapGate_3_flow}
+  SO_Lake_Aniwhenua_Inflow:
+  - {action: add, tagname: SO_Galatea_delay_flow}
+  - {action: add, tagname: SO_Lake_Aniwhenua_Rainflow}
 model:
-  math:
-    SO_Sum_Gen:
-    - {action: add, tagname: I_Aniwhenua_G1_MW}
-    - {action: add, tagname: I_Aniwhenua_G2_MW}
-    SO_Barrage_flow:
-    - {action: add, tagname: SO_RadialGate_1_flow}
-    - {action: add, tagname: SO_RadialGate_2_flow}
-    - {action: add, tagname: SO_FlapGate_1_flow}
-    - {action: add, tagname: SO_FlapGate_2_flow}
-    - {action: add, tagname: SO_FlapGate_3_flow}
-    SO_Lake_Aniwhenua_Inflow:
-    - {action: add, tagname: SO_Galatea_delay_flow}
-    - {action: add, tagname: SO_Lake_Aniwhenua_Rainflow}
   System_Inflow:
     element_type: valve
     flow: 0.0
@@ -319,7 +320,7 @@ CONFIG = yaml.safe_load(CONFIG_YAML)
 def o():
     """Create BusClient and set callback, but never start it."""
     _client = BusClient(None, None)
-    observer = ObserverModel(CONFIG)
+    observer = ObserverModel(CONFIG['model'])
     yield observer
 
 
