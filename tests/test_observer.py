@@ -4,12 +4,11 @@ import time
 import yaml
 from pymscada.bus_client import BusClient
 from pymscada.bus_client_tag import TagFloat, TagInt
-from pymscada.observer import ObserverModel, Valve
+from pymscada.observer import Observer, Valve
 
 BUS_ID = 999
 CONFIG_YAML = """
 math:
-  element_type: math
   SO_Sum_Gen:
   - {action: add, tagname: I_Aniwhenua_G1_MW}
   - {action: add, tagname: I_Aniwhenua_G2_MW}
@@ -320,7 +319,7 @@ CONFIG = yaml.safe_load(CONFIG_YAML)
 def o():
     """Create BusClient and set callback, but never start it."""
     _client = BusClient(None, None)
-    observer = ObserverModel(CONFIG['model'])
+    observer = Observer(bus_ip=None, **CONFIG)
     yield observer
 
 
@@ -473,3 +472,16 @@ def test_flap_gate(o, t):
     assert gate.position == pytest.approx(0.01)
     gate.simulate_step()
     assert gate.position == pytest.approx(0.02)
+
+
+def test_math(o, t):
+    """Test math element calculations."""
+    math_sum_gen = o.math['SO_Sum_Gen']
+    assert math_sum_gen.output_tag.name == 'SO_Sum_Gen'
+    assert len(math_sum_gen.input_tags) == 2
+    t['I_Aniwhenua_G1_MW'].set_value(5.0, 0, BUS_ID)
+    assert math_sum_gen.output_tag.value == pytest.approx(5.0)
+    t['I_Aniwhenua_G2_MW'].set_value(7.0, 0, BUS_ID)
+    assert math_sum_gen.output_tag.value == pytest.approx(12.0)
+    math_sum_gen.follow_step()
+    assert math_sum_gen.output_tag.value == pytest.approx(12.0)

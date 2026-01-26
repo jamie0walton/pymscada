@@ -40,15 +40,21 @@ Older modules use the deprecated option in tags.py instead of bus_client_tags.py
 # Working Files
 
 Working files are:
-- ~/src/pymscada/module_config.py
 - ~/src/pymscada/observer.py
 - ~/tests/test_observer.py
 - ~/src/pymscada/demo/observer.yaml
 
 # Steps
 
-23. **runs in production tests broken**
-- identify test_observer.py errors and corrections needed in the tests
+26. **math**
+- I have added the input data for math into Observer
+- this needs to use the keys as tags to have the values written
+- under each tag is a list of actions, only add at present, and tagname
+- the action tagname should use the callback pattern used for model tags
+- periodic should also call follow_step for math
+- identify the best approach to implement this
+- describe the approach required
+- once I have agreed with the approach correct the error
 
 100. **Storage**
 - add new test_storage function

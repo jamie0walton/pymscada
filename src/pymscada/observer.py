@@ -15,7 +15,7 @@ from pymscada.periodic import Periodic
 class Element():
     """Base model element."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str):
+    def __init__(self, p: 'Observer', name: str, element_type: str):
         """Base element with common required attributes."""
         self.name = name
         self.element_type = element_type
@@ -40,7 +40,7 @@ class Element():
 class Node(Element):
     """Nodes collect inflows and outflows."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str):
+    def __init__(self, p: 'Observer', name: str, element_type: str):
         """Nodes collect inflows and outflows with arcs."""
         super().__init__(p, name, element_type)
         self.inflow = 0.0
@@ -52,7 +52,7 @@ class Node(Element):
 class Arc(Element):
     """Arc element has source and destination nodes."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = ''):
         """Arcs connect between Elements."""
         super().__init__(p, name, element_type)
@@ -69,21 +69,40 @@ class Arc(Element):
 class Math(Element):
     """Math element performs calculations on inputs."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  calc: list[dict] = []):
         super().__init__(p, name, element_type)
-        self.calc = calc
-        for x in self.calc:
-            pass
-        
+        self.output_tag = TagFloat(name)
+        self.input_tags: list[TagFloat] = []
+        self.add = {}
+        for action in calc:
+            if action.get('action') == 'add':
+                input_tag = TagFloat(action['tagname'])
+                input_tag.add_callback(self.tag_callback)
+                self.input_tags.append(input_tag)
+        self.value = 0.0
+
+    def tag_callback(self, tag: TagFloat | TagInt):
+        self.recalc()
+
     def recalc(self):
+        self.value = 0.0
+        for tag in self.input_tags:
+            if not tag.is_none:
+                self.value += tag.value
+        self.output_tag.value = self.value
+
+    def initialise(self):
         pass
+
+    def follow_step(self):
+        self.recalc()
 
 
 class Summing(Node):
     """Sum flows. A single river outflow is required."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str):
+    def __init__(self, p: 'Observer', name: str, element_type: str):
         super().__init__(p, name, element_type)
 
     def recalc_riverdst(self):
@@ -120,7 +139,7 @@ class Summing(Node):
 class Storage(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  level: float = 0.0, volume: float = 0.0, LV=None):
         super().__init__(p, name, element_type)
         self.level = level
@@ -168,7 +187,7 @@ class Storage(Node):
 class StorageRainEst(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  level=0, volume=0, alpha: float = 1.0,
                  Q: list[list[float]]=[[]], R:list[list[float]]=[[]],
                  F=None, H=None, P=None, LV=[],
@@ -284,7 +303,7 @@ class StorageRainEst(Node):
 class Valve(Arc):
     """Ramps to a flow setpoint."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  flow_read_tag: str = '',
                  setFlow: float = 0.0, rate: float = 10.0):
@@ -314,7 +333,7 @@ class Valve(Arc):
 class Canal(Arc):
     """Links flow driven by head difference."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '', flow: float = 0.0):
         super().__init__(p, name, element_type, source, destination)
         self.flow = flow
@@ -333,7 +352,7 @@ class Canal(Arc):
 class River(Arc):
     """Create a delay."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '',
                  inflow: float = 0.0, outflow: float = 0.0, delay: int = 0,
                  inflow_read_tag: str = '', outflow_write_tag: str = ''):
@@ -386,7 +405,7 @@ class River(Arc):
 class Generator(Arc):
     """Ramp MW, calculates flow."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  MW: float = 0.0, setMW: float = 0.0, rate: float = 0.1,
                  min: float|None = None, max: float|None = None,
@@ -427,6 +446,9 @@ class Generator(Arc):
     def recalc_flow(self):
         """Calculate flow given MW."""
         self.flow = interp(self.MW, self.PQ_xs, self.PQ_ys)
+        if self.flow_write_tag is not None:
+            self.flow_write_tag.value = self.flow
+
 
     def initialise(self):
         self.recalc_flow()
@@ -451,7 +473,7 @@ class Generator(Arc):
 class RadialGate(Arc):
     """Opens under water."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  position: float = 0.0, setposition: float = 10.0,
                  rate: float = 0.5,
@@ -495,6 +517,8 @@ class RadialGate(Arc):
             self.flow = C * area * math.sqrt(2 * 9.80665 * headtocentre)
         else:
             self.flow = 0
+        if self.flow_write_tag is not None:
+            self.flow_write_tag.value = self.flow
 
     def initialise(self):
         self.recalc_flow()
@@ -517,7 +541,7 @@ class RadialGate(Arc):
 class FlapGate(Arc):
     """Opens by lowering the weir crest."""
 
-    def __init__(self, p: 'ObserverModel', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  position: float = 0.0, setposition: float = 10.0,
                  rate: float = 0.5,
@@ -559,6 +583,8 @@ class FlapGate(Arc):
             self.flow = interp(self.level - crest, self.HQ_xs, self.HQ_ys)
         else:
             self.flow = 0.0
+        if self.flow_write_tag is not None:
+            self.flow_write_tag.value = self.flow
 
     def initialise(self):
         self.recalc_flow()
@@ -587,7 +613,7 @@ def inclass(*args):
     return False
 
 
-class ObserverModel():
+class Observer:
     """
     Reads node / arc hyraulic model and simulates.
 
@@ -595,18 +621,27 @@ class ObserverModel():
     For a simulation more values are free, use simulate_step.
     """
 
-    def __init__(self, model):
-        """Just set the main timebase. 1.0 works."""
+    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
+                 model: dict = {}, math: dict = {}) -> None:
+        """
+        Connect to bus on bus_ip:bus_port.
+
+        Makes connections to Modbus PLCs to read and write data.
+        Event loop must be running.
+        """
+        self.busclient = None
+        if bus_ip is not None:
+            self.busclient = BusClient(bus_ip, bus_port, module='Observer')
+        self.model_config = model
+        self.math_config = math
         self.model = {}
+        self.math = {}
         self.input_tags = {}
-        for e in model:
-            self.add_element(e, model[e])
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
     def add_element(self, name: str, e: dict):
         """Add an element, node or arc to the model."""
         by_type = {
-            'math': Math,
             'summing': Summing,
             'storage': Storage,
             'storage_rain_est': StorageRainEst,
@@ -643,6 +678,8 @@ class ObserverModel():
         for e in self.model.values():
             if inclass(e, River):
                 e.initialise()
+        for e in self.math.values():
+            e.initialise()
 
     def follow_step(self):
         """Follow the running system, observing unknowns."""
@@ -658,6 +695,8 @@ class ObserverModel():
         for e in self.model.values():
             if inclass(e, River):
                 e.follow_step()
+        for e in self.math.values():
+            e.follow_step()
 
     def simulate_step(self):
         """Simulate the system, setting unknowns."""
@@ -679,37 +718,15 @@ class ObserverModel():
 
     async def start(self):
         """Start the observer."""
-        while True:
-            await asyncio.sleep(1)
-            done = True
-            for tag in self.input_tags.values():
-                if tag.is_none:
-                    done = False
-            if done:
-                break
-        self.initialise()
-        await self.periodic.start()
-
-
-class Observer:
-    """Connect to bus on bus_ip:bus_port."""
-
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 model: dict = {}) -> None:
-        """
-        Connect to bus on bus_ip:bus_port.
-
-        Makes connections to Modbus PLCs to read and write data.
-        Event loop must be running.
-        """
-        self.busclient = None
-        self.model = model
-        if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port, module='Observer')
-    
-    async def start(self):
-        """Provide observer."""
         if self.busclient is not None:
             await self.busclient.start()
-        self.observer = ObserverModel(self.model)
-        await self.observer.start()
+        for name, config in self.model_config.items():
+            self.add_element(name, config)
+        for name, config in self.math_config.items():
+            self.math[name] = Math(p=self, name=name, element_type='math',
+                                   calc=config)
+        if self.busclient is not None and len(self.input_tags) > 0:
+            while any(tag.is_none for tag in self.input_tags.values()):
+                await asyncio.sleep(1)
+        self.initialise()
+        await self.periodic.start()
