@@ -374,7 +374,6 @@ class River(Arc):
         if self.inflow < 0:
             self.inflow = 0.0
             logging.error(f"{self.name} inflow < 0, setting to 0")
-        self.delay
         if self.inflow_read_tag is not None:
             tag = self.inflow_read_tag
             time_us = int(time.time() * 1e6)

@@ -46,22 +46,14 @@ Working files are:
 
 # Steps
 
-26. **math**
-- I have added the input data for math into Observer
-- this needs to use the keys as tags to have the values written
-- under each tag is a list of actions, only add at present, and tagname
-- the action tagname should use the callback pattern used for model tags
-- periodic should also call follow_step for math
-- identify the best approach to implement this
-- describe the approach required
-- once I have agreed with the approach correct the error
+1. **Kalman Filter Coefficients**
+- Lake Aniwhenua, Kalman Filter values in test_observer.py are used in production
+- When the lake level value changes rainflow does about a 15 minute bump
+- smoother response would be better
+- what parameters could I adjust to improve and why will these work
+- make no changes
 
-100. **Storage**
-- add new test_storage function
-- test function can be a simpler version of StorageRainEst
-- will need additional storage elements
-- check test
-- review coverage
-- iteratively improve coverage
-
-
+101. **Math element additions**
+- I have added a deadband element to test_observer.py
+- This if the output tag value differs by less that value or was updated more
+  than heartbeat ago, set the new value

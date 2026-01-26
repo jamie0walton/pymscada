@@ -4,7 +4,7 @@ import time
 import yaml
 from pymscada.bus_client import BusClient
 from pymscada.bus_client_tag import TagFloat, TagInt
-from pymscada.observer import Observer, Valve
+from pymscada.observer import Observer, Valve, Math
 
 BUS_ID = 999
 CONFIG_YAML = """
@@ -50,13 +50,13 @@ model:
     # as tested on 4 days recorded data
     alpha: 1.001  # inflates predicted P each step
     Q:  # covariance of the process noise
-    - [0.001,  0.002,  0.002] # volume model good, some correlation with flows
-    - [0.002,      1, 0.0005] # flow model OK, less correlation between flows
-    - [0.002, 0.0005,   0.01] # some rainflow drift is ok
+    - [ 0.001,  0.002, 0.0001] # volume model good, some correlation with flows
+    - [ 0.002,      1, 0.0005] # flow model OK, less correlation between flows
+    - [0.0001, 0.0005,  0.001] # some rainflow drift is ok
     R:  # covariance of the observation noise
-    - [100000, 0, 0]  # large as volume and sensitivity to sensor bounce
-    - [0, 1, 0]  # flow measurement is OK
-    - [0, 0, 1]
+    - [500000, 0, 0]  # large as volume and sensitivity to sensor bounce
+    - [     0, 1, 0]  # flow measurement is OK
+    - [     0, 0, 1]
     LV: # mRL, m3
       - [145.00,  0]  # 0
       - [145.10,  90601]  # 100668
@@ -320,6 +320,11 @@ def o():
     """Create BusClient and set callback, but never start it."""
     _client = BusClient(None, None)
     observer = Observer(bus_ip=None, **CONFIG)
+    for name, config in observer.model_config.items():
+        observer.add_element(name, config)
+    for name, config in observer.math_config.items():
+        observer.math[name] = Math(p=observer, name=name, element_type='math',
+                                   calc=config)
     yield observer
 
 
