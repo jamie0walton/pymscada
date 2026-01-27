@@ -322,12 +322,14 @@ class River(Arc):
     def __init__(self, p: 'Observer', name: str, element_type: str,
                  source: str = '', destination: str = '',
                  inflow: float = 0.0, outflow: float = 0.0, delay: int = 0,
-                 inflow_read_tag: str = '', outflow_write_tag: str = ''):
+                 inflow_read_tag: str = '', outflow_write_tag: str = '',
+                 negate_outflow: bool = False):
         super().__init__(p, name, element_type, source, destination)
         self.inflow = inflow
         self.outflow = outflow
         self.delay = delay
         self.delayline = deque()
+        self.negate_outflow = negate_outflow
         self.inflow_read_tag = None
         if inflow_read_tag != '':
             self.inflow_read_tag = TagFloat(inflow_read_tag)
@@ -338,24 +340,29 @@ class River(Arc):
             self.outflow_write_tag = TagFloat(outflow_write_tag)
 
     def initialise(self):
-        if self.inflow < 0:
-            self.inflow = 0.0
-            logging.error(f"{self.name} inflow < 0, setting to 0")
         if self.inflow_read_tag is not None:
             tag = self.inflow_read_tag
             time_us = int(time.time() * 1e6)
             for i in range(self.delay):
-                self.delayline.append(tag.get(time_us - i * 1_000_000))
+                val = tag.get(time_us - i * 1_000_000)
+                self.delayline.append(val)
         else:
             for _i in range(self.delay):
                 self.delayline.append(self.inflow)
         self.outflow = self.inflow
         if self.outflow_write_tag is not None:
             self.outflow_write_tag.value = self.outflow
+        if self.negate_outflow:
+            self.outflow *= -1
+
 
     def recalc_flow(self):
         self.delayline.append(self.inflow)
         self.outflow = self.delayline.popleft()
+        if self.outflow_write_tag is not None:
+            self.outflow_write_tag.value = self.outflow
+        if self.negate_outflow:
+            self.outflow *= -1
 
     def follow_step(self):
         self.recalc_flow()

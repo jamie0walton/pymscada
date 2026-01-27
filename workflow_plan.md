@@ -41,23 +41,9 @@ Older modules use the deprecated option in tags.py instead of bus_client_tags.py
 
 Working files are:
 - ~/src/pymscada/observer.py
-- ~/tests/test_observer.py
-- ~/src/pymscada/demo/observer.yaml
-- ~/src/pymscada/math.py
-- ~/tests/test_math.py
-- ~/src/pymscada/demo/math.yaml
-- ~/src/pymscada/demo/pymscada-math.service
 
 # Steps
 
-2. **Split out Math**
-- Math is a bad fit inside observer as this will be restart more often and will interfere
-  with some history issues in observer. Math is also a likely place for additions, making
-  this issue worse.
-- identify the changes necessary to split Math out as it's own module
-- make no changes
-
-101. **Math element additions**
-- I have added a deadband element to test_observer.py
-- This if the output tag value differs by less that value or was updated more
-  than heartbeat ago, set the new value
+3. **Split out Math**
+- for River in observer.py, add yaml negate_inflow: true as a boolean. When true
+  multiply the inflow tag value by -1.
