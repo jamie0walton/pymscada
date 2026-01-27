@@ -97,6 +97,18 @@
             "justMyCode":true
         },
         {
+            "name":"math",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["math", "--verbose",
+                "--config", "../ani/config/math.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"sms",
             "type":"debugpy",
             "request":"launch",

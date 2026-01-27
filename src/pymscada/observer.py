@@ -66,39 +66,6 @@ class Arc(Element):
             self.p.model[self.destination].inflows.append(self.name)
 
 
-class Math(Element):
-    """Math element performs calculations on inputs."""
-
-    def __init__(self, p: 'Observer', name: str, element_type: str,
-                 calc: list[dict] = []):
-        super().__init__(p, name, element_type)
-        self.output_tag = TagFloat(name)
-        self.input_tags: list[TagFloat] = []
-        self.add = {}
-        for action in calc:
-            if action.get('action') == 'add':
-                input_tag = TagFloat(action['tagname'])
-                input_tag.add_callback(self.tag_callback)
-                self.input_tags.append(input_tag)
-        self.value = 0.0
-
-    def tag_callback(self, tag: TagFloat | TagInt):
-        self.recalc()
-
-    def recalc(self):
-        self.value = 0.0
-        for tag in self.input_tags:
-            if not tag.is_none:
-                self.value += tag.value
-        self.output_tag.value = self.value
-
-    def initialise(self):
-        pass
-
-    def follow_step(self):
-        self.recalc()
-
-
 class Summing(Node):
     """Sum flows. A single river outflow is required."""
 
@@ -621,7 +588,7 @@ class Observer:
     """
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 model: dict = {}, math: dict = {}) -> None:
+                 model: dict = {}) -> None:
         """
         Connect to bus on bus_ip:bus_port.
 
@@ -632,9 +599,7 @@ class Observer:
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='Observer')
         self.model_config = model
-        self.math_config = math
         self.model = {}
-        self.math = {}
         self.input_tags = {}
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
@@ -677,8 +642,6 @@ class Observer:
         for e in self.model.values():
             if inclass(e, River):
                 e.initialise()
-        for e in self.math.values():
-            e.initialise()
 
     def follow_step(self):
         """Follow the running system, observing unknowns."""
@@ -694,8 +657,6 @@ class Observer:
         for e in self.model.values():
             if inclass(e, River):
                 e.follow_step()
-        for e in self.math.values():
-            e.follow_step()
 
     def simulate_step(self):
         """Simulate the system, setting unknowns."""
@@ -721,9 +682,6 @@ class Observer:
             await self.busclient.start()
         for name, config in self.model_config.items():
             self.add_element(name, config)
-        for name, config in self.math_config.items():
-            self.math[name] = Math(p=self, name=name, element_type='math',
-                                   calc=config)
         if self.busclient is not None and len(self.input_tags) > 0:
             while any(tag.is_none for tag in self.input_tags.values()):
                 await asyncio.sleep(1)

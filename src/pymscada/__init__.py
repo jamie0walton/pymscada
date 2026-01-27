@@ -11,6 +11,7 @@ from pymscada.iodrivers.piapi_client import PIWebAPIClient
 from pymscada.iodrivers.sms import SMS
 from pymscada.iodrivers.witsapi import WitsAPIClient
 from pymscada.misc import find_nodes, ramp
+from pymscada.math import Math
 from pymscada.periodic import Periodic
 from pymscada.tag import Tag
 
@@ -27,6 +28,7 @@ __all__ = [
     'SMS',
     'WitsAPIClient',
     'find_nodes', 'ramp',
+    'Math',
     'Periodic',
     'Tag',
 ]

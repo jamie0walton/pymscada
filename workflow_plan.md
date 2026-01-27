@@ -43,14 +43,18 @@ Working files are:
 - ~/src/pymscada/observer.py
 - ~/tests/test_observer.py
 - ~/src/pymscada/demo/observer.yaml
+- ~/src/pymscada/math.py
+- ~/tests/test_math.py
+- ~/src/pymscada/demo/math.yaml
+- ~/src/pymscada/demo/pymscada-math.service
 
 # Steps
 
-1. **Kalman Filter Coefficients**
-- Lake Aniwhenua, Kalman Filter values in test_observer.py are used in production
-- When the lake level value changes rainflow does about a 15 minute bump
-- smoother response would be better
-- what parameters could I adjust to improve and why will these work
+2. **Split out Math**
+- Math is a bad fit inside observer as this will be restart more often and will interfere
+  with some history issues in observer. Math is also a likely place for additions, making
+  this issue worse.
+- identify the changes necessary to split Math out as it's own module
 - make no changes
 
 101. **Math element additions**

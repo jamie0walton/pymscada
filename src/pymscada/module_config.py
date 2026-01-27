@@ -70,6 +70,12 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
+            name='math',
+            help='simple mathematical functions',
+            module_class='pymscada.math:Math',
+            tags=False
+        ),
+        ModuleDefinition(
             name='observer',
             help='run hydraulic observer model',
             module_class='pymscada.observer:Observer',

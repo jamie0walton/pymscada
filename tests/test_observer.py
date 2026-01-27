@@ -4,23 +4,10 @@ import time
 import yaml
 from pymscada.bus_client import BusClient
 from pymscada.bus_client_tag import TagFloat, TagInt
-from pymscada.observer import Observer, Valve, Math
+from pymscada.observer import Observer, Valve
 
 BUS_ID = 999
 CONFIG_YAML = """
-math:
-  SO_Sum_Gen:
-  - {action: add, tagname: I_Aniwhenua_G1_MW}
-  - {action: add, tagname: I_Aniwhenua_G2_MW}
-  SO_Barrage_flow:
-  - {action: add, tagname: SO_RadialGate_1_flow}
-  - {action: add, tagname: SO_RadialGate_2_flow}
-  - {action: add, tagname: SO_FlapGate_1_flow}
-  - {action: add, tagname: SO_FlapGate_2_flow}
-  - {action: add, tagname: SO_FlapGate_3_flow}
-  SO_Lake_Aniwhenua_Inflow:
-  - {action: add, tagname: SO_Galatea_delay_flow}
-  - {action: add, tagname: SO_Lake_Aniwhenua_Rainflow}
 model:
   System_Inflow:
     element_type: valve
@@ -50,9 +37,9 @@ model:
     # as tested on 4 days recorded data
     alpha: 1.001  # inflates predicted P each step
     Q:  # covariance of the process noise
-    - [ 0.001,  0.002, 0.0001] # volume model good, some correlation with flows
-    - [ 0.002,      1, 0.0005] # flow model OK, less correlation between flows
-    - [0.0001, 0.0005,  0.001] # some rainflow drift is ok
+    - [0.0001,  0.003, 0.0001] # volume model good, some correlation with flows
+    - [ 0.003,      1,      0] # flow model OK, less correlation between flows
+    - [0.0001,      0,  0.001] # some rainflow drift is ok
     R:  # covariance of the observation noise
     - [500000, 0, 0]  # large as volume and sensitivity to sensor bounce
     - [     0, 1, 0]  # flow measurement is OK
@@ -322,9 +309,6 @@ def o():
     observer = Observer(bus_ip=None, **CONFIG)
     for name, config in observer.model_config.items():
         observer.add_element(name, config)
-    for name, config in observer.math_config.items():
-        observer.math[name] = Math(p=observer, name=name, element_type='math',
-                                   calc=config)
     yield observer
 
 
@@ -479,14 +463,3 @@ def test_flap_gate(o, t):
     assert gate.position == pytest.approx(0.02)
 
 
-def test_math(o, t):
-    """Test math element calculations."""
-    math_sum_gen = o.math['SO_Sum_Gen']
-    assert math_sum_gen.output_tag.name == 'SO_Sum_Gen'
-    assert len(math_sum_gen.input_tags) == 2
-    t['I_Aniwhenua_G1_MW'].set_value(5.0, 0, BUS_ID)
-    assert math_sum_gen.output_tag.value == pytest.approx(5.0)
-    t['I_Aniwhenua_G2_MW'].set_value(7.0, 0, BUS_ID)
-    assert math_sum_gen.output_tag.value == pytest.approx(12.0)
-    math_sum_gen.follow_step()
-    assert math_sum_gen.output_tag.value == pytest.approx(12.0)
