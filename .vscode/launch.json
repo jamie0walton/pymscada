@@ -217,7 +217,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["logixclient", "--verbose",
-                "--config", "../config/logixclient.yaml"
+                "--config", "../teviot/config/logixclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true

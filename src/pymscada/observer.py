@@ -355,8 +355,9 @@ class River(Arc):
         if self.negate_outflow:
             self.outflow *= -1
 
-
     def recalc_flow(self):
+        if self.inflow_read_tag is not None:
+            self.inflow = self.inflow_read_tag.value
         self.delayline.append(self.inflow)
         self.outflow = self.delayline.popleft()
         if self.outflow_write_tag is not None:

@@ -137,6 +137,8 @@ A tag value update is sent to every subscribed listener except the matching bus_
 2. Bus_id filtering - Sender doesn't receive their own updates
 3. Manual prevention - Avoid creating circular update patterns
 
+**Note**: When a module writes and reads the same tag, callbacks registered with bus_id=0 (default) won't fire for local writes. Manually read tag values instead of relying on callbacks in this case.
+
 ## Request to Author (RTA)
 
 ### Large Data Transfer

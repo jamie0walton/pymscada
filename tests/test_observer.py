@@ -75,11 +75,34 @@ model:
 #      - [148.00, 3278990] # extended the last range
     level_read_tag: I_Lake_Aniwhenua_level
     rainflow_write_tag: SO_Lake_Aniwhenua_Rainflow
+  Canal:
+    element_type: river
+    destination: Lake_Aniwhenua
+    delay: 900 # 20 minutes
+    negate_outflow: true
+    outflow_write_tag: SO_Canal_EstInflow
+    inflow_read_tag: SO_Headpond_Estflow
+  Headpond:
+    element_type: storage_rain_est
+    alpha: 1.001  # inflates predicted P each step
+    Q:  # covariance of the process noise
+    - [0.0001,  0.003, 0.002] # volume model good, some correlation with flows
+    - [ 0.003,      1, 0.003] # flow model OK, less correlation between flows
+    - [ 0.002,  0.003,  0.01] # some rainflow drift is ok
+    R:  # covariance of the observation noise
+    - [5000, 0, 0]
+    - [0, 1, 0]  # flow measurement is OK
+    - [0, 0, 1]
+    LV: # mRL, m3
+    - [144.00,  10000]
+    - [148.00,  20000]
+    level_read_tag: I_Headpond_level
+    rainflow_write_tag: SO_Headpond_Estflow
   Aniwhenua_G1:
     element_type: generator
     MW: 0.0
     flow: 0.0
-    source: Lake_Aniwhenua
+    source: Headpond
     PQ:
       - [0.0,  0.0]
       - [0.1,  0.0]
@@ -102,7 +125,7 @@ model:
     element_type: generator
     MW: 0.0
     flow: 0.0
-    source: Lake_Aniwhenua
+    source: Headpond
     PQ: # power vs. flow
       - [0.0,  0.0]
       - [0.1,  0.0]
