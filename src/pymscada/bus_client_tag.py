@@ -62,6 +62,15 @@ class UniqueTagTyped(type):
                     result.append(tagname)
         return result
 
+    @classmethod
+    def check_none_ids(cls) -> list[str]:
+        """Return list of tagname ids that are None."""
+        result = []
+        for tag in cls.__cache.values():
+            if tag._id is None:
+                result.append(tag.name)
+        return result
+
 
 class TagTyped(metaclass=UniqueTagTyped):
     """Base class providing standard instance methods and properties."""
@@ -138,6 +147,15 @@ class TagTyped(metaclass=UniqueTagTyped):
         for self.in_pub_id in self.pub_id:
             self.in_pub_id(self)
         self.in_pub_id = None
+
+    @property
+    def packed_value(self) -> bytes:
+        """Return packed value for bus protocol."""
+        raise NotImplementedError(f"{self.name} packed_value not implemented")
+
+    def set_packed_value(self, value: bytes, time_us: int, bus: int):
+        """Unpack packed value and set it."""
+        raise NotImplementedError(f"{self.name} set_packed_value not implemented")
 
 
 class TagInt(TagTyped):
@@ -386,7 +404,9 @@ class TagFloat(TagTyped):
         """Set age for history, clobbers old history when set."""
         if self._age_us < 0:
             self.times_us.append(self.time_us)
-            self.values.append(self.value)
+            # TODO check
+            if self._value is not None:
+                self.values.append(self.value)
         self._age_us = age_us
 
     @property
@@ -398,7 +418,7 @@ class TagFloat(TagTyped):
         """Unpack packed float value and set it."""
         data_type = struct.unpack_from('!B', value, offset=0)[0]
         if data_type != pc.TYPE.FLOAT:
-            raise TypeError(f'{self.name} expected FLOAT, got {data_type}')
+            raise TypeError(f'{self.name} expected FLOAT, got {pc.TYPE(data_type).name}')
         data = struct.unpack_from('!d', value, offset=1)[0]
         self.set_value(data, time_us, bus)
 
@@ -435,7 +455,7 @@ class TagStr(TagTyped):
         """Unpack packed string value and set it."""
         data_type = struct.unpack_from('!B', value, offset=0)[0]
         if data_type != pc.TYPE.STR:
-            raise TypeError(f'{self.name} expected STR, got {data_type}')
+            raise TypeError(f'{self.name} expected STR, got {pc.TYPE(data_type).name}')
         data = struct.unpack_from(f'!{len(value) - 1}s', value,
                                    offset=1)[0].decode()
         self.set_value(data, time_us, bus)
@@ -473,7 +493,7 @@ class TagBytes(TagTyped):
         """Unpack packed bytes value and set it."""
         data_type = struct.unpack_from('!B', value, offset=0)[0]
         if data_type != pc.TYPE.BYTES:
-            raise TypeError(f'{self.name} expected BYTES, got {data_type}')
+            raise TypeError(f'{self.name} expected BYTES, got {pc.TYPE(data_type).name}')
         data = struct.unpack_from(f'!{len(value) - 1}s', value,
                                    offset=1)[0]
         self.set_value(data, time_us, bus)
@@ -512,7 +532,7 @@ class TagList(TagTyped):
         """Unpack packed list value and set it."""
         data_type = struct.unpack_from('!B', value, offset=0)[0]
         if data_type != pc.TYPE.JSON:
-            raise TypeError(f'{self.name} expected JSON, got {data_type}')
+            raise TypeError(f'{self.name} expected JSON, got {pc.TYPE(data_type).name}')
         data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
                                               value, offset=1
                                               )[0].decode())
@@ -552,7 +572,7 @@ class TagDict(TagTyped):
         """Unpack packed dict value and set it."""
         data_type = struct.unpack_from('!B', value, offset=0)[0]
         if data_type != pc.TYPE.JSON:
-            raise TypeError(f'{self.name} expected JSON, got {data_type}')
+            raise TypeError(f'{self.name} expected JSON, got {pc.TYPE(data_type).name}')
         data = json.loads(struct.unpack_from(f'!{len(value) - 1}s',
                                               value, offset=1
                                               )[0].decode())

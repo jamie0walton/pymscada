@@ -29,14 +29,14 @@ class BusClient:
         self.read_task = None
         self.tag_info = tag_info
         self.module = module
-        self.tag_by_id: dict[int, Tag] = {}
-        self.tag_by_name: dict[str, Tag] = {}
-        self.to_publish: dict[str, Tag] = {}
+        self.tag_by_id: dict[int, Tag | TagTyped] = {}
+        self.tag_by_name: dict[str, Tag | TagTyped] = {}
+        self.to_publish: dict[str, Tag | TagTyped] = {}
         self.rta_handlers: dict[str, Callable] = {}
         self.pending = {}
         TagTyped.set_bus_callback(self.add_tag)
 
-    def publish(self, tag: Tag):
+    def publish(self, tag: Tag | TagTyped):
         """
         Update bus server with tag value change.
 
@@ -66,7 +66,7 @@ class BusClient:
               data: bytes):
         """Write a message."""
         size_total = len(data)
-        logging.info(f'{self.module}: write cmd={command} tag_id={tag_id} '
+        logging.debug(f'{self.module}: write cmd={command} tag_id={tag_id} '
                      f'size_total={size_total}')
         for i in range(0, len(data) + 1, pc.MAX_LEN):
             snip = data[i:i+pc.MAX_LEN]
@@ -134,16 +134,17 @@ class BusClient:
                 break
             data = struct.unpack(f'>{size}s', payload)[0]
             # if MAX_LEN then a continuation packet is required
-            if size == pc.MAX_LEN:
-                try:
-                    self.pending[tag_id] += data
-                except KeyError:
-                    self.pending[tag_id] = data
-                continue
             # if not MAX_LEN then this is the final or only packet
             if tag_id in self.pending:
-                data = self.pending[tag_id] + data
-                del self.pending[tag_id]
+                if size == pc.MAX_LEN:
+                    self.pending[tag_id] += data
+                    continue
+                else:
+                    data = self.pending[tag_id] + data
+                    del self.pending[tag_id]
+            elif size == pc.MAX_LEN:
+                self.pending[tag_id] = data
+                continue
             self.process(cmd, tag_id, time_us, data)
         await self.close_connection()
 
@@ -206,3 +207,11 @@ class BusClient:
             return
         await self.open_connection()
         self.read_task = asyncio.create_task(self.read())
+        self.read_task.add_done_callback(self.read_done)
+
+    def read_done(self, task: asyncio.Task):
+        """Read task done."""
+        if task.cancelled():
+            return
+        if task.exception():
+            raise SystemExit(task.exception())

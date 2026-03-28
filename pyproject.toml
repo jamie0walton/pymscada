@@ -11,6 +11,9 @@ dependencies = [
     "pymscada-html>=0.2.6b0",   # www_server
     "pycomm3>=1.2.14",        # logix_client
     "pysnmplib>=5.0.24",      # DON'T use pysnmp, dead
+    "PyJWT==1.7.1",
+    "cryptography>=43.0.3",
+    "requests==2.25.1",
 ]
 requires-python = ">=3.9"
 readme = "README.md"

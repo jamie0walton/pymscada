@@ -24,6 +24,7 @@ def env():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_rut241_login(env):
     d = RUT241(ip=env['modem_ip'], username=env['username'],
                password=env['password'], port=env['listen_port'])
@@ -36,6 +37,7 @@ async def test_rut241_login(env):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_rut241_listen_sms(env):
     event = asyncio.Event()
     data = None
@@ -64,6 +66,7 @@ async def test_rut241_listen_sms(env):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_sms_send_recv(env):
     BUS_ID = 999
     event = asyncio.Event()

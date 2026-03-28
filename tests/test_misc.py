@@ -14,10 +14,15 @@ def test_find_nodes():
         'sub': 'and here'
     }
     i = 0
-    for r in find_nodes('sub', d):
-        i += 1
-        assert 'sub' in r
-    assert i == 3
+    r = list(find_nodes('sub', d))
+    assert len(r[0].keys()) == 1
+    assert r[0]['sub'] == 'here'
+    assert len(r[1].keys()) == 2
+    assert 'b' in r[1]
+    assert r[1]['sub'] == 'there'
+    assert len(r[2].keys()) == 2
+    assert 'a' in r[2]
+    assert r[2]['sub'] == 'and here'
 
 
 def test_ramp():

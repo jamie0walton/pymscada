@@ -166,7 +166,7 @@ facing services. Then:
 
 ```bash
 su -
-apt install build-essential git git-doc curl python3-pdm
+apt install build-essential git git-doc curl python3-pdm python3-dev
 adduser mscada
 su mscada
 git config --global credential.helper cache

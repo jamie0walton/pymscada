@@ -76,6 +76,12 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
+            name='mpcontrol',
+            help='model predictive control (milp)',
+            module_class='pymscada.mp_control:MPControl',
+            tags=False
+        ),
+        ModuleDefinition(
             name='observer',
             help='run hydraulic observer model',
             module_class='pymscada.observer:Observer',
@@ -191,6 +197,15 @@ def create_module_registry():
             help='poll/write PI WebAPI tags',
             module_class='pymscada.iodrivers.piapi_client:PIWebAPIClient',
             tags=False
+        ),
+        ModuleDefinition(
+            name='tdsclient',
+            help='poll Transpower market dispatch (TDS) instructions',
+            module_class='pymscada.iodrivers.tds_client:TDSClient',
+            tags=False,
+            epilog=dedent("""
+                Demo config is `tds.yaml`; run with:
+                  pymscada tdsclient --config tds.yaml""")
         ),
         ModuleDefinition(
             name='console',

@@ -1,0 +1,129 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+temp_dir: /home/jamie/ani/temp
+log_dir: /home/jamie/ani/log
+control_tag: _mpc_control
+history_tag: __history__
+solve_time_tag: _mpc_solve_time
+last_solve_tag: _mpc_last_solve
+setpoint_tag: dispatch_setMW
+result_tag: _mpc_result
+solver_timeout: 90
+time_step: 600
+duration: 43200
+history_tags:
+  I_Galatea_flow: 28800
+  SO_Barrage_flow: 28800
+model:
+  System_Inflow:
+    type: valve
+    state: FIXED
+    time_series_tag: I_Galatea_flow
+    dstnode: Galatea_River_site
+  Galatea_River_site:
+    type: summing
+  Upper:
+    type: river
+    time_series_tag: I_Galatea_flow
+    srcnode: Galatea_River_site
+    dstnode: Lake_Aniwhenua
+    delay: 13800
+  Rainflow:
+    type: valve
+    state: FIXED
+    dstnode: Lake_Aniwhenua
+    time_series_tag: SO_Lake_Aniwhenua_Rainflow
+  Lake_Aniwhenua:
+    type: storage
+    LV: # mRL, m3
+      - [145.00,  0]
+      - [145.10,  90601]
+      - [145.20,  184249]
+      - [145.30,  280883]
+      - [145.40,  380471]
+      - [145.50,  482962]
+      - [145.60,  588314]
+      - [145.70,  696475]
+      - [145.80,  807413]
+      - [145.90,  921068]
+      - [146.00,  1037401]
+      - [146.10,  1156366]
+      - [146.20,  1277924]
+      - [146.30,  1402021]
+      - [146.40,  1528612]
+      - [146.50,  1657657]
+      - [146.60,  1789111]
+      - [146.70,  1922927]
+      - [146.80,  2059052]
+      - [146.90,  2197454]
+      - [147.00,  2338079]
+      - [148.00,  2523182]
+    time_series_tag: I_Lake_Aniwhenua_level
+    costs: [[146.5, 146.6, 146.8, 146.9], [[1, 0.0000001], [0, 0], [0.0000001, 1]]]
+    result: level
+  G1:
+    type: generator
+    state: FIXED
+    srcnode: Lake_Aniwhenua
+    PQ:
+      - [0.0,  0.0]
+      - [0.1,  0.0]
+      - [0.2,  8.0]
+      - [1.0,  10.9]
+      - [2.0,  13.4]
+      - [3.0,  15.5]
+      - [4.0,  17.3]
+      - [6.0,  20.8]
+      - [6.8,  22.2]
+      - [8.0,  24.4]
+      - [9.0,  26.5]
+      - [10.0, 29.0]
+      - [11.0, 32.0]
+      - [12.0, 35.6]
+      - [12.8, 38.9]
+    ranges: [[0], [6.8, 12.8]]
+    time_series_tag: I_Aniwhenua_G1_MW
+    result: power
+  G2:
+    type: generator
+    state: FIXED
+    srcnode: Lake_Aniwhenua
+    PQ: # power vs. flow
+      - [0.0,  0.0]
+      - [0.1,  0.0]
+      - [0.2,  8.0]
+      - [1.0,  10.9]
+      - [2.0,  13.4]
+      - [3.0,  15.5]
+      - [4.0,  17.3]
+      - [6.0,  20.8]
+      - [6.8,  22.2]
+      - [8.0,  24.4]
+      - [9.0,  26.5]
+      - [10.0, 29.0]
+      - [11.0, 32.0]
+      - [12.0, 35.6]
+      - [12.8, 38.9]
+    ranges: [[0], [6.8, 12.8]]
+    time_series_tag: I_Aniwhenua_G2_MW
+    result: power
+  Barrage:
+    type: valve
+    state: FIXED
+    srcnode: Lake_Aniwhenua
+    dstnode: Barrage_Tail
+    time_series_tag: SO_Barrage_flow
+    result: flow
+  Barrage_Tail:
+    type: summing
+  Lower:
+    type: river
+    time_series_tag: SO_Barrage_flow
+    srcnode: Barrage_Tail
+    delay: 1800
+  System_Outflow:
+    type: consent
+    cost: 900000000
+    elements: [G1, G2, Lower]
+    day: 30
+    night: 30

@@ -256,6 +256,30 @@
             "justMyCode":true
         },
         {
+            "name":"tds_client",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["tdsclient", "--verbose",
+                "--config", "../ani/config/tdsclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"mpcontrol",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["mpcontrol", "--verbose",
+                "--config", "../ani/config/mpcontrol.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wits_api",
             "type":"debugpy",
             "request":"launch",

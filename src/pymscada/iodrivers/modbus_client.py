@@ -200,9 +200,9 @@ class ModbusClientProtocol(asyncio.Protocol):
         """Log deletion."""
         logging.info("__del__")
 
-    def connection_lost(self, err):
+    def connection_lost(self, exc):
         """Modbus connection lost."""
-        logging.info(f'connection_lost {self.sockname} to {self.peername}')
+        logging.info(f'connection_lost {self.sockname} {self.peername} {exc}')
 
     def eof_received(self):
         """EOF."""
@@ -236,16 +236,16 @@ class ModbusClientProtocol(asyncio.Protocol):
             start = end
         self.buffer = self.buffer[end:]
 
-    def data_received(self, recv):
+    def data_received(self, data):
         """Received TCP data, see if there is a full modbus packet."""
-        self.buffer += recv
+        self.buffer += data
         for msg in self.unpack_mb():
             self.process(msg)
 
-    def datagram_received(self, recv, _addr):
+    def datagram_received(self, data, _addr):
         """Received a UDP packet, discard any partial packets."""
         # logging.info("datagram_received")
-        self.buffer = recv
+        self.buffer = data
         for msg in self.unpack_mb():
             self.process(msg)
 
@@ -254,7 +254,7 @@ class ModbusClientConnector:
     """Poll Modbus device, write on change in write range."""
 
     def __init__(self, name: str, ip: str, port: int, rate: int, tcp_udp: str,
-                 poll: list, mapping: ModbusClientMaps):
+                 sleep: float, poll: list, mapping: ModbusClientMaps):
         """
         Set up polling client.
 
@@ -268,6 +268,7 @@ class ModbusClientConnector:
         self.protocol = None
         self.read = poll
         self.periodic = Periodic(self.poll, rate)
+        self.sleep = sleep  # some devices require time between polls
         self.mapping = mapping
         self.sent = {}
         tables = {}
@@ -287,6 +288,7 @@ class ModbusClientConnector:
         # logging.info(f"messages in sent {len(self.sent)}")
         mbap_tr, _mbap_pr, _mbap_len, mbap_unit, pdu_fc = unpack_from(
             ">3H2B", msg, 0)
+        logging.info(f"process {mbap_tr}")
         if pdu_fc == 3:
             data = msg[9:]
             self.mapping.set_data(name=self.name, data=data,
@@ -351,8 +353,12 @@ class ModbusClientConnector:
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
         if self.tcp_udp == "udp":
+            logging.info(f"UDP read {mbap_unit} {file} {pdu_start} "
+                         f"{pdu_count}")
             self.transport.sendto(msg)  # type: ignore
         else:
+            logging.info(f"TCP read {mbap_unit} {file} {pdu_start} "
+                         f"{pdu_count}")
             self.transport.write(msg)  # type: ignore
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
@@ -408,6 +414,8 @@ class ModbusClientConnector:
             return
         for poll in self.read:
             self.mb_read(**poll)
+            if self.sleep > 0:
+                await asyncio.sleep(self.sleep)
 
     async def start(self):
         """Start polling."""

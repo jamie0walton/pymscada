@@ -1,0 +1,14 @@
+bus_ip: 127.0.0.1
+bus_port: 1325
+private_key: /home/jamie/ani_prod_private_key.pem
+issuer: anidispatch@pioneerenergy.co.nz
+site: MAT1101 ANI0
+endpoint: BOP
+host: https://dispatch-north.transpower.co.nz/api/v1/dispatch/endpoints/
+alt_host: https://dispatch-south.transpower.co.nz/api/v1/dispatch/endpoints/
+get: instructions/latest
+put: acknowledgements
+period: 10.0
+mw_set_tag: I_Transpower_setMW
+mvar_set_tag: I_Transpower_setMVAR
+error_code_tag: _tds_errorcode
