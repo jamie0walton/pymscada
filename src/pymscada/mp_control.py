@@ -1,12 +1,26 @@
 import asyncio
 import logging
 import time
-from copy import deepcopy
+from array import array
 from collections.abc import Callable
+from copy import deepcopy
 from struct import unpack
 from pymscada import BusClient, TagTyped
-from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, State, Constraint
+from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, Constraint
 from pymscada.bus_client_tag import TagInt, TagFloat, TagStr, TagDict, TagBytes
+from pymscada.periodic import Periodic
+from pymscada.misc import bid_period
+from pymscada.bus_misc import BusTask
+
+
+OFF = 0
+TIMED_RUN = 1
+RUNNING = 2
+RUN_NOW = 3
+
+# OFF = 0 also needed
+FIXED = 1
+FREE = 2
 
 
 def find_matching_key_values(key: str, tree):
@@ -21,38 +35,135 @@ def find_matching_key_values(key: str, tree):
             yield from find_matching_key_values(key, i)
 
 
+class MPCTag:
+    def __init__(self, tagname: str, type: str, age_s: int | None = None,
+                 deadband: float | None = None):
+        self.name = tagname
+        self.age_us: int | None = age_s * 1000000 if age_s else None
+        if type == 'float':
+            self.tag = TagFloat(tagname)
+            if self.age_us is not None:
+                self.tag.age_us = self.age_us
+        elif type == 'int':
+            self.tag = TagInt(tagname)
+        elif type == 'dict':
+            self.tag = TagDict(tagname)
+        else:
+            raise ValueError(f"Invalid type: {type}")
+        self.deadband: float | None = deadband
+        self._timeseries: TimeSeries | None = None
+
+    @property
+    def value(self) -> float | int | dict:
+        """Get the value of the tag."""
+        if isinstance(self.tag, TagFloat):
+            return self.tag.value
+        elif isinstance(self.tag, TagInt):
+            return self.tag.value
+        elif isinstance(self.tag, TagDict):
+            v = self.tag.value
+            return {
+                'period': [bid_period(x) for x in v['times']],
+                'times': v['times'],
+                'values': v['values'],
+                'setpoint': [int(x) for x in v['values']],
+            }
+        else:
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+
+    @property
+    def id(self):
+        """Get the id of the tag."""
+        if self.tag is None:
+            raise ValueError(f"{self.name} Tag is not set.")
+        return self.tag.id
+
+    @property
+    def times_us(self):
+        """Get the times_us of the tag."""
+        if isinstance(self.tag, TagFloat):
+            return self.tag.times_us
+        else:
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+
+    @times_us.setter
+    def times_us(self, times_us: array[int]):
+        """Set the times_us of the tag."""
+        if isinstance(self.tag, TagFloat):
+            self.tag.times_us = times_us
+        else:
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+
+    @property
+    def values(self):
+        """Get the values of the tag."""
+        if isinstance(self.tag, TagFloat):
+            return self.tag.values
+        else:
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+
+    @values.setter
+    def values(self, values: array[float]):
+        """Set the values of the tag."""
+        if isinstance(self.tag, TagFloat):
+            self.tag.values = values
+        else:
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+
+    @property
+    def timeseries(self):
+        """Get the timeseries of the tag."""
+        if not isinstance(self.tag, TagFloat):
+            raise ValueError(f"Invalid type: {type(self.tag)}")
+        if self.age_us is None:
+            tsv = self.value
+        else:
+            last_v = None
+            tsv = {}
+            for t, v in zip(self.times_us, self.values):
+                t = int(t / 1e6)
+                if v != last_v:
+                    tsv[t] = v
+                    last_v = v
+        self._timeseries = TimeSeries(tsv)
+        return self._timeseries
+
+
 class MPCRunner:
-    def __init__(self, temp_dir: str, log_dir: str, control_tag: str, history_tag: str,
-                 solve_time_tag: str, last_solve_tag: str, setpoint_tag: str, result_tag: str,
-                 solver_timeout: int, time_step: int, duration: int, history_tags: dict,
-                 model: dict) -> None:
+    def __init__(self, temp_dir: str, log_dir: str, control_tag: str,
+                 history_tag: str, price_tag: str, solve_time_tag: str,
+                 last_solve_tag: str, setpoint_tag: str, result_tag: str,
+                 solver_timeout: int, time_step: int, duration: int,
+                 tags: dict, model: dict) -> None:
         self.temp_dir = temp_dir
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
+        self.control_tag.add_callback(self.control_tag_callback)
         self.history_tag = TagBytes(history_tag)
         self.solve_time_tag = TagFloat(solve_time_tag)
         self.last_solve_tag = TagInt(last_solve_tag)
         self.setpoint_tag = TagFloat(setpoint_tag)
-        self.result_tag = TagStr(result_tag)
+        self.setpoint_tag.add_callback(self.setpoint_callback)
+        self.result_tag = TagDict(result_tag)
         self.solver_timeout = solver_timeout
         self.time_step = time_step
         self.duration = duration
-        self.tags: dict[str, TagFloat] = {}
-        self.tag_update: dict[str, dict] = {}
-        for tagname, age_s in history_tags.items():
-            self.tags[tagname] = TagFloat(tagname)
-            self.tags[tagname].age_us = age_s * 1000000
-        for tagname in find_matching_key_values('_tag', model):
-            self.tags[tagname] = TagFloat(tagname)
+        self.tags: dict[str, MPCTag] = {}
+        for tagname, cfg in tags.items():
+            self.tags[tagname] = MPCTag(tagname, **cfg)
         self.model_config = model
         self.model = {}
         self.hydraulic_model = None
         self.saved_model_path = None
         self.site_time = TagInt('_site_time')
+        self.periodic = Periodic(self.periodic_cb, 1.0)
+        self.queue = asyncio.Queue()
 
     def make_model(self, actual_time: int | None=None):
-        """Create the model needed to run Hydraulic Model. If there is a saved path, read
-        the saved model and the time parameters needed for the run."""
+        """
+        Create the model needed to run Hydraulic Model. If there is a saved
+        path, read the saved model and the time parameters needed for the run.
+        """
         self.model['name'] = 'Hydraulic Model'
         if actual_time is None:
             actual_time = int(time.time())
@@ -60,47 +171,68 @@ class MPCRunner:
         self.model['time_step'] = self.time_step
         self.model['duration'] = self.duration
         self.model['tempdir'] = self.temp_dir
+        self.model['logdir'] = self.log_dir
         self.model['model'] = {}
-        c = self.model_config
+        # TODO this is because of a mutation in HydraulicModel that needs
+        # to be fixed.
+        c = deepcopy(self.model_config)
         m = self.model['model']
         for node in c:
             m[node] = {}
             for k, v in c[node].items():
                 if k == 'state':
                     if v == 'OFF':
-                        v = State.OFF
+                        v = OFF
                     elif v == 'FIXED':
-                        v = State.FIXED
+                        v = FIXED
                     elif v == 'FREE':
-                        v = State.FREE
+                        v = FREE
                     else:
                         logging.error(f"Invalid state: {v}")
                         raise ValueError(f"Invalid state: {v}")
-                elif '_read_tag' in k:
-                    k = k.strip('_read_tag')
-                    v = self.tags[v].value
                 elif k == 'time_series_tag':
                     k = 'time_series'
-                    logging.info(f"tag: {self.tags[v].name} value: {self.tags[v].value}")
-                    v = TimeSeries(self.tags[v].value)
+                    v = self.tags[v].timeseries
+                elif k.endswith('_tag'):
+                    k = k[:-4]
+                    v = self.tags[v].value
                 m[node][k] = v
-        self.hydraulic_model = HydraulicModel(self.model)
 
-    def process_model_output(self):
-        """Process the output of the model."""
-        pass
-
-    def run_model(self):
-        """Save the config, run the model, save the output, process the output, write
-        the output to the bus if this is a real-time run (don't write for saved path runs)."""
+    async def model_runner(self):
+        self.control_tag.value = OFF
+        while True:
+            msg = await self.queue.get()
+            logging.info(f"{msg['action']} {msg['reason']}")
+            if msg['action'] == 'run_model':
+                self.control_tag.value = RUNNING
+                self.make_model()
+                m = HydraulicModel(self.model, timeout=self.solver_timeout)
+                m.solve_lp()
+                results = m.lp.resultsdict
+                show = {'actual_time': self.model['actual_time']}
+                for node in self.model['model']:
+                    if 'result' in self.model['model'][node]:
+                        parm = self.model['model'][node]['result']
+                        show[node] = results[node][parm]
+                self.result_tag.value = show
+                if self.control_tag.value == RUNNING:
+                    self.control_tag.value = TIMED_RUN
+            pass
 
     def control_tag_callback(self, tag: TagInt):
         """Callback for the control tag."""
-        pass
+        if tag.value == RUN_NOW:
+            self.queue.put_nowait({'action': 'run_model',
+                                   'reason': 'Operator control'})
 
     def setpoint_callback(self, tag: TagFloat):
         """Callback for the setpoint tag."""
-        pass
+        if time.time() - tag.time_us / 1e6 > 60:
+            logging.warning(f"Ignored {tag.value} MW > 1 minute ago.")
+            return
+        if self.control_tag.value == TIMED_RUN:
+            self.queue.put_nowait({'action': 'run_model',
+                                   'reason': 'Setpoint changed'})
 
     def model_tags_callback(self, tag: TagInt | TagFloat | TagDict):
         """Single callback, connect changes to correct actions and updates."""
@@ -114,7 +246,8 @@ class MPCRunner:
         fill_tags = set()
 
         def fill_history_cb(tag: TagBytes):
-            # packed with self.rta.value = pack('>HHH', rta_id, tagid, packtype) + data
+            # packed with self.rta.value = pack('>HHH', rta_id, tagid,
+            # packtype) + data
             if len(tag.value) == 6:
                 return
             _, tagid, packtype = unpack('>HHH', tag.value[:6])
@@ -135,7 +268,10 @@ class MPCRunner:
                 return
             data = [unpack(fmt, payload[i:i+16])
                     for i in range(0, len(payload), 16)]
+            repack_data = {}
             for time_us, value in data:
+                repack_data[time_us] = value
+            for time_us, value in repack_data.items():
                 dtag.times_us.append(time_us)
                 dtag.values.append(value)
             fill_tags.remove(dtag.name)
@@ -160,25 +296,29 @@ class MPCRunner:
         self.history_tag.del_callback(fill_history_cb)
         # TODO should unsubscribe from the history tag
 
-    async def periodic(self):
-        """Subject to state, trigger run every 10 minutes at :00:30, :10:30, :20:30, etc."""
-        pass
+    async def periodic_cb(self):
+        """Every second."""
+        if self.control_tag.value == TIMED_RUN:
+            t = time.localtime()
+            if t.tm_min % 10 == 0 and t.tm_sec == 30:
+                self.queue.put_nowait({'action': 'run_model',
+                                       'reason': 'timed run'})
 
     async def start(self, rta: Callable):
         """Start the MPCRunner."""
         await self.fill_history(rta)
-        pass
+        await self.periodic.start()
+        BusTask(self.model_runner())
 
 
 class MPControl:
     """Connect to bus, run Model Predictive Control."""
 
     def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int = 1324,
-                 **kwargs) -> None:
+                 **kwargs):
         self.busclient = BusClient(bus_ip, bus_port, module='MP Control')
         self.runner = None
         self.connector_kwargs = kwargs
-
 
     async def start(self):
         await self.busclient.start()

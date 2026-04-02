@@ -8,14 +8,14 @@ import logging
 from pymscada.milp.misc import as_list
 
 
-def exact12(value):
+def exact12(value, row: str='', col: str=''):
     """Return a float as 12 char string suitable for MPS format."""
     if value is None:
         return '            '
     if value > 10e10 or value < -10e10:
+        logging.error(f"{value} MILP coefficient too big {row} {col}")
         sign = -1 if value < 0 else (1 if value > 0 else 0)
         value = sign * 10e10
-        logging.error(f"{value} MILP coefficient too big")
     if value == 0.0:  # Pointless LOL
         return "0.0000000000"
     if abs(value) >= 0.001:
@@ -56,16 +56,16 @@ class LpModel():
             [0.0 for y in range(0, self.cols)]
             for x in range(0, self.rows)
         ]
-        self.equality = [None for x in range(0, self.rows)]
-        self.RHS = [0.0 for y in range(0, self.rows)]
+        self.equality: list[str | None] = [None for x in range(0, self.rows)]
+        self.RHS: list[float | None] = [0.0 for y in range(0, self.rows)]
         self.rowname = [f"R{x}" for x in range(self.rows)]
         self.colname = [f"C{x}" for x in range(self.cols)]
         self.bounds = {}
         self.binary = []
         self.resultdesc = ''
         self.solutioncost = None
-        self.results = None
-        self.resultsdict = None
+        self.results = {}
+        self.resultsdict = {}
         self.path = Path(filename)
         self.timeout = timeout
         self.found = False
@@ -155,21 +155,20 @@ class LpModel():
             pf.write(f"time_limit {self.timeout}\n")
 
         # without newline='' messes up /r/n on Windows
-        with open(self.path.parent / f"{self.path.name}.output", 'wb') as of:
-            with Popen(self._solver, stdout=PIPE,
-                       stderr=STDOUT, close_fds=True) as proc:
+        output_path = self.path.parent / f"{self.path.name}.output"
+        with open(output_path, 'w+b') as of:
+            with Popen(self._solver, stdout=of, stderr=STDOUT,
+                       close_fds=True) as proc:
                 try:
-                    outs, errs = proc.communicate(timeout=self.timeout + 10)
-                    for line in outs.splitlines():
-                        self._proc_line(line)
-                    of.write(outs)
-                    logging.warning(errs)
+                    proc.communicate(timeout=self.timeout + 10)
                 except TimeoutExpired:
                     logging.warning('model.py killing solver')
                     proc.kill()
-                    outs, errs = proc.communicate()
-                    of.write(outs)
-                    logging.warning(errs)
+                    proc.communicate()
+            of.seek(0)
+            output_text = of.read()
+        for line in output_text.splitlines():
+            self._proc_line(line)
                 # for line in proc.stdout:
                 #     self._proc_line(line)
                 #     of.write(line)
@@ -320,7 +319,7 @@ class LpModel():
 
     def add_semi(
         self, free: str, min_: float, max_: float,
-        running_bv: str = None
+        running_bv: str | None = None
     ):
         """
         Add semi continuous constraint, 0, [min, max].
@@ -340,7 +339,7 @@ class LpModel():
 
     def add_semi2(
         self, free: str, min1: float, max1: float, min2: float, max2: float,
-        running_bv: str = None, range_bv: str = None
+        running_bv: str | None = None, range_bv: str | None = None
     ):
         """
         Good for generators, solution has two forbidden zones.
@@ -367,7 +366,7 @@ class LpModel():
         return (running_bv, range_bv)
 
     def add_range2(self, free: str, min1: float, max1: float, min2: float,
-                   max2: float, range_bv: str = None):
+                   max2: float, range_bv: str | None = None):
         """
         Good for generators, solution allows results of between min and max.
 
@@ -437,7 +436,7 @@ class LpModel():
         self.add_row(x, -1, xname, 'E', 0)
         self.add_row(y, -1, yname, 'E', 0)
 
-    def add_limit(self, var: str, limtype: str, value: float = None):
+    def add_limit(self, var: str, limtype: str, value: float | None = None):
         """
         Add a MILP Limit constraint.
 
@@ -494,7 +493,7 @@ class LpModel():
         N    no restriction - Don't use this
         """
         try:
-            row = as_list(*args)
+            row: list = as_list(*args)
         except ValueError as e:
             raise ValueError(f"{e} parsing {args}")
         last = row.pop()
@@ -515,6 +514,6 @@ class LpModel():
                 coeff = 1.0
             else:
                 coeff = var
-                if abs(coeff) > 1e10:
+                if abs(coeff) > 1e9:
                     logging.warning(f"Coeff hi in {args}")
         self._increment_row_no()

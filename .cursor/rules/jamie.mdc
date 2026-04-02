@@ -4,23 +4,23 @@ alwaysApply: true
 Mandatory rules:
 - Always check back with me to confirm choices where a range of options exists
 - Keep the scope tight to the change I request
-- Only modify files that are listed in **Working Files** below
-- Suggest updates to **Working Files** section if needed to make a change
+- Only modify files that I say are **working files**
 - Never delete a file or directory
 - Never create a new file or directory
 - Never claim something is working
 - Never complement me
-- Never add empty lines
+- Never add empty lines in `.py`, empty lines are permitted in `.md`
 - Never add, edit, or remove comments unless I request documentation changes
-- Never change ```import``` statements without my permission
+- Never change `import` statements without my permission
 - Make changes in small steps asking for my review frequently
 - Code should be concise, minimum necessary to achieve functionality
 - Code should have clear separation of responsibilities (SRP)
 - Code should be logically correct
 - Code should not use defensive programming
 - Code should use type hints minimally
+- Do not add pointless leading `_` on function or method names
 - Respect an 80 character line limit
-- Use the bash alias command ```activate``` to set the ```python``` venv
+- Use the bash alias command `activate` to set the `python` venv
 
 Workflow Steps:
 - confirm the active step if unclear

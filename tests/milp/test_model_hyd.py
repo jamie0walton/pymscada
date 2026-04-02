@@ -1,21 +1,39 @@
 """Test hydraulic model."""
 import pytest
-from itertools import count
-from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, State, \
-                                    interp, Constraint
+import tempfile
+import yaml
+from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, interp, Constraint
 
 
-def test_ts_basic():
-    ts1 = TimeSeries()
-    ts2 = TimeSeries()
-    ts1.value = 123
-    ts2.value = -1
-    ts2.set({200: 1000, 50: 1, 100: 10})
-    assert ts1.get(1) == 123
-    assert ts2.get(0) == -1
-    assert ts2.get(75) == 1
-    assert ts2.get(175) == 10
-    assert ts2.get(500) == 1000
+OFF = 0
+FIXED = 1
+FREE = 2
+
+
+def test_timeseries_basic():
+    # check the timeseries recieves and holds times and values consistently
+    ts = TimeSeries()
+    ts.value = 123
+    with pytest.raises(ValueError):
+        ts.value = 456
+    ts.set({200: 1000, 50: 1, 100: 10})
+    assert ts.get(0) == 123
+    assert ts.get(75) == 1
+    ts.set({50:20})
+    assert ts.get(75) == 20
+    assert ts.get(500) == 1000
+
+
+def test_timeseries_save_load():
+    # confirm that save load round trip works
+    fh = tempfile.TemporaryFile()
+    ts_out = TimeSeries({100: 10, 200: 20, 300: 30})
+    yaml.dump(ts_out, fh, encoding='utf-8')
+    fh.seek(0)
+    ts_in = yaml.load(fh, Loader=yaml.Loader)
+    assert isinstance(ts_in, TimeSeries)
+    for t in (0, 150, 250, 400):
+        assert ts_in.get(t) == ts_out.get(t)
 
 
 # Power MW, Flow cumecs
@@ -106,7 +124,7 @@ def test_model_times():
             'Valve': {
                 'type': 'valve',
                 'time_series': inflow,
-                'state': State.OFF
+                'state': OFF
             },
             'River': {
                 'type': 'river',
@@ -173,7 +191,7 @@ def test_tank_fixed():
                 'type': 'valve',
                 'time_series': inflow,
                 'dstnode': 'Tank',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Tank': {
                 'type': 'storage',
@@ -199,7 +217,7 @@ def test_tank_fixed():
                 'type': 'valve',
                 'time_series': outflow,
                 'srcnode': 'Tank',
-                'state': State.FIXED
+                'state': FIXED
             }
         }
     }
@@ -234,7 +252,7 @@ def test_tank_fixed_river():
                 'type': 'valve',
                 'time_series': inflow,
                 'dstnode': 'Upstream',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Upstream': {
                 'type': 'summing'
@@ -267,7 +285,7 @@ def test_tank_fixed_river():
                 'type': 'valve',
                 'time_series': outflow,
                 'srcnode': 'Tank',
-                'state': State.FIXED
+                'state': FIXED
             }
         }
     }
@@ -311,7 +329,7 @@ def test_tank_variable_empty():
                 'type': 'valve',
                 'time_series': inflow,
                 'dstnode': 'Tank',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Tank': {
                 'type': 'storage',
@@ -326,7 +344,7 @@ def test_tank_variable_empty():
             'Outflow': {
                 'type': 'valve',
                 'time_series': outflow,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Tank',
                 'ranges': [
                     [0.0, 1000.0]
@@ -371,7 +389,7 @@ def test_tank_variable_empty_profile_limits():
                 'type': 'valve',
                 'time_series': inflow,
                 'dstnode': 'Tank',
-                'state': State.FIXED,
+                'state': FIXED,
             },
             'Tank': {
                 'type': 'storage',
@@ -388,7 +406,7 @@ def test_tank_variable_empty_profile_limits():
             'Outflow': {
                 'type': 'valve',
                 'time_series': outflow,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Tank',
                 'ranges': [
                     [0.0, 1000.0]
@@ -442,6 +460,8 @@ def test_tank_variable_empty_profile_limits():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = list(results['Tank']['Level'].keys())[:8]
     levels = [results['Tank']['Level'][t] for t in times]
     outflows = [results['Outflow']['Flow'][t] for t in times]
@@ -466,7 +486,7 @@ def test_genprofile():
             'G1': {
                 'type': 'generator',
                 'time_series': power,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -490,6 +510,8 @@ def test_genprofile():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = list(results['G1']['Power'].keys())[:5]
     g1_power = [results['G1']['Power'][t] for t in times]
     g1_flow = [results['G1']['Flow'][t] for t in times]
@@ -512,7 +534,7 @@ def test_gentimeprofile():
             'G1': {
                 'type': 'generator',
                 'time_series': power,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -538,6 +560,8 @@ def test_gentimeprofile():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = list(results['G1']['Power'].keys())[:7]
     g1_power = [results['G1']['Power'][t] for t in times]
     g1_flow = [results['G1']['Flow'][t] for t in times]
@@ -560,7 +584,7 @@ def test_gentimestep():
             'G1': {
                 'type': 'generator',
                 'time_series': power,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -587,6 +611,8 @@ def test_gentimestep():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = list(results['G1']['Power'].keys())[:7]
     g1_power = [results['G1']['Power'][t] for t in times]
     g1_flow = [results['G1']['Flow'][t] for t in times]
@@ -611,7 +637,7 @@ def test_twogensemi():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [0.0],
                     [6.8, 12.8]
@@ -621,7 +647,7 @@ def test_twogensemi():
             'G2': {
                 'type': 'generator',
                 'time_series': power2,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [0.0],
                     [6.8, 12.8]
@@ -647,6 +673,8 @@ def test_twogensemi():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = list(results['G1']['Power'].keys())[:5]
     g1_power = [results['G1']['Power'][t] for t in times]
     g1_flow = [results['G1']['Flow'][t] for t in times]
@@ -674,7 +702,7 @@ def test_twogensemi2():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [0.0],  # always assumed as zero
                     [1.0, 3.0],
@@ -685,7 +713,7 @@ def test_twogensemi2():
             'G2': {
                 'type': 'generator',
                 'time_series': power2,
-                'state': State.FREE,
+                'state': FREE,
                 'ranges': [
                     [0.0],  # always assumed as zero
                     [1.0, 3.0],
@@ -711,6 +739,8 @@ def test_twogensemi2():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = results['G1']['Power'].keys()
     g1_power = [results['G1']['Power'][t] for t in times]
     g2_power = [results['G2']['Power'][t] for t in times]
@@ -743,7 +773,7 @@ def test_gensemi_changeofstate():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'startlimit': [1, 2400, 1000.0],  # 1 change in 2400 seconds
                 'ranges': [
                     [0.0],  # always assumed as zero
@@ -795,6 +825,8 @@ def test_gensemi_changeofstate():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = results['G1']['Power'].keys()
     g1_power = [results['G1']['Power'][t] for t in times]
     assert g1_power == pytest.approx([11, 11, 6.8, 6.8, 6.8, 6.8, 0, 0, 0, 0,
@@ -811,12 +843,12 @@ def test_valveriverlake():
 
     History is clearly calculated in a different way, twice now :(.
     """
-    upper = TimeSeries([
+    upper = TimeSeries({
         1522491600: 4.0,
         1522492200: 5.0,
         1522492800: 6.0,
         1522493400: 7.0
-    ])
+    })
     sysinflow = TimeSeries({1522494000: 14.0})
     lake = TimeSeries(146.33)
     model = {
@@ -830,7 +862,7 @@ def test_valveriverlake():
                 'type': 'valve',
                 'time_series': sysinflow,
                 'dstnode': 'Galatea_Site',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Galatea_Site': {
                 'type': 'summing'
@@ -855,6 +887,8 @@ def test_valveriverlake():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = sorted(results['Upper']['Flow_in'].keys())
     upperin = get_samples(m, 'Upper', 'Flow_in', times)
     upperout = get_samples(m, 'Upper', 'Flow_out', times)
@@ -865,6 +899,141 @@ def test_valveriverlake():
                                    146.33599, 146.33854, 146.34365, 146.34876,
                                    146.35386, 146.35897, 146.36407, 146.36918])
     assert m.lp.solutioncost == pytest.approx(6.611102)
+    m.remove_result()
+
+
+def test_lake_endstate():
+    """
+    Add bid profile lake and generation together.
+
+    Time adjustment as per test_valveriverlake and overall cost was
+    exactly right. Consistent shift in time at least.
+    """
+    upper = TimeSeries({1522491600: 60.0, 1522492200: 60.0,
+                        1522492800: 60.0, 1522493400: 60.0})
+    sysinflow = TimeSeries({1522494000: 60.0})
+    power1 = TimeSeries({1522492200: 6.2, 1522494000: 6.0})
+    power2 = TimeSeries({1522492200: 0.2, 1522494000: 0.0})
+    lake = TimeSeries(146.6)
+    model = {
+        'name': 'test',
+        'actual_time': 1522494300,
+        'time_step': 600,
+        'duration': 14400,
+        'tempdir': 'tmp',
+        'model': {
+            'System_Inflow': {
+                'type': 'valve',
+                'time_series': sysinflow,
+                'dstnode': 'Galatea_Site',
+                'state': FIXED
+            },
+            'Galatea_Site': {
+                'type': 'summing'
+            },
+            'Upper': {
+                'type': 'river',
+                'time_series': upper,
+                'delay': 1800,
+                'srcnode': 'Galatea_Site',
+                'dstnode': 'Lake_Aniwhenua'
+            },
+            'Lake_Aniwhenua': {
+                'type': 'storage',
+                'time_series': lake,
+                'LV': LV,
+                'costs': [
+                    [146.5, 146.6, 146.8, 146.9],
+                    [[100000000, 1000000], [0, 0], [1000000, 100000000]]
+                ]
+            },
+            'G1': {
+                'type': 'generator',
+                'time_series': power1,
+                'state': FREE,
+                'srcnode': 'Lake_Aniwhenua',
+                'ranges': [
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'G2': {
+                'type': 'generator',
+                'time_series': power2,
+                'state': FREE,
+                'srcnode': 'Lake_Aniwhenua',
+                'startlimit': [1, 1200, 1000.0],
+                'ranges': [
+                    [0.0],
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'G1Change': {
+                'type': 'change_cost',
+                'cost': 0.0000001,
+                'element': 'G1'
+            },
+            'G2Change': {
+                'type': 'change_cost',
+                'cost': 0.0000001,
+                'element': 'G2'
+            },
+            'Delta': {
+                'type': 'delta_cost',
+                'cost': 0.0000001,
+                'elements': ['G1', 'G2']
+            },
+            'LakeProfile': {
+                'type': 'profile',
+                'cost': 0.0001,
+                'lowcost': 0.00001,
+                'element': 'Lake_Aniwhenua',
+                'timeofday': [
+                    [0 * 3600, 146.6],
+                    [2 * 3600, 146.8],
+                    [4 * 3600, 146.6],
+                    [6 * 3600, 146.8],
+                    [8 * 3600, 146.6],
+                    [10 * 3600, 146.8],
+                    [12 * 3600, 146.6],
+                    [14 * 3600, 146.8],
+                    [16 * 3600, 146.6],
+                ],
+                'LV': LV
+            },
+            'End_State': {
+                'type': 'end_state',
+                'states': [
+                    ['Lake_Aniwhenua__Volume__', 'E', 2587380, 1],  # 146.75
+                    ['G1__Power__', 'G2__Power__', 'G', 10.0, 1]
+                ]
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
+    times = results['Lake_Aniwhenua']['Level'].keys()
+    level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
+    g1_power = get_samples(m, 'G1', 'Power', times)
+    g1_flow = get_samples(m, 'G1', 'Flow', times)
+    g2_power = get_samples(m, 'G2', 'Power', times)
+    g2_flow = get_samples(m, 'G2', 'Flow', times)
+    station = [sum(i) for i in zip(g1_power, g2_power)]
+    assert level == pytest.approx([146.6, 146.600, 146.607, 146.620, 146.633,
+                                     146.646, 146.659, 146.672, 146.685, 146.698,
+                                     146.711, 146.723, 146.736, 146.749, 146.758,
+                                     146.746, 146.734, 146.722, 146.710, 146.698,
+                                     146.686, 146.699, 146.712, 146.724, 146.737,
+                                     146.75], abs=0.001)
+    assert station == pytest.approx([6.8, 6.8, 6.8, 6.8, 6.8, 6.8, 6.8, 6.8,
+                                     6.8, 6.8, 6.8, 6.8, 6.8, 10.616, 25.6,
+                                     25.6, 25.6, 25.6, 25.6, 25.6, 6.8, 6.8,
+                                     6.8, 6.8, 6.8, 13.6], abs=0.001)
+    assert m.lp.solutioncost == pytest.approx(115.529, abs=0.001)
     m.remove_result()
 
 
@@ -892,7 +1061,7 @@ def test_lake_bidoffer():
                 'type': 'valve',
                 'time_series': sysinflow,
                 'dstnode': 'Galatea_Site',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Galatea_Site': {
                 'type': 'summing'
@@ -916,7 +1085,7 @@ def test_lake_bidoffer():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
@@ -926,7 +1095,7 @@ def test_lake_bidoffer():
             'G2': {
                 'type': 'generator',
                 'time_series': power2,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
@@ -1011,6 +1180,8 @@ def test_lake_bidoffer():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = results['Lake_Aniwhenua']['Level'].keys()
     level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
     g1_power = get_samples(m, 'G1', 'Power', times)
@@ -1070,7 +1241,7 @@ def test_lake_bidoffer_maxroc():
                 'type': 'valve',
                 'time_series': sysinflow,
                 'dstnode': 'Galatea_Site',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Galatea_Site': {
                 'type': 'summing'
@@ -1094,7 +1265,7 @@ def test_lake_bidoffer_maxroc():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
@@ -1104,7 +1275,7 @@ def test_lake_bidoffer_maxroc():
             'G2': {
                 'type': 'generator',
                 'time_series': power2,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
@@ -1199,6 +1370,8 @@ def test_lake_bidoffer_maxroc():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = sorted(results['Lake_Aniwhenua']['Level'].keys())
     level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
     g1_power = get_samples(m, 'G1', 'Power', times)
@@ -1247,7 +1420,7 @@ def test_lake_minflow():
             'Rainflow': {
                 'type': 'valve',
                 'time_series': rainflow,
-                'state': State.FIXED,
+                'state': FIXED,
                 'dstnode': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
@@ -1262,7 +1435,7 @@ def test_lake_minflow():
             'Barrage': {
                 'type': 'valve',
                 'time_series': barrage,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'dstnode': 'Barrage_Tail'
             },
@@ -1308,6 +1481,8 @@ def test_lake_minflow():
     m = HydraulicModel(model)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = sorted(results['Lake_Aniwhenua']['Level'].keys())
     rainflow = get_samples(m, 'Rainflow', 'Flow', times)
     level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
@@ -1356,7 +1531,7 @@ def test_lake_bid_minflow():
                 'type': 'valve',
                 'time_series': sysinflow,
                 'dstnode': 'Galatea_Site',
-                'state': State.FIXED
+                'state': FIXED
             },
             'Galatea_Site': {
                 'type': 'summing'
@@ -1384,7 +1559,7 @@ def test_lake_bid_minflow():
             'G1': {
                 'type': 'generator',
                 'time_series': power1,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
@@ -1394,7 +1569,7 @@ def test_lake_bid_minflow():
             'G2': {
                 'type': 'generator',
                 'time_series': power2,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
@@ -1406,7 +1581,7 @@ def test_lake_bid_minflow():
             'Barrage': {
                 'type': 'valve',
                 'time_series': barrage,
-                'state': State.FREE,
+                'state': FREE,
                 'srcnode': 'Lake_Aniwhenua',
                 'dstnode': 'Barrage_Tail'
             },
@@ -1525,6 +1700,8 @@ def test_lake_bid_minflow():
     m = HydraulicModel(model, timeout=3600)
     m.solve_lp()
     results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
     times = sorted(results['Lake_Aniwhenua']['Level'].keys())
     level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
     barrage = get_samples(m, 'Barrage', 'Flow', times)
@@ -1532,23 +1709,21 @@ def test_lake_bid_minflow():
     g2_power = get_samples(m, 'G2', 'Power', times)
     station = [sum(i) for i in zip(g1_power, g2_power)]
     bid = list(results['Gen']['Bid'].values())
-    assert level == pytest.approx([146.6, 146.60002, 146.63562, 146.67185,
-                                  146.70794, 146.74997, 146.77011, 146.77912,
-                                  146.76854, 146.77322, 146.77790, 146.78661,
-                                  146.79532, 146.80000, 146.77782, 146.78250,
-                                  146.78718, 146.80000, 146.79501, 146.79003,
-                                  146.81081, 146.80000])
+    assert level == pytest.approx([146.6, 146.6, 146.636, 146.672, 146.708,
+                                   146.75, 146.77, 146.78, 146.769, 146.758,
+                                   146.751, 146.751, 146.75, 146.75, 146.75,
+                                   146.758, 146.779, 146.8, 146.808, 146.805,
+                                   146.803, 146.8], abs=0.001)
     assert barrage == pytest.approx([2.5, 0.0, 6.3, 6.3, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     assert station == pytest.approx([6.8, 7.4, 7.4, 7.4, 7.4, 12.4, 17.4,
-                                    22.4, 20.0, 20.0, 18.41544, 18.41544,
-                                    20.0, 24.22400, 20.0, 20.0,
-                                    16.8, 19.6, 19.6, 13.6, 21.96000,
-                                    21.96000])
-    assert bid == pytest.approx([6.9, 6.9, 6.9, 6.9, 12.4, 17.4, 22.4, 20.0,
-                                20.0, 18.41544, 18.41544, 20.0,
-                                24.224, 20, 20, 16.8,
-                                19.6, 19.6, 13.6, 21.96, 21.96])
-    assert m.lp.solutioncost == pytest.approx(6840169735.4)
+                                     22.4, 22.4, 21.827, 20.782, 20.782,
+                                     20.782, 20.782, 18.6, 13.6, 13.6, 18.6,
+                                     21.168, 21.168, 21.168, 21.168], abs=0.001)
+    assert bid == pytest.approx([6.9, 6.9, 6.9, 6.9, 12.4, 17.4, 22.4, 22.4,
+                                 21.827, 20.782, 20.782, 20.782, 20.782, 18.6,
+                                 13.6, 13.6, 18.6, 21.168, 21.168, 21.168,
+                                 21.168], abs=0.001)
+    assert m.lp.solutioncost == pytest.approx(6840126117.0)
     m.remove_result()

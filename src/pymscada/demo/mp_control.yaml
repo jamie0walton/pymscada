@@ -12,8 +12,12 @@ solver_timeout: 90
 time_step: 600
 duration: 43200
 history_tags:
-  I_Galatea_flow: 28800
-  SO_Barrage_flow: 28800
+  I_Galatea_flow:
+    age_s: 28800
+    deadband: 0.01
+  SO_Barrage_flow:
+    age_s: 28800
+    deadband: 0.01
 model:
   System_Inflow:
     type: valve

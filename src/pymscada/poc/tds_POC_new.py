@@ -5,10 +5,10 @@ import aiohttp
 import jwt
 
 
-# HOST = "https://dispatch-sim.transpower.co.nz/api/v1/dispatch/endpoints/BOP/"
-HOST = "https://dispatch-north.transpower.co.nz/api/v1/dispatch/endpoints/BOP/"
-# PRIVATE_KEY = "/home/jamie/private_key.pem"
-PRIVATE_KEY = "/home/jamie/ani_prod_private_key.pem"
+HOST = "https://dispatch-sim.transpower.co.nz/api/v1/dispatch/endpoints/BOP/"
+# HOST = "https://dispatch-north.transpower.co.nz/api/v1/dispatch/endpoints/BOP/"
+PRIVATE_KEY = "/home/jamie/private_key.pem"
+# PRIVATE_KEY = "/home/jamie/ani_prod_private_key.pem"
 ISSUER = "anidispatch@pioneerenergy.co.nz"
 GET = "instructions/latest"
 PUT = "acknowledgements"

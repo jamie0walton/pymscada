@@ -53,3 +53,24 @@ Key wiring points:
   
 - `src/pymscada/config.py`: how YAML config files are loaded (including
   environment variable expansion for `${VAR}`).
+
+## Module coding
+
+BusClient provides a standard connection to the bus. It allows `bus_ip=None`
+for testing where the test injects values from a fake `bus_id` to allow
+in-module callbacks. The BusClient sets a callback for `TagTyped` and its
+descendants.
+
+Note that tag values are seamlessly bi-directional. This choice causes
+some restrictions. Don't update a tag value in its own callback (will exit).
+Avoid creating tag loops that update (will silently cause grief).
+
+The main module class `__init__` should only create the BusClient and save
+other arguments for use in the awaitable `start` where the BusClient is
+started. After `await busclient.start()`, complete module setup. If the module
+has tag values that need to be set before running, check each `tag.is_none` and
+wait until these are false.
+
+Modules are expected to include a `Periodic` function and/or tag value callbacks
+to trigger operation. Modules are likely to have some tags authored by the module
+that will be None until set by the module.

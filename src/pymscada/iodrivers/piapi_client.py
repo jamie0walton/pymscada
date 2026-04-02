@@ -152,12 +152,20 @@ class PIWebAPIClientConnector:
             else:
                 logging.error(f'PI WebAPI unsupported method: {method}')
                 return None
-            if response.status not in [200, 201, 202]:
+            if response.status not in [200, 201, 202, 204]:
                 error_text = await response.text()
                 logging.error(f"PI WebAPI {method} {endpoint}: Status"
                               f" {response.status}, Response: {error_text}")
                 return None
-            data = await response.json()
+            if response.status == 204:
+                return None
+            if method == 'POST':
+                try:
+                    data = await response.json(content_type=None)
+                except (ValueError, UnicodeDecodeError):
+                    return None
+            else:
+                data = await response.json()
             if webid_name and isinstance(data, dict):
                 logging.info(f'{webid_name} {url} {list(data.keys())}')
             return data
