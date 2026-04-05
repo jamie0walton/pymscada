@@ -213,5 +213,7 @@ class BusClient:
         """Read task done."""
         if task.cancelled():
             return
-        if task.exception():
-            raise SystemExit(task.exception())
+        exc = task.exception()
+        if exc:
+            logging.error("read task failed", exc_info=exc)
+            raise SystemExit(1) from exc

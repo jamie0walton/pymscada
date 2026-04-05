@@ -985,6 +985,7 @@ class BidFixed(Constraint):
 
     def __init__(self, **kwargs):
         self.name = ''
+        self.cost = None
         self.states = []
         self.outage = {}
         self.bid_offer = {}
@@ -1010,7 +1011,17 @@ class BidFixed(Constraint):
                 continue
             bi = self.bid_offer['period'].index(period)
             lock_mw = self.bid_offer['setpoint'][bi]
-            m.lp.add_row(elements, 'E', lock_mw)
+            if self.cost is None:
+                m.lp.add_row(elements, 'E', lock_mw)
+                m.lp.add_row(c3, 'E', lock_mw)
+                continue
+            sp = m.lp.get_unique_var(f'_BidFixed_sp_{period}', t)
+            sn = m.lp.get_unique_var(f'_BidFixed_sn_{period}', t)
+            m.lp.add_limit(sp, 'LO', 0)
+            m.lp.add_limit(sn, 'LO', 0)
+            m.lp.add_row(elements, -1.0, sp, 1.0, sn, 'E', lock_mw)
+            m.add_cost((self.cost, sp))
+            m.add_cost((self.cost, sn))
 
 
 class Match(Constraint):
