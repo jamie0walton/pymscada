@@ -187,6 +187,8 @@ class HydraulicModel():
             self.model[name] = Consent(name=name, **e)
         elif e['type'] == 'bid_offer':
             self.model[name] = BidOffer(name=name, **e)
+        elif e['type'] == 'bid_fixed':
+            self.model[name] = BidFixed(name=name, **e)
         elif e['type'] == 'relation':
             self.model[name] = Relation(name=name, **e)
         elif e['type'] == 'delta_cost':
@@ -940,7 +942,8 @@ class BidOffer(Constraint):
             if t < m.set_time:
                 continue
             period = bid_period(t)
-            index = self.outage['period'].index(period)
+            index = next(i for i, v in enumerate(self.outage['times']) 
+                         if t >= v)
             setpoint = self.outage['setpoint'][index]
             c1 = None
             c2 = None
@@ -977,6 +980,39 @@ class BidOffer(Constraint):
                     m.lp.add_row(c3, 'L', self.max)
 
 
+class BidFixed(Constraint):
+    """WITS bid MW fixed between set_time and set_time + window."""
+
+    def __init__(self, **kwargs):
+        self.name = ''
+        self.states = []
+        self.outage = {}
+        self.bid_offer = {}
+        self.window = 3720
+        super().__init__(**kwargs)
+
+    def _create_lp(self, m: HydraulicModel):
+        for t in m.times:
+            if t < m.set_time or t > m.set_time + self.window:
+                continue
+            period = bid_period(t)
+            index = next(i for i, v in enumerate(self.outage['times'])
+                         if t >= v)
+            setpoint = self.outage['setpoint'][index]
+            elements = [m.model[x]._power_name(t) for x in self.elements]
+            c3 = f'Gen__BidFixed__{period}'
+            if self.states[setpoint] == 0:
+                m.lp.add_row(elements, 'E', 0)
+                m.lp.add_row(c3, 'E', 0)
+                continue
+            elif self.states[setpoint] == 'OFF':
+                m.lp.add_row(c3, 'E', 0)
+                continue
+            bi = self.bid_offer['period'].index(period)
+            lock_mw = self.bid_offer['setpoint'][bi]
+            m.lp.add_row(elements, 'E', lock_mw)
+
+
 class Match(Constraint):
     """State selection for generator modes in a station."""
 
@@ -1000,7 +1036,8 @@ class Match(Constraint):
             #     continue
             # else:
             period = bid_period(t)
-            index = self.outage['period'].index(period)
+            index = next(i for i, v in enumerate(self.outage['times']) 
+                         if t >= v)
             setpoint = self.outage['setpoint'][index]
             for actions in self.states[setpoint]:
                 e1, eq, e2 = actions

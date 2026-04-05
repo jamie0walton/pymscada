@@ -9,33 +9,37 @@ class Periodic:
 
     def __init__(self, func, period):
         """Create with function and time in seconds."""
-        self._func = func
+        self.func = func
         self.period = period
-        self._running = False
+        self.running = False
 
     async def start(self):
         """Start the periodic function."""
-        if not self._running:
-            self._time = time.time()
-            self._running = True
-            self._task = asyncio.create_task(self._run())
+        if not self.running:
+            self.time = time.time()
+            self.running = True
+            self.task = asyncio.create_task(self.run())
 
     async def stop(self):
         """Stop the periodic function."""
-        self._running = False
-        self._task.cancel()
+        if self.running:
+            self.running = False
+            self.task.cancel()
 
-    async def _run(self):
+    async def run(self):
         while True:
             try:
-                await self._func()
+                await self.func()
             except Exception as e:
                 raise SystemExit('Periodic failed') from e
-            self._time = self._time + self.period
-            sleep_for = self._time - time.time()
+            self.time = self.time + self.period
+            sleep_for = self.time - time.time()
             if sleep_for < 0.0:
                 sleep_for = self.period
-                self._time = time.time()
-                logging.warning(f'{self._func} skipped at {self._time}')
+                self.time = time.time()
+                logging.warning(f'{self.func} skipped at {self.time}')
             else:
-                await asyncio.sleep(sleep_for)
+                try:
+                    await asyncio.sleep(sleep_for)
+                except asyncio.CancelledError:
+                    return

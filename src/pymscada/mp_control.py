@@ -22,6 +22,10 @@ RUN_NOW = 3
 FIXED = 1
 FREE = 2
 
+YET_TO_RUN = 0
+GOOD = 1
+BAD = 2
+
 
 def find_matching_key_values(key: str, tree):
     """The key and value where the key is a substring."""
@@ -131,10 +135,10 @@ class MPCTag:
 
 class MPCRunner:
     def __init__(self, temp_dir: str, log_dir: str, control_tag: str,
-                 history_tag: str, price_tag: str, solve_time_tag: str,
-                 last_solve_tag: str, setpoint_tag: str, result_tag: str,
+                 history_tag: str, solve_time_tag: str, last_solve_tag: str,
+                 setpoint_tag: str, result_tag: str, status_tag: str,
                  solver_timeout: int, time_step: int, duration: int,
-                 tags: dict, model: dict) -> None:
+                 tags: dict, model: dict):
         self.temp_dir = temp_dir
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
@@ -142,6 +146,7 @@ class MPCRunner:
         self.history_tag = TagBytes(history_tag)
         self.solve_time_tag = TagFloat(solve_time_tag)
         self.last_solve_tag = TagInt(last_solve_tag)
+        self.status_tag = TagInt(status_tag)
         self.setpoint_tag = TagFloat(setpoint_tag)
         self.setpoint_tag.add_callback(self.setpoint_callback)
         self.result_tag = TagDict(result_tag)
@@ -158,6 +163,8 @@ class MPCRunner:
         self.site_time = TagInt('_site_time')
         self.periodic = Periodic(self.periodic_cb, 1.0)
         self.queue = asyncio.Queue()
+        self.solver_running = False
+        self.status_tag.value = YET_TO_RUN
 
     def make_model(self, actual_time: int | None=None):
         """
@@ -205,16 +212,31 @@ class MPCRunner:
             logging.info(f"{msg['action']} {msg['reason']}")
             if msg['action'] == 'run_model':
                 self.control_tag.value = RUNNING
+                self.solve_time_tag.value = 0
+                self.solver_running = True
                 self.make_model()
                 m = HydraulicModel(self.model, timeout=self.solver_timeout)
-                m.solve_lp()
-                results = m.lp.resultsdict
-                show = {'actual_time': self.model['actual_time']}
-                for node in self.model['model']:
-                    if 'result' in self.model['model'][node]:
-                        parm = self.model['model'][node]['result']
-                        show[node] = results[node][parm]
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, m.solve_lp)
+                show = {
+                    'actual_time': self.model['actual_time'],
+                    'found': m.lp.found,
+                    'optimum': m.lp.optimum,
+                    'solutioncost': m.lp.solutioncost,
+                    'results': {}
+                }
+                if m.lp.found:
+                    self.status_tag.value = GOOD
+                    self.last_solve_tag.value = int(time.time() * 1e6)
+                    results = m.lp.resultsdict
+                    for node in self.model['model']:
+                        if 'result' in self.model['model'][node]:
+                            parm = self.model['model'][node]['result']
+                            show['results'][node] = results[node][parm]
+                else:
+                    self.status_tag.value = BAD
                 self.result_tag.value = show
+                self.solver_running = False
                 if self.control_tag.value == RUNNING:
                     self.control_tag.value = TIMED_RUN
             pass
@@ -303,6 +325,8 @@ class MPCRunner:
             if t.tm_min % 10 == 0 and t.tm_sec == 30:
                 self.queue.put_nowait({'action': 'run_model',
                                        'reason': 'timed run'})
+        if self.solver_running:
+            self.solve_time_tag.value += 1
 
     async def start(self, rta: Callable):
         """Start the MPCRunner."""
