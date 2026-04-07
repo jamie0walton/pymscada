@@ -1,6 +1,5 @@
 """Read config, either from command line argument or from resources."""
 import importlib.resources
-from importlib.abc import Traversable
 import logging
 import os
 import re
@@ -9,7 +8,7 @@ from yaml import safe_load_all, YAMLError
 from pymscada import demo, pdf
 
 
-def get_demo_file(filename: str) -> Traversable:
+def get_demo_file(filename: str):
     """Provide file resources to package."""
     fn = importlib.resources.files(demo).joinpath(filename)
     if fn.is_file():
@@ -18,7 +17,7 @@ def get_demo_file(filename: str) -> Traversable:
         raise FileNotFoundError(filename)
 
 
-def get_demo_files() -> list[Traversable]:
+def get_demo_files():
     """Provide an iterable of the demo files."""
     demo_iter = importlib.resources.files(demo).iterdir()
     files = []
@@ -29,7 +28,7 @@ def get_demo_files() -> list[Traversable]:
     return files
 
 
-def get_pdf_files() -> list[Traversable]:
+def get_pdf_files():
     """Provide an iterable of the demo files."""
     pdf_iter = importlib.resources.files(pdf).iterdir()
     files = []
@@ -69,7 +68,7 @@ class Config(dict):
                 logging.warning(f'using demo config file {fp}')
             except FileNotFoundError:
                 raise SystemExit(f'config {filename} missing')
-        with open(fp) as fh:
+        with fp.open(encoding='utf-8') as fh:
             try:
                 for data in safe_load_all(fh):
                     if '__vars__' in data:

@@ -4,7 +4,9 @@ import time
 from array import array
 from collections.abc import Callable
 from copy import deepcopy
+from pathlib import Path
 from struct import unpack
+from yaml import UnsafeLoader, dump, load
 from pymscada import BusClient, TagTyped
 from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, Constraint
 from pymscada.bus_client_tag import TagInt, TagFloat, TagStr, TagDict, TagBytes
@@ -137,8 +139,8 @@ class MPCRunner:
     def __init__(self, temp_dir: str, log_dir: str, control_tag: str,
                  history_tag: str, solve_time_tag: str, last_solve_tag: str,
                  setpoint_tag: str, result_tag: str, status_tag: str,
-                 solver_timeout: int, time_step: int, duration: int,
-                 tags: dict, model: dict):
+                 duration_tag: str, solver_timeout: int, time_step: int,
+                 duration: int, tags: dict, model: dict):
         self.temp_dir = temp_dir
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
@@ -150,9 +152,12 @@ class MPCRunner:
         self.setpoint_tag = TagFloat(setpoint_tag)
         self.setpoint_tag.add_callback(self.setpoint_callback)
         self.result_tag = TagDict(result_tag)
+        self.duration_tag = TagInt(duration_tag)
+        self.duration_tag.add_callback(self.duration_callback)
         self.solver_timeout = solver_timeout
         self.time_step = time_step
         self.duration = duration
+        self.duration_tag.value = int(duration / 3600)
         self.tags: dict[str, MPCTag] = {}
         for tagname, cfg in tags.items():
             self.tags[tagname] = MPCTag(tagname, **cfg)
@@ -165,6 +170,10 @@ class MPCRunner:
         self.queue = asyncio.Queue()
         self.solver_running = False
         self.status_tag.value = YET_TO_RUN
+
+    def duration_callback(self, tag: TagInt):
+        """Callback for the duration tag."""
+        self.duration = tag.value * 3600
 
     def make_model(self, actual_time: int | None=None):
         """
@@ -205,6 +214,12 @@ class MPCRunner:
                     v = self.tags[v].value
                 m[node][k] = v
 
+    def save_model(self):
+        """Save the model to a file."""
+        p = Path(self.temp_dir) / f'mp_control_model.yaml'
+        with p.open('w', encoding='utf-8') as f:
+            dump(self.model, f)
+
     async def model_runner(self):
         self.control_tag.value = OFF
         while True:
@@ -215,6 +230,7 @@ class MPCRunner:
                 self.solve_time_tag.value = 0
                 self.solver_running = True
                 self.make_model()
+                self.save_model()
                 m = HydraulicModel(self.model, timeout=self.solver_timeout)
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, m.solve_lp)
@@ -335,11 +351,41 @@ class MPCRunner:
         BusTask(self.model_runner())
 
 
+class MPCAnalyser:
+    def __init__(self, kwargs: dict):
+        self.model_path = kwargs['load']
+        self.model = {}
+        self.load_model()
+        self.model['tempdir'] = kwargs['tempdir']
+
+    def load_model(self):
+        """Load the model from a file."""
+        with open(self.model_path, encoding='utf-8') as f:
+            self.model = load(f, Loader=UnsafeLoader)
+
+    def run_model(self):
+        """Run the model."""
+        m = HydraulicModel(self.model, timeout=60)
+        m.solve_lp()
+        pass
+
 class MPControl:
     """Connect to bus, run Model Predictive Control."""
 
     def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int = 1324,
                  **kwargs):
+        if kwargs.get('load'):
+            analyser = MPCAnalyser(kwargs)
+            analyser.run_model()
+            show = {
+                'actual_time': analyser.model['actual_time'],
+                'found': analyser.lp.found,
+                'optimum': analyser.lp.optimum,
+                'solutioncost': analyser.lp.solutioncost,
+                'results': {}
+            }
+            print(show)
+            exit()
         self.busclient = BusClient(bus_ip, bus_port, module='MP Control')
         self.runner = None
         self.connector_kwargs = kwargs

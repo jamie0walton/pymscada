@@ -1,6 +1,5 @@
 """An hydraulic LP modelling object."""
 import bisect
-from enum import Enum
 import logging
 import time
 from pathlib import Path
@@ -117,7 +116,7 @@ class HydraulicModel():
         self.end_time = 0
         self.times: list[int] = []
         for e in config['model']:
-            self._add_element(e, config['model'][e])
+            self.add_element(e, config['model'][e])
         for e in self.model.values():
             e.link(self)
 
@@ -169,7 +168,7 @@ class HydraulicModel():
             except OSError:
                 logging.warning(f"could not move {f} to log")
 
-    def _add_element(self, name: str, e: dict):
+    def add_element(self, name: str, e: dict):
         """Configure a model node to be a particular type."""
         if e['type'] == 'valve':
             self.model[name] = Valve(name=name, **e)
@@ -253,7 +252,7 @@ class HydraulicModel():
             timeout=self.timeout
         )
         for e in self.model:
-            self.model[e]._create_lp(self)
+            self.model[e].create_lp(self)
         logging.info("MILP add costs")
         if len(self.costs) == 0:
             logging.warning('MILP has no costs - not running')
@@ -264,7 +263,7 @@ class HydraulicModel():
         self.lp.write_mps()
         self.lp.solve_mps()
         for e in self.model:
-            self.model[e]._post_process(self)
+            self.model[e].post_process(self)
         self.lp.parse_mps()
         self.save_state()
 
@@ -291,11 +290,6 @@ class Constraint():
     handling flows and providing standard names to make cross-connecting
     limits more likely to succeed.
     """
-
-    __slots__ = ['name', 'type', 'time_series', 'srcnode', 'dstnode',
-                 'inflows', 'outflows', 'elements', 'costs', 'min', 'max',
-                 'setpoint', 'lowcost', 'highcost', 'ranges', 'runningcost',
-                 'history', 'result']
 
     def __init__(self, **kwargs):
         """Constraint init."""
@@ -330,28 +324,28 @@ class Constraint():
         if self.dstnode is not None:
             m.model[self.dstnode].inflows.append(self.name)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         logging.error('Must have custom LP building routine')
 
-    def _post_process(self, m: HydraulicModel):
+    def post_process(self, m: HydraulicModel):
         if self.time_series is None:
             return
         for t in m.times:
-            if self._default_name(t) in m.lp.results:
-                value = m.lp.results[self._default_name(t)]
+            if self.default_name(t) in m.lp.results:
+                value = m.lp.results[self.default_name(t)]
                 self.time_series.set({t: value})
 
-    def _add_limit_costs(self, m: HydraulicModel, t: int):
+    def add_limit_costs(self, m: HydraulicModel, t: int):
         if self.costs is not None:
-            cost = self._cost_name(t)
+            cost = self.cost_name(t)
             xs = self.costs[0]  # [self._volume(wl) for wl in self.costs[0]]
             ys = self.costs[1]
             m.add_cost(cost)
-            m.lp.add_sos2_disc(self._default_name(t), xs, cost, ys)
+            m.lp.add_sos2_disc(self.default_name(t), xs, cost, ys)
         if len(self.elements) == 0:
-            elements = [self._default_name(t)]
+            elements = [self.default_name(t)]
         else:
-            elements = [m.model[e]._default_name(t) for e in self.elements]
+            elements = [m.model[e].default_name(t) for e in self.elements]
         if self.min is not None:
             m.lp.add_row(elements, 'G', self.min)
         if self.max is not None:
@@ -359,32 +353,32 @@ class Constraint():
         if self.lowcost is not None:
             if self.setpoint is None:
                 raise SystemExit(f"{self.name} lowcost must have setpoint")
-            cost = self._pos_cost_name(t)
+            cost = self.pos_cost_name(t)
             m.add_cost((self.lowcost, cost))
             m.lp.add_row(elements, cost, 'G', self.setpoint)
         if self.highcost is not None:
             if self.setpoint is None:
                 raise SystemExit(f"{self.name} highcost must have setpoint")
-            cost = self._neg_cost_name(t)
+            cost = self.neg_cost_name(t)
             m.add_cost((self.highcost, cost))
             m.lp.add_row(elements, -1, cost, 'L', self.setpoint)
 
-    def _add_ranges(self, m: HydraulicModel, t: int):
+    def add_ranges(self, m: HydraulicModel, t: int):
         # A single range is just a simple min / max
         if len(self.ranges) == 1:
-            m.lp.add_row(self._default_name(t), 'G', self.ranges[0][0])
-            m.lp.add_row(self._default_name(t), 'L', self.ranges[0][1])
+            m.lp.add_row(self.default_name(t), 'G', self.ranges[0][0])
+            m.lp.add_row(self.default_name(t), 'L', self.ranges[0][1])
         # Two ranges are semi-continuous
         elif len(self.ranges) == 2:
             if len(self.ranges[0]) == 1:
-                m.lp.add_semi(self._default_name(t), self.ranges[1][0],
-                              self.ranges[1][1], self._running_bv_name(t))
+                m.lp.add_semi(self.default_name(t), self.ranges[1][0],
+                              self.ranges[1][1], self.running_bv_name(t))
                 if self.runningcost is not None:
-                    m.add_cost((self.runningcost, self._running_bv_name(t)))
+                    m.add_cost((self.runningcost, self.running_bv_name(t)))
             else:
                 logging.warning(f"NOT IMPLEMENTED range {self.name}")
 
-    def _range_conform(self, value):
+    def range_conform(self, value):
         """Make values conform to a range, avoids solves going infeasible."""
         r = self.ranges
         if len(r[0]) == 1:
@@ -424,76 +418,76 @@ class Constraint():
                     else:  # must be higher
                         return r[1][1]
 
-    def _default_name(self, time):
+    def default_name(self, time):
         return f"{self.name}__DEFAULT__{time}"
 
-    def _running_bv_name(self, time):
+    def running_bv_name(self, time):
         return f"{self.name}__Running_BV__{time}"
 
-    def _off_bv_name(self, time):
+    def off_bv_name(self, time):
         return f"{self.name}__Off_BV__{time}"
 
-    def _flow_name(self, time):
+    def flow_name(self, time):
         return f"{self.name}__Flow__{time}"
 
-    def _flow_bv_name(self, time):
+    def flow_bv_name(self, time):
         return f"{self.name}__Flow_BV__{time}"
 
-    def _inflow_name(self, time):
+    def inflow_name(self, time):
         return f"{self.name}__Flow_in__{time}"
 
-    def _outflow_name(self, time):
+    def outflow_name(self, time):
         return f"{self.name}__Flow_out__{time}"
 
-    def _power_name(self, time):
+    def power_name(self, time):
         return f"{self.name}__Power__{time}"
 
-    def _volume_name(self, time):
+    def volume_name(self, time):
         return f"{self.name}__Volume__{time}"
 
-    def _level_name(self, time):
+    def level_name(self, time):
         return f"{self.name}__Level__{time}"
 
-    def _cost_name(self, time):
+    def cost_name(self, time):
         return f"{self.name}__Cost__{time}"
 
-    def _revenue_name(self, time):
+    def revenue_name(self, time):
         return f"{self.name}__Revenue__{time}"
 
-    def _pos_cost_name(self, time):
+    def pos_cost_name(self, time):
         return f"{self.name}__Cost_pos__{time}"
 
-    def _neg_cost_name(self, time):
+    def neg_cost_name(self, time):
         return f"{self.name}__Cost_neg__{time}"
 
-    def _pos_limit_name(self, time):
+    def pos_limit_name(self, time):
         return f"{self.name}__Limit_pos__{time}"
 
-    def _neg_limit_name(self, time):
+    def neg_limit_name(self, time):
         return f"{self.name}__Limit_neg__{time}"
 
-    def _pos_lake_profile_name(self, time):
+    def pos_lake_profile_name(self, time):
         return f"{self.name}__Profile_pos__{time}"
 
-    def _neg_lake_profile_name(self, time):
+    def neg_lake_profile_name(self, time):
         return f"{self.name}__Profile_neg__{time}"
 
-    def _pos_power_delta_name(self, time):
+    def pos_power_delta_name(self, time):
         return f"{self.name}__PowerDelta_pos__{time}"
 
-    def _neg_power_delta_name(self, time):
+    def neg_power_delta_name(self, time):
         return f"{self.name}__PowerDelta_neg__{time}"
 
-    def _pos_power_chg_name(self, time):
+    def pos_power_chg_name(self, time):
         return f"{self.name}__PowerChg_pos__{time}"
 
-    def _neg_power_chg_name(self, time):
+    def neg_power_chg_name(self, time):
         return f"{self.name}__PowerChg_neg__{time}"
 
-    def _pos_slack_name(self, time):
+    def pos_slack_name(self, time):
         return f"{self.name}__SLACK_pos__{time}"
 
-    def _neg_slack_name(self, time):
+    def neg_slack_name(self, time):
         return f"{self.name}__SLACK_neg__{time}"
 
 
@@ -514,28 +508,21 @@ class Summing(Constraint):
         super().__init__(**kwargs)
         pass
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             flows = []
             for flow in self.inflows:
                 if m.model[flow].type == 'river':
-                    flows.append(m.model[flow]._outflow_name(t))
+                    flows.append(m.model[flow].outflow_name(t))
                 else:
-                    flows.append(m.model[flow]._flow_name(t))
+                    flows.append(m.model[flow].flow_name(t))
             for flow in self.outflows:
                 if m.model[flow].type == 'river':
                     flows.append(-1.0)
-                    flows.append(m.model[flow]._inflow_name(t))
+                    flows.append(m.model[flow].inflow_name(t))
                 else:
                     flows.append(-1.0)
-                    flows.append(m.model[flow]._flow_name(t))
-            # if self.slack:
-            #     s1 = self._neg_slack_name(t)
-            #     s2 = self._pos_slack_name(t)
-            #     m.lp.add_row(flows, s1, -1, s2, 'E', 0.0)
-            #     m.add_cost((1e10, s1))
-            #     m.add_cost((1e10, s2))
-            # else:
+                    flows.append(m.model[flow].flow_name(t))
             m.lp.add_row(flows, 'E', 0.0)
 
 
@@ -559,33 +546,33 @@ class Storage(Constraint):
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
         if self.costs is not None:
-            self.costs[0] = [self._volume(wl) for wl in self.costs[0]]
+            self.costs[0] = [self.volume(wl) for wl in self.costs[0]]
         if self.min is not None:
-            self.min = self._volume(self.min)
+            self.min = self.volume(self.min)
         if self.max is not None:
-            self.max = self._volume(self.max)
+            self.max = self.volume(self.max)
         if self.setpoint is not None:
-            self.setpoint = self._volume(self.setpoint)
+            self.setpoint = self.volume(self.setpoint)
 
-    def _default_name(self, time):
-        return super()._volume_name(time)
+    def default_name(self, time):
+        return super().volume_name(time)
 
-    def _level(self, volume):
+    def level(self, volume):
         return interp(volume, self.LV_ys, self.LV_xs)
 
-    def _volume(self, level):
+    def volume(self, level):
         return interp(level, self.LV_xs, self.LV_ys)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a level time_series.')
         level = self.time_series.get(m.actual_time)
-        self._vol = self._volume(level)
+        self._vol = self.volume(level)
         for ti, t in enumerate(m.times):
             if t < m.actual_time:
                 continue
             if t == m.actual_time:
-                m.lp.add_row(self._volume_name(t), 'E', self._vol)
+                m.lp.add_row(self.volume_name(t), 'E', self._vol)
             else:
                 t_prior = m.times[ti - 1]
                 dt = t - t_prior
@@ -594,26 +581,26 @@ class Storage(Constraint):
                     inflow = m.model[flow]
                     flows.append(dt)
                     if inflow.type == 'river':
-                        flows.append(inflow._outflow_name(t_prior))
+                        flows.append(inflow.outflow_name(t_prior))
                     else:
-                        flows.append(inflow._flow_name(t_prior))
+                        flows.append(inflow.flow_name(t_prior))
                 for flow in self.outflows:
                     outflow = m.model[flow]
                     flows.append(-dt)
                     if outflow.type == 'river':
-                        flows.append(outflow._inflow_name(t_prior))
+                        flows.append(outflow.inflow_name(t_prior))
                     else:
-                        flows.append(outflow._flow_name(t_prior))
-                m.lp.add_row(flows, self._volume_name(t_prior),
-                             -1, self._volume_name(t), 'E', 0)
-                self._add_limit_costs(m, t)
+                        flows.append(outflow.flow_name(t_prior))
+                m.lp.add_row(flows, self.volume_name(t_prior),
+                             -1, self.volume_name(t), 'E', 0)
+                self.add_limit_costs(m, t)
 
-    def _post_process(self, m: HydraulicModel):
+    def post_process(self, m: HydraulicModel):
         for t in m.times:
-            if self._volume_name(t) in m.lp.results:
-                volume = m.lp.results[self._volume_name(t)]
-                level = self._level(volume)
-                m.lp.results[self._level_name(t)] = level
+            if self.volume_name(t) in m.lp.results:
+                volume = m.lp.results[self.volume_name(t)]
+                level = self.level(volume)
+                m.lp.results[self.level_name(t)] = level
                 if self.time_series is None:
                     continue
                 self.time_series.set({t: level})
@@ -646,10 +633,10 @@ class StorageProfile(Constraint):
         self._tod_xs, self._tod_ys = tod_to_xs_ys(self.timeofday)
         pass
 
-    def _default_name(self, time):
-        return super()._volume_name(time)
+    def default_name(self, time):
+        return super().volume_name(time)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -668,22 +655,22 @@ class StorageProfile(Constraint):
                 self._tod_ys
             )
             m.lp.add_row(
-                m.model[self.element]._volume_name(t),
-                self._neg_lake_profile_name(t),
-                -1.0, self._pos_lake_profile_name(t),
+                m.model[self.element].volume_name(t),
+                self.neg_lake_profile_name(t),
+                -1.0, self.pos_lake_profile_name(t),
                 'E', lake_target
             )
             if lake_next > lake_target:  # want lake level increasing
-                m.add_cost((self.cost, self._neg_lake_profile_name(t)))
+                m.add_cost((self.cost, self.neg_lake_profile_name(t)))
                 if self.lowcost != 0.0:
-                    m.add_cost((self.lowcost, self._pos_lake_profile_name(t)))
+                    m.add_cost((self.lowcost, self.pos_lake_profile_name(t)))
             else:  # want lake level decreasing - but less so
-                m.add_cost((self.cost, self._pos_lake_profile_name(t)))
+                m.add_cost((self.cost, self.pos_lake_profile_name(t)))
                 if self.lowcost != 0.0:
-                    m.add_cost((self.lowcost, self._neg_lake_profile_name(t)))
+                    m.add_cost((self.lowcost, self.neg_lake_profile_name(t)))
         pass
 
-    def _post_process(self, m: HydraulicModel):
+    def post_process(self, m: HydraulicModel):
         pass
 
 
@@ -704,10 +691,10 @@ class River(Constraint):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
 
-    def _default_name(self, time):
-        return super()._inflow_name(time)
+    def default_name(self, time):
+        return super().inflow_name(time)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         # work from the outflow time
         for t in m.times:
             if t < m.actual_time:
@@ -722,16 +709,16 @@ class River(Constraint):
             if t_prev < m.set_time:
                 if self.time_series is None:
                     raise ValueError(f'{self.name} must have a flow time_series.')
-                m.lp.add_row(self._outflow_name(t), 'E',
+                m.lp.add_row(self.outflow_name(t), 'E',
                              self.time_series.get(t_prev))
             else:
-                m.lp.add_row(self._outflow_name(t), -1,
-                             self._inflow_name(t_prev), 'E', 0.0)
+                m.lp.add_row(self.outflow_name(t), -1,
+                             self.inflow_name(t_prev), 'E', 0.0)
             # if t == m.set_time:
-            #     m.lp.add_between(self._inflow_name(t),
-            #                      self._inflow_name(t_prev),
-            #                      self._inflow_name(t_prev + self.delay))
-            self._add_limit_costs(m, t)
+            #     m.lp.add_between(self.inflow_name(t),
+            #                      self.inflow_name(t_prev),
+            #                      self.inflow_name(t_prev + self.delay))
+            self.add_limit_costs(m, t)
 
 
 class Valve(Constraint):
@@ -748,10 +735,10 @@ class Valve(Constraint):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
 
-    def _default_name(self, time):
-        return super()._flow_name(time)
+    def default_name(self, time):
+        return super().flow_name(time)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if self.time_series is None:
                 raise ValueError(f'{self.name} must have a flow time_series.')
@@ -759,14 +746,14 @@ class Valve(Constraint):
             if flow < 0.1:
                 flow = 0
             if t <= m.actual_time:
-                m.lp.add_row(self._flow_name(t), 'E', flow)
+                m.lp.add_row(self.flow_name(t), 'E', flow)
             elif self.state == OFF:
-                m.lp.add_row(self._flow_name(t), 'E', 0)
+                m.lp.add_row(self.flow_name(t), 'E', 0)
             elif self.state == FIXED:
-                m.lp.add_row(self._flow_name(t), 'E', flow)
+                m.lp.add_row(self.flow_name(t), 'E', flow)
             elif self.state == FREE:
-                self._add_ranges(m, t)
-                self._add_limit_costs(m, t)
+                self.add_ranges(m, t)
+                self.add_limit_costs(m, t)
             else:
                 logging.error(f"{self.name} invalid state: {self.state}")
 
@@ -790,25 +777,25 @@ class Generator(Constraint):
         self.PQ_xs = [x[0] for x in self.PQ]
         self.PQ_ys = [x[1] for x in self.PQ]
 
-    def _default_name(self, time):
-        return super()._power_name(time)
+    def default_name(self, time):
+        return super().power_name(time)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a power time_series.')
         for t in m.times:
             power = self.time_series.get(t)
-            self._add_ranges(m, t)
-            power = self._range_conform(power)
+            self.add_ranges(m, t)
+            power = self.range_conform(power)
             if t < m.set_time:
-                m.lp.add_row(self._power_name(t), 'E', power)
+                m.lp.add_row(self.power_name(t), 'E', power)
             elif self.state == OFF:
-                m.lp.add_row(self._power_name(t), 'E', 0)
+                m.lp.add_row(self.power_name(t), 'E', 0)
             elif self.state == FIXED:
-                m.lp.add_row(self._power_name(t), 'E', power)
+                m.lp.add_row(self.power_name(t), 'E', power)
             # Always calculate flow from power
-            m.lp.add_sos2(self._power_name(t), [x[0] for x in self.PQ],
-                          self._flow_name(t), [x[1] for x in self.PQ])
+            m.lp.add_sos2(self.power_name(t), [x[0] for x in self.PQ],
+                          self.flow_name(t), [x[1] for x in self.PQ])
         if self.state == FREE and len(self.startlimit) == 3:
             # need COS leading up to now
             pre_times = [m.start_time - i * m.time_step for i in
@@ -816,9 +803,9 @@ class Generator(Constraint):
             if self.time_series is None:
                 raise ValueError(f'{self.name} must have a power time_series.')
             for t in pre_times:
-                power = self._range_conform(self.time_series.get(t))
-                m.lp.add_row(self._power_name(t), 'E', power)
-                self._add_ranges(m, t)
+                power = self.range_conform(self.time_series.get(t))
+                m.lp.add_row(self.power_name(t), 'E', power)
+                self.add_ranges(m, t)
             cos_lists = [[]]
             lim_lists = {}
             # collect a list of times for COS detection
@@ -835,14 +822,14 @@ class Generator(Constraint):
             cos_lists.pop(0)
             # apply the COS detection and limiting
             for t1, t2 in cos_lists:
-                bv1 = self._running_bv_name(t1)
-                bv2 = self._running_bv_name(t2)
+                bv1 = self.running_bv_name(t1)
+                bv2 = self.running_bv_name(t2)
                 m.lp.add_row(bv1, -1, bv2, f"{bv1}__COS_pos__",
                              -1, f"{bv1}__COS_neg__", 'E', 0.0)
             for times in lim_lists.values():
                 cos = []
                 for t in times:
-                    bv1 = self._running_bv_name(t)
+                    bv1 = self.running_bv_name(t)
                     cos.append(f"{bv1}__COS_pos__")
                     cos.append(f"{bv1}__COS_neg__")
                 c1 = m.lp.get_unique_var('COS', t)
@@ -863,7 +850,7 @@ class Cost(Constraint):
         super().__init__(**kwargs)
         self._tod_xs, self._tod_ys = tod_to_xs_ys(self.timeofday)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -871,16 +858,16 @@ class Cost(Constraint):
             ylim = interp_step(sec_into_day, self._tod_xs, self._tod_ys)
             costlist = []
             for e in self.elements:
-                costlist.append(m.model[e]._default_name(t))
+                costlist.append(m.model[e].default_name(t))
             m.lp.add_row(
                 costlist,
-                self._neg_cost_name(t),
-                -1, self._pos_cost_name(t),
+                self.neg_cost_name(t),
+                -1, self.pos_cost_name(t),
                 'E', ylim  # target
             )
             # add the cost to the objective function
-            m.add_cost((self.cost, self._pos_cost_name(t)))
-            m.add_cost((self.cost, self._neg_cost_name(t)))
+            m.add_cost((self.cost, self.pos_cost_name(t)))
+            m.add_cost((self.cost, self.neg_cost_name(t)))
         pass
 
 
@@ -896,7 +883,7 @@ class Consent(Constraint):
         self.night = 0.0
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -909,14 +896,14 @@ class Consent(Constraint):
             elements = []
             for e in self.elements:
                 if m.model[e].type == 'river':
-                    elements.append(m.model[e]._outflow_name(t))
+                    elements.append(m.model[e].outflow_name(t))
                 elif m.model[e].type in ['generator', 'valve']:
-                    elements.append(m.model[e]._flow_name(t))
+                    elements.append(m.model[e].flow_name(t))
             if self.cost is None:
                 m.lp.add_row(elements, 'G', min_flow)
             else:
-                m.lp.add_row(elements, self._neg_cost_name(t), 'G', min_flow)
-                m.add_cost((self.cost, self._neg_cost_name(t)))
+                m.lp.add_row(elements, self.neg_cost_name(t), 'G', min_flow)
+                m.add_cost((self.cost, self.neg_cost_name(t)))
         pass
 
 
@@ -936,7 +923,7 @@ class BidOffer(Constraint):
         super().__init__(**kwargs)
         pass
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         lock_time = m.actual_time + self.window
         for t in m.times:
             if t < m.set_time:
@@ -948,7 +935,7 @@ class BidOffer(Constraint):
             c1 = None
             c2 = None
             c3 = f'Gen__Bid__{period}'
-            elements = [m.model[x]._power_name(t) for x in self.elements]
+            elements = [m.model[x].power_name(t) for x in self.elements]
             if self.states[setpoint] == 0:
                 m.lp.add_row(elements, 'E', 0)
                 m.lp.add_row(c3, 'E', 0)
@@ -992,7 +979,7 @@ class BidFixed(Constraint):
         self.window = 3720
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time or t > m.set_time + self.window:
                 continue
@@ -1000,7 +987,7 @@ class BidFixed(Constraint):
             index = next(i for i, v in enumerate(self.outage['times'])
                          if t >= v)
             setpoint = self.outage['setpoint'][index]
-            elements = [m.model[x]._power_name(t) for x in self.elements]
+            elements = [m.model[x].power_name(t) for x in self.elements]
             c3 = f'Gen__BidFixed__{period}'
             if self.states[setpoint] == 0:
                 m.lp.add_row(elements, 'E', 0)
@@ -1037,38 +1024,37 @@ class Match(Constraint):
         super().__init__(**kwargs)
         pass
 
-    def _create_lp(self, m: HydraulicModel):
-        if self.state1 != FREE or self.state2 != FREE:
-            return
+    def create_lp(self, m: HydraulicModel):
+        # TODO need a condition for when generators are not free
         for t in m.times:
             if t < m.set_time:
                 continue
-            # if t == m.set_time:
-            #     continue
-            # else:
-            period = bid_period(t)
-            index = next(i for i, v in enumerate(self.outage['times']) 
-                         if t >= v)
+            index = 0
+            for i, v in enumerate(self.outage['times']):
+                if t >= v:
+                    index = i
+                else:
+                    break
             setpoint = self.outage['setpoint'][index]
             for actions in self.states[setpoint]:
                 e1, eq, e2 = actions
                 if type(e1) == str:
-                    e1 = m.model[e1]._power_name(t)
+                    e1 = m.model[e1].power_name(t)
                 else:
                     exit(f"{self.name} {self.states[setpoint]} invalid")
                 if type(e2) == str:
-                    e2 = [-1.0, m.model[e2]._power_name(t)]
+                    e2 = [-1.0, m.model[e2].power_name(t)]
                     m.lp.add_row(e1, e2, eq, 0.0)
                 else:
                     m.lp.add_row(e1, eq, e2)
             g1 = self.elements[0]
-            g1_power = m.model[g1]._power_name(t)
-            g1_off = m.model[g1]._off_bv_name(t)
-            g1_running = m.model[g1]._running_bv_name(t)
+            g1_power = m.model[g1].power_name(t)
+            g1_off = m.model[g1].off_bv_name(t)
+            g1_running = m.model[g1].running_bv_name(t)
             g2 = self.elements[1]
-            g2_power = m.model[g2]._power_name(t)
-            g2_off = m.model[g2]._off_bv_name(t)
-            g2_running = m.model[g2]._running_bv_name(t)
+            g2_power = m.model[g2].power_name(t)
+            g2_off = m.model[g2].off_bv_name(t)
+            g2_running = m.model[g2].running_bv_name(t)
             m.lp.add_row(g1_running, g1_off, 'E', 1)
             m.lp.add_limit(g1_off, 'BV', None)
             m.lp.add_row(g2_running, g2_off, 'E', 1)
@@ -1091,34 +1077,34 @@ class Relation(Constraint):
         self.constant = None
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
             if self.operator == 'greater':
                 if self.constant is None:
                     m.lp.add_row(
-                        m.model[self.elements[0]]._default_name(t),
-                        -1, m.model[self.elements[1]]._default_name(t),
+                        m.model[self.elements[0]].default_name(t),
+                        -1, m.model[self.elements[1]].default_name(t),
                         'G', 0
                     )
                 else:
                     m.lp.add_row(
-                        m.model[self.elements[0]]._default_name(t),
-                        m.model[self.elements[1]]._default_name(t),
+                        m.model[self.elements[0]].default_name(t),
+                        m.model[self.elements[1]].default_name(t),
                         'G', self.constant
                     )
             if self.operator == 'less':
                 if self.constant is None:
                     m.lp.add_row(
-                        m.model[self.elements[0]]._default_name(t),
-                        -1, m.model[self.elements[1]]._default_name(t),
+                        m.model[self.elements[0]].default_name(t),
+                        -1, m.model[self.elements[1]].default_name(t),
                         'L', 0
                     )
                 else:
                     m.lp.add_row(
-                        m.model[self.elements[0]]._default_name(t),
-                        m.model[self.elements[1]]._default_name(t),
+                        m.model[self.elements[0]].default_name(t),
+                        m.model[self.elements[1]].default_name(t),
                         'L', self.constant
                     )
         pass
@@ -1133,13 +1119,13 @@ class DeltaCost(Constraint):
         self.cost = 1.0
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             c1 = m.lp.get_unique_var('Delta', t)
             c2 = m.lp.get_unique_var('Delta', t)
             m.lp.add_row(
-                m.model[self.elements[0]]._default_name(t),
-                -1, m.model[self.elements[1]]._default_name(t),
+                m.model[self.elements[0]].default_name(t),
+                -1, m.model[self.elements[1]].default_name(t),
                 c1, -1.0, c2,
                 'E', 0
             )
@@ -1158,7 +1144,7 @@ class ChangeCost(Constraint):
         self.element = None
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         last_time = 0
         for t in m.times:
             if t < m.set_time:
@@ -1167,8 +1153,8 @@ class ChangeCost(Constraint):
             c1 = m.lp.get_unique_var('Change', t)
             c2 = m.lp.get_unique_var('Change', t)
             m.lp.add_row(
-                m.model[self.element]._default_name(t),
-                -1, m.model[self.element]._default_name(last_time),
+                m.model[self.element].default_name(t),
+                -1, m.model[self.element].default_name(last_time),
                 c1, -1.0, c2,
                 'E', 0.0
             )
@@ -1189,7 +1175,7 @@ class StepCost(Constraint):
         self.band = 5.0
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         last_time = 0
         for t in m.times:
             # accept bigger steps if they have come from Transpower
@@ -1202,10 +1188,10 @@ class StepCost(Constraint):
             c3 = m.lp.get_unique_var('Step', t)
             c4 = m.lp.get_unique_var('Step', t)
             elements = [
-                m.model[x]._default_name(t) for x in self.elements
+                m.model[x].default_name(t) for x in self.elements
             ]
             last_elements = [
-                m.model[x]._default_name(last_time) for x in self.elements
+                m.model[x].default_name(last_time) for x in self.elements
             ]
             neg_elements = [x for y in last_elements for x in (-1.0, y)]
             m.lp.add_row(
@@ -1237,7 +1223,7 @@ class RevenueProfile(Constraint):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -1247,10 +1233,10 @@ class RevenueProfile(Constraint):
             if t < m.set_time:
                 continue
             # elements = [
-            #     m.model[x]._default_name(t) for x in self.elements
+            #     m.model[x].default_name(t) for x in self.elements
             # ]
-            c1 = self._revenue_name(t)
-            gn = m.model[self.generation]._power_name(t)
+            c1 = self.revenue_name(t)
+            gn = m.model[self.generation].power_name(t)
             # m.lp.add_row(elements, -1.0, c1, 'E', 0)
             m.lp.add_row(spot_price, gn, -2.0, c1, 'E', 0)  # $/MWh for 30 minutes
             m.add_cost((-self.cost, c1))
@@ -1269,7 +1255,7 @@ class LimitProfile(Constraint):
         super().__init__(**kwargs)
         self._tod_xs, self._tod_ys = tod_to_xs_ys(self.timeofday)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -1278,9 +1264,9 @@ class LimitProfile(Constraint):
             elm = []
             for e in self.elements:
                 if self.measurement == 'flow':
-                    elm.append(m.model[e]._flow_name(t))
+                    elm.append(m.model[e].flow_name(t))
                 elif self.measurement == 'power':
-                    elm.append(m.model[e]._power_name(t))
+                    elm.append(m.model[e].power_name(t))
                 else:
                     logging.critical(f"no measurement for {e}")
             if self.min:
@@ -1305,7 +1291,7 @@ class TimeProfile(Constraint):
         super().__init__(**kwargs)
         self._tod_xs, self._tod_ys = tod_to_xs_ys(self.timeofday)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
@@ -1316,7 +1302,7 @@ class TimeProfile(Constraint):
             else:
                 self.setpoint = interp(sec_into_day, self._tod_xs,
                                        self._tod_ys)
-            self._add_limit_costs(m, t)
+            self.add_limit_costs(m, t)
 
 
 class Add(Constraint):
@@ -1328,25 +1314,25 @@ class Add(Constraint):
         self.defaultname = None
         super().__init__(**kwargs)
 
-    def _default_name(self, time):
+    def default_name(self, time):
         if self.defaultname is None:
-            return super()._default_name(time)
+            return super().default_name(time)
         elif self.defaultname == 'power':
-            return super()._power_name(time)
+            return super().power_name(time)
         elif self.defaultname == 'flow':
-            return super()._flow_name(time)
+            return super().flow_name(time)
         else:
             raise ValueError(f"{self.name} {self.defaultname} not implemented")
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         for t in m.times:
             if t < m.set_time:
                 continue
             elements = [
-                m.model[x]._default_name(t) for x in self.elements
+                m.model[x].default_name(t) for x in self.elements
             ]
-            m.lp.add_row(elements, -1.0, self._default_name(t), 'E', 0)
-            self._add_limit_costs(m, t)
+            m.lp.add_row(elements, -1.0, self.default_name(t), 'E', 0)
+            self.add_limit_costs(m, t)
 
 
 class EndState(Constraint):
@@ -1358,7 +1344,7 @@ class EndState(Constraint):
         self.states = []
         super().__init__(**kwargs)
 
-    def _create_lp(self, m: HydraulicModel):
+    def create_lp(self, m: HydraulicModel):
         t = m.times[-1]        
         for action in self.states:
             cost = action.pop()

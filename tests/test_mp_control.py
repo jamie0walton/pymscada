@@ -48,7 +48,7 @@ def tags():
 
 def test_mp_control_run():
     r = subprocess.run(
-        [sys.executable, '-m', 'pymscada', 'mp_control', '-h'],
+        [sys.executable, '-m', 'pymscada', 'mpcontrol', '-h'],
         capture_output=True,
         text=True,
     )

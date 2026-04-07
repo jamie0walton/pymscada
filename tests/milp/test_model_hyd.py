@@ -3,11 +3,19 @@ import pytest
 import tempfile
 import yaml
 from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, interp, Constraint
+from pymscada.milp.misc import bid_time
 
 
 OFF = 0
 FIXED = 1
 FREE = 2
+
+
+def outage_times_from_bid_periods(reference_s):
+    return [bid_time(reference_s, p) for p in range(48, 0, -1)]
+
+
+BID_OFFER_OUTAGE_TIMES = outage_times_from_bid_periods(1522494300)
 
 
 def test_timeseries_basic():
@@ -34,6 +42,19 @@ def test_timeseries_save_load():
     assert isinstance(ts_in, TimeSeries)
     for t in (0, 150, 250, 400):
         assert ts_in.get(t) == ts_out.get(t)
+
+
+def test_timeseries_on_half_hour():
+    # test behaviour at the half hour boundary
+    t0 = 1522494000
+    ts = TimeSeries({
+        t0: 1.0,
+        t0 + 1800: 2.0,
+        t0 + 3600: 3.0,
+    })
+    assert ts.get(t0 + 1799) == 1.0
+    assert ts.get(t0 + 1800) == 2.0
+    assert ts.get(t0 + 1801) == 2.0
 
 
 # Power MW, Flow cumecs
@@ -96,17 +117,17 @@ def test_interp():
 def test_range_conform():
     """Should limit to range."""
     c1 = Constraint(ranges=[[1.0, 2.0]])
-    assert c1._range_conform(0.0) == 1.0
+    assert c1.range_conform(0.0) == 1.0
     c2 = Constraint(ranges=[[1.0], [1.0, 2.0]])
-    assert c2._range_conform(0.0) == 0.0
+    assert c2.range_conform(0.0) == 0.0
     c3 = Constraint(ranges=[[1.0, 3.0], [6.8, 12.6]])
-    assert c3._range_conform(0.0) == 1.0
-    assert c3._range_conform(110.0) == 12.6
+    assert c3.range_conform(0.0) == 1.0
+    assert c3.range_conform(110.0) == 12.6
     c4 = Constraint(ranges=[[0.0], [1.0, 3.0], [6.8, 12.6]])
-    assert c4._range_conform(5.0) == 6.8
+    assert c4.range_conform(5.0) == 6.8
 
 
-def test_model_times():
+def test_model_times(tmp_path):
     """Make sure that the time sequences are as expected."""
     inflow = TimeSeries({
         12342665: 9.0,
@@ -119,7 +140,7 @@ def test_model_times():
         'actual_time': 123456651,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Valve': {
                 'type': 'valve',
@@ -175,7 +196,7 @@ def test_model_times():
     m.remove_result()
 
 
-def test_tank_fixed():
+def test_tank_fixed(tmp_path):
     """Simple fill / empty tank with fixed flows to check the math."""
     inflow = TimeSeries(9.0)
     outflow = TimeSeries(1.0)
@@ -185,7 +206,7 @@ def test_tank_fixed():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -231,7 +252,7 @@ def test_tank_fixed():
     m.remove_result()
 
 
-def test_tank_fixed_river():
+def test_tank_fixed_river(tmp_path):
     """Simple fill / empty tank with fixed flows and river delay."""
     inflow = TimeSeries({
         1522492200: 9.0,
@@ -246,7 +267,7 @@ def test_tank_fixed_river():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -313,7 +334,7 @@ def test_tank_fixed_river():
     m.remove_result()
 
 
-def test_tank_variable_empty():
+def test_tank_variable_empty(tmp_path):
     """Tank outflow (slack) should have an optimum solution."""
     inflow = TimeSeries({1522494000: 500.0})
     outflow = TimeSeries({1522494000: 1.0})
@@ -323,7 +344,7 @@ def test_tank_variable_empty():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 3600,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -372,7 +393,7 @@ def test_tank_variable_empty():
     m.remove_result()
 
 
-def test_tank_variable_empty_profile_limits():
+def test_tank_variable_empty_profile_limits(tmp_path):
     """Tank outflow (slack) should solve within flow limits."""
     # Missed adding cost, gave a slightly different answer.
     inflow = TimeSeries({1522494000: 100.0})
@@ -383,7 +404,7 @@ def test_tank_variable_empty_profile_limits():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 4 * 3600,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -473,7 +494,7 @@ def test_tank_variable_empty_profile_limits():
     m.remove_result()
 
 
-def test_genprofile():
+def test_genprofile(tmp_path):
     """MW output to follow a profile."""
     power = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
     model = {
@@ -481,7 +502,7 @@ def test_genprofile():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -521,7 +542,7 @@ def test_genprofile():
     m.remove_result()
 
 
-def test_gentimeprofile():
+def test_gentimeprofile(tmp_path):
     """MW output to follow a profile."""
     power = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
     model = {
@@ -529,7 +550,7 @@ def test_gentimeprofile():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -571,7 +592,7 @@ def test_gentimeprofile():
     m.remove_result()
 
 
-def test_gentimestep():
+def test_gentimestep(tmp_path):
     """MW output to follow a profile."""
     power = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
     model = {
@@ -579,7 +600,7 @@ def test_gentimestep():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -623,7 +644,7 @@ def test_gentimestep():
     m.remove_result()
 
 
-def test_twogensemi():
+def test_twogensemi(tmp_path):
     """MW output semi-continuous."""
     power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
     power2 = TimeSeries({1522494000: 5.2, 1522494300: 5.1})
@@ -632,7 +653,7 @@ def test_twogensemi():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -688,7 +709,7 @@ def test_twogensemi():
     m.remove_result()
 
 
-def test_twogensemi2():
+def test_twogensemi2(tmp_path):
     """MW output semi-continuous, 2 generators."""
     power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
     power2 = TimeSeries({1522494000: 5.2, 1522494300: 5.1})
@@ -697,7 +718,7 @@ def test_twogensemi2():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 600,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -750,7 +771,7 @@ def test_twogensemi2():
     m.remove_result()
 
 
-def test_gensemi_changeofstate():
+def test_gensemi_changeofstate(tmp_path):
     """
     MW output semi-continuous with start and range chanage limits.
 
@@ -768,7 +789,7 @@ def test_gensemi_changeofstate():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 28 * 600,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -837,7 +858,7 @@ def test_gensemi_changeofstate():
     m.remove_result()
 
 
-def test_valveriverlake():
+def test_valveriverlake(tmp_path):
     """
     Check volume and flows.
 
@@ -856,7 +877,7 @@ def test_valveriverlake():
         'actual_time': 1522494189,
         'time_step': 600,
         'duration': 6000,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -902,7 +923,7 @@ def test_valveriverlake():
     m.remove_result()
 
 
-def test_lake_endstate():
+def test_lake_endstate(tmp_path):
     """
     Add bid profile lake and generation together.
 
@@ -920,7 +941,7 @@ def test_lake_endstate():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1037,7 +1058,7 @@ def test_lake_endstate():
     m.remove_result()
 
 
-def test_lake_bidoffer():
+def test_lake_bidoffer(tmp_path):
     """
     Add bid profile lake and generation together.
 
@@ -1055,7 +1076,7 @@ def test_lake_bidoffer():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1162,12 +1183,7 @@ def test_lake_bidoffer():
                     ]
                 },
                 'outage': {
-                    'period': [
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                        40, 41, 42, 43, 44, 45, 46, 47, 48
-                    ],
+                    'times': BID_OFFER_OUTAGE_TIMES,
                     'setpoint': [
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1222,7 +1238,7 @@ def test_lake_bidoffer():
     m.remove_result()
 
 
-def test_lake_bidoffer_maxroc():
+def test_lake_bidoffer_maxroc(tmp_path):
     """Add rate of change limit."""
     upper = TimeSeries({1522491600: 65.0, 1522492200: 65.0,
                         1522492800: 65.0, 1522493400: 65.0})
@@ -1235,7 +1251,7 @@ def test_lake_bidoffer_maxroc():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1342,12 +1358,7 @@ def test_lake_bidoffer_maxroc():
                     ]
                 },
                 'outage': {
-                    'period': [
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                        40, 41, 42, 43, 44, 45, 46, 47, 48
-                    ],
+                    'times': BID_OFFER_OUTAGE_TIMES,
                     'setpoint': [
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1403,7 +1414,7 @@ def test_lake_bidoffer_maxroc():
     m.remove_result()
 
 
-def test_lake_minflow():
+def test_lake_minflow(tmp_path):
     """Add rate of change limit."""
     rainflow = TimeSeries({1522400000: 25.0})
     lower = TimeSeries({1522400000: 2.5})
@@ -1415,7 +1426,7 @@ def test_lake_minflow():
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'Rainflow': {
                 'type': 'valve',
@@ -1508,7 +1519,7 @@ def test_lake_minflow():
     m.remove_result()
 
 
-def test_lake_bid_minflow():
+def test_lake_bid_minflow(tmp_path):
     """Add rate of change limit."""
     # Results changed slightly for this one, the overall cost was almost
     # identical so call it ok.
@@ -1525,7 +1536,7 @@ def test_lake_bid_minflow():
         'actual_time': 1522494300,
         'time_step': 1800,
         'duration': 36000,
-        'tempdir': 'tmp',
+        'tempdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1671,12 +1682,7 @@ def test_lake_bid_minflow():
                     ]
                 },
                 'outage': {
-                    'period': [
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                        40, 41, 42, 43, 44, 45, 46, 47, 48
-                    ],
+                    'times': BID_OFFER_OUTAGE_TIMES,
                     'setpoint': [
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1725,5 +1731,5 @@ def test_lake_bid_minflow():
                                  21.827, 20.782, 20.782, 20.782, 20.782, 18.6,
                                  13.6, 13.6, 18.6, 21.168, 21.168, 21.168,
                                  21.168], abs=0.001)
-    assert m.lp.solutioncost == pytest.approx(6840126117.0)
+    assert m.lp.solutioncost == pytest.approx(6840126116.8)
     m.remove_result()

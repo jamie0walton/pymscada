@@ -1,10 +1,10 @@
 """Create and solve a MILP."""
-from subprocess import Popen, PIPE, STDOUT, TimeoutExpired
-import re
-from pathlib import Path
-from os import remove
-from datetime import datetime
 import logging
+import re
+from datetime import datetime
+from os import remove
+from pathlib import Path
+from subprocess import Popen, STDOUT, TimeoutExpired
 from pymscada.milp.misc import as_list
 
 

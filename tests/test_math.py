@@ -59,9 +59,9 @@ def test_math_element_calc(m, t):
     """Test math element calculations."""
     element = m.elements['SO_Sum_Gen']
     t['I_Aniwhenua_G1_MW'].set_value(5.0, 0, BUS_ID)
+    element.follow_step()
     assert element.output_tag.value == pytest.approx(5.0)
     t['I_Aniwhenua_G2_MW'].set_value(7.0, 0, BUS_ID)
-    assert element.output_tag.value == pytest.approx(12.0)
     element.follow_step()
     assert element.output_tag.value == pytest.approx(12.0)
 

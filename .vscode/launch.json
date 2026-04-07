@@ -280,6 +280,19 @@
             "justMyCode":true
         },
         {
+            "name":"mpcontrol analyse",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["mpcontrol", "--verbose",
+                "--config", "./tmp/run.yaml",
+                "--load", "./tmp/mp_control_model.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wits_api",
             "type":"debugpy",
             "request":"launch",
