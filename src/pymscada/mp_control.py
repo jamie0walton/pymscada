@@ -367,7 +367,6 @@ class MPCAnalyser:
         """Run the model."""
         m = HydraulicModel(self.model, timeout=60)
         m.solve_lp()
-        pass
 
 class MPControl:
     """Connect to bus, run Model Predictive Control."""
@@ -375,22 +374,16 @@ class MPControl:
     def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int = 1324,
                  **kwargs):
         if kwargs.get('load'):
-            analyser = MPCAnalyser(kwargs)
-            analyser.run_model()
-            show = {
-                'actual_time': analyser.model['actual_time'],
-                'found': analyser.lp.found,
-                'optimum': analyser.lp.optimum,
-                'solutioncost': analyser.lp.solutioncost,
-                'results': {}
-            }
-            print(show)
-            exit()
+            self.analyser = MPCAnalyser(kwargs)
+            self.analyser.run_model()
+            return
         self.busclient = BusClient(bus_ip, bus_port, module='MP Control')
         self.runner = None
         self.connector_kwargs = kwargs
 
     async def start(self):
+        if self.analyser is not None:
+            raise SystemExit("Early exit for Analyser run.")
         await self.busclient.start()
         self.runner = MPCRunner(**self.connector_kwargs)
         await self.runner.start(self.busclient.rta)

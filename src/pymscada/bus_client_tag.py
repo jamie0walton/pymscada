@@ -577,3 +577,19 @@ class TagDict(TagTyped):
                                               value, offset=1
                                               )[0].decode())
         self.set_value(data, time_us, bus)
+
+
+class TagSetNone(TagTyped):
+    __slots__ = SLOTS
+
+    def __init__(self, tagname: str):
+        super().__init__(tagname)
+        self.type = type(None)
+
+    @property
+    def packed_value(self) -> bytes:
+        return b''
+
+    def set_packed_value(self, value: bytes, time_us: int, bus: int):
+        if not value:
+            self.set_value(None, time_us, bus)

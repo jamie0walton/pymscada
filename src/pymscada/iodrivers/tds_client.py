@@ -11,6 +11,7 @@ TRY_HOST = 1
 HOST_OK = 2
 TRY_ALT_HOST = 3
 ALT_HOST_OK = 4
+DISABLE = 5
 
 
 class TDSConnector():
@@ -32,6 +33,7 @@ class TDSConnector():
         self.session = None
         self.sequence_number = None
         self.dispatch = None
+        self.acka_corr_id = ''
         self.periodic = Periodic(self.poll, 20.0)
         self.mw_set_tag = TagFloat(mw_set_tag)
         self.mvar_set_tag = TagFloat(mvar_set_tag)
@@ -132,6 +134,7 @@ class TDSConnector():
             corr_id = dispatch['correlationId']
             energy_dispatch = dispatch['energyDispatch']
             volts_dispatch = dispatch['voltageDispatch']
+            dispatch_group_name = dispatch['dispatchGroupName']
             if energy_dispatch is not None:
                 node = energy_dispatch['nodes'][0]
             elif volts_dispatch is not None:
@@ -148,6 +151,7 @@ class TDSConnector():
             utc_seconds = int(datetime.fromisoformat(dispatch_time
                               ).astimezone(timezone.utc).timestamp())
             self.dispatch = {
+                'dispatch_group_name': dispatch_group_name,
                 'dispatch_type': dispatch_type,
                 'dispatch_value': dispatch_value,
                 'dispatch_time': dispatch_time,
@@ -174,12 +178,61 @@ class TDSConnector():
             logging.warning(f"Unknown dispatch type {self.dispatch['dispatch_type']}")
             return
 
+    async def acka_dispatch(self):
+        if self.dispatch is None:
+            return
+        corr = self.dispatch['correlation_id']
+        if corr == self.acka_corr_id:
+            return
+        if self.session is None:
+            return
+        self.make_token()
+        if self.state_tag.value in [TRY_HOST, HOST_OK]:
+            host = self.host
+        else:
+            host = self.alt_host
+        put_url = f"{host}{self.endpoint}/{self.put}"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Correlation-Id": corr,
+        }
+        try:
+            ack_body = {
+                "ackType": "ACK",
+                "dispatchGroupName": self.dispatch['dispatch_group_name'],
+                "sequenceNumber": self.dispatch['sequence_number'],
+            }
+            logging.info(f"ACK body: {ack_body}")
+            async with self.session.put(put_url, headers=headers,
+                                        json=ack_body) as response:
+                status = response.status
+                txt = await response.text()
+                logging.info(f"ACK corr_id: {corr} status: {status} text: {txt}")
+#                if status != 200:
+#                    return
+            acka_body = {
+                "ackType": self.auth,
+                "dispatchGroupName": self.dispatch['dispatch_group_name'],
+                "sequenceNumber": self.dispatch['sequence_number'],
+            }
+            logging.info(f"ACKA body: {acka_body}")
+            async with self.session.put(put_url, headers=headers,
+                                        json=acka_body) as response:
+                status = response.status
+                txt = await response.text()
+                logging.info(f"ACKA corr_id: {corr} status: {status} text: {txt}")
+                if status == 200:
+                    self.acka_corr_id = corr
+        except Exception as e:
+            logging.warning(f"PUT ACKA corr_id: {corr} error: {e}")
+
     async def poll(self):
         if self.state_tag.value == RESET:
             await self.close_session()
             self.state_tag.value = TRY_HOST
         await self.get_dispatch()
         self.process_dispatch()
+        await self.acka_dispatch()
         self.set_tag_values()
 
     async def start(self):

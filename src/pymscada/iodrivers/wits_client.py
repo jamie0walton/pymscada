@@ -81,7 +81,7 @@ class WITSConnector:
             tag_p = bid_period(bid_t)
             if td not in current:
                 current[td] = {}
-            periods = plan['period']
+            periods = [bid_period(t) for t in plan['times']]
             if tag_p in periods:
                 idx = periods.index(tag_p)
             elif tag_p in (47, 48):
@@ -90,7 +90,7 @@ class WITSConnector:
                 idx = periods.index(48)
             else:
                 continue
-            current[td][tag_p] = plan['setpoint'][idx]
+            current[td][tag_p] = plan['values'][idx]
         self.currentTagDict = current
 
     def build_offer(self, trading_dict: dict) -> str:
@@ -159,6 +159,7 @@ class WITSConnector:
             'X-API-Token': self.password,
         }
         ok = False
+        logging.info(f"POST {url} {headers} {form}")
         try:
             async with self.session.post(
                     url, data=form, headers=headers) as resp:
@@ -249,17 +250,13 @@ class WITSClient:
 
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
                  **kwargs) -> None:
-        self.tag_names = kwargs.pop('tags')
-        bus_ip = kwargs.pop('bus_ip', bus_ip)
-        bus_port = kwargs.pop('bus_port', bus_port)
-        self.connector_kwargs = kwargs
+        self.config = kwargs
         self.busclient = None
         if bus_ip is not None:
             self.busclient = BusClient(bus_ip, bus_port, module='WITS Client')
-        self.connection = None
 
     async def start(self):
         if self.busclient is not None:
             await self.busclient.start()
-        self.connection = WITSConnector(self.tag_names, **self.connector_kwargs)
+        self.connection = WITSConnector(**self.config)
         await self.connection.start()

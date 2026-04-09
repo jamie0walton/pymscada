@@ -194,6 +194,15 @@ def create_module_registry():
                   export MSCADA_WITS_CLIENT_SECRET='your_client_secret'""")
         ),
         ModuleDefinition(
+            name='witsclient',
+            help='upload WITS market offers from MW_plan on the bus',
+            module_class='pymscada.iodrivers.wits_client:WITSClient',
+            tags=False,
+            epilog=dedent("""
+                Demo config is `witsclient.yaml`; run with:
+                  pymscada witsclient --config witsclient.yaml""")
+        ),
+        ModuleDefinition(
             name='piapi',
             help='poll OSI PI WebAPI for tag values',
             module_class='pymscada.iodrivers.piapi:PIWebAPI',
