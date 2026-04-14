@@ -14,11 +14,17 @@ ALT_HOST_OK = 4
 DISABLE = 5
 
 
+def utc_seconds(ds: str) -> int:
+    return int(datetime.fromisoformat(ds).astimezone(timezone.utc).timestamp())
+
+
 class TDSConnector():
     def __init__(self, private_key: str, issuer: str, site: str, endpoint: str,
-                 host: str, alt_host: str, get: str, put: str, corr_id: str, mw_set_tag: str, mvar_set_tag: str, error_code_tag: str, state_tag: str):
+                 host: str, alt_host: str, get: str, put: str, corr_id: str, instructions: list[dict], error_code_tag: str,
+                 state_tag: str):
         with open(private_key, "r") as f:
             self.private_key = f.read()
+        self.recv = None
         self.corr_id = corr_id
         self.issuer = issuer
         self.site = site
@@ -31,14 +37,15 @@ class TDSConnector():
         self.auth = "ACKA"
         self.timeout = aiohttp.ClientTimeout(total=90)
         self.session = None
-        self.sequence_number = None
-        self.dispatch = None
+        self.dispatches = []
         self.acka_corr_id = ''
-        self.periodic = Periodic(self.poll, 20.0)
-        self.mw_set_tag = TagFloat(mw_set_tag)
-        self.mvar_set_tag = TagFloat(mvar_set_tag)
+        self.periodic = Periodic(self.poll, 10.0)
         self.error_code_tag = TagInt(error_code_tag)
         self.state_tag = TagInt(state_tag)
+        self.instructions = instructions
+        for d in self.instructions:
+            d['tag'] = TagFloat(d['tag'])
+            d['sequenceNumber'] = 0
 
     async def close_session(self):
         if self.session is not None:
@@ -56,7 +63,7 @@ class TDSConnector():
         if isinstance(self.token, bytes):
             self.token = self.token.decode("utf-8")
 
-    async def get_dispatch(self):
+    async def get_dispatches(self):
         """Get from Host or Alt Host, switching if necessary."""
         if self.session is None:
             self.session = aiohttp.ClientSession(timeout=self.timeout)
@@ -78,14 +85,16 @@ class TDSConnector():
                 if response.status == 200:
                     self.error_code_tag.value = 200
                     self.failed_time = None
-                    self.data = await response.json()
+                    self.recv = await response.json()
+                    logging.debug(f"GET {corr_id} {self.recv}")
                 else:
-                    self.data = None
+                    self.recv = None
                     self.error_code_tag.value = response.status
                     if self.failed_time is None:
                         self.failed_time = time.time()
+                    logging.debug(f"GET error {corr_id} {response.status}")
         except Exception as e:
-            self.data = None
+            self.recv = None
             self.error_code_tag.value = 0
             if self.failed_time is None:
                 self.failed_time = time.time()
@@ -118,73 +127,58 @@ class TDSConnector():
 
     def process_dispatch(self):
         """Handle a single dispatch for a single dispatch type."""
-        if self.data is None:
+        if self.recv is None:
             return
-        try:
-            self.dispatch = None
-            dispatch = self.data[0]
-            seq_no = dispatch['sequenceNumber']
-            if seq_no == self.sequence_number:
-                return
-            self.sequence_number = seq_no
+        self.dispatches = []
+        time_s = int(time.time())
+        for dispatch in self.recv:
             endpoint = dispatch['dispatchEndpointName']
             if endpoint != self.endpoint:
-                logging.warning(f"Endpoint {endpoint} is not {self.endpoint}")
-                return
+                logging.warning(f"Ignore endpoint {endpoint}")
+                continue
+            dispatch_group = dispatch['dispatchGroupName']
             corr_id = dispatch['correlationId']
-            energy_dispatch = dispatch['energyDispatch']
-            volts_dispatch = dispatch['voltageDispatch']
-            dispatch_group_name = dispatch['dispatchGroupName']
-            if energy_dispatch is not None:
-                node = energy_dispatch['nodes'][0]
-            elif volts_dispatch is not None:
-                node = volts_dispatch['nodes'][0]
-            else:
-                logging.warning('heartbeat')
-                return
-            if node['name'] != self.site:
-                logging.warning(f"Invalid site {node['name']}")
-                return
-            dispatch_type = node['primaryValues'][0]['dispatchType']
-            dispatch_value = node['primaryValues'][0]['dispatchValue']
-            dispatch_time = node['primaryValues'][0]['dispatchTime']
-            utc_seconds = int(datetime.fromisoformat(dispatch_time
-                              ).astimezone(timezone.utc).timestamp())
-            self.dispatch = {
-                'dispatch_group_name': dispatch_group_name,
-                'dispatch_type': dispatch_type,
-                'dispatch_value': dispatch_value,
-                'dispatch_time': dispatch_time,
-                'dispatch_time_utc': utc_seconds,
-                'correlation_id': corr_id,
-                'sequence_number': seq_no,
-            }
-            logging.warning(f"Dispatch: {self.dispatch}")
-        except Exception as e:
-            logging.warning(f"Exception {e} parsing {self.data}")
+            for i in self.instructions:
+                if dispatch_group != i['group']:
+                    continue
+                if dispatch[i['class']] is None:
+                    continue
+                nodes = dispatch[i['class']]['nodes']
+                for node in nodes:
+                    if node['name'] != self.site:
+                        logging.warning(f"Ignore node {node['name']}")
+                        continue
+                    for pv in node['primaryValues']:
+                        dt = pv['dispatchType']
+                        dv = pv['dispatchValue']
+                        seq_no = dispatch['sequenceNumber']
+                        dtime = pv['dispatchTime']
+                        ds = utc_seconds(dtime)
+                        if dt != i['type']:
+                            logging.warning(f"Ignoring {dt} {dv:.2f} {dtime}")
+                            continue
+                        if time_s - ds > 300:
+                            logging.warning(f"> 5m old {dt} {dv:.2f} {dtime}")
+                            continue
+                        if seq_no <= i['sequenceNumber']:
+                            logging.warning(f"Ignore sequence {seq_no}")
+                            continue
+                        i['tag'].value = dv
+                        i['sequenceNumber'] = seq_no
+                        self.dispatches.append({
+                            'correlationId': corr_id,
+                            'dispatchGroupName': dispatch_group,
+                            'sequenceNumber': seq_no,
+                            'dispatchType': dt,
+                            'dispatchValue': dv,
+                            'dispatchTime': dtime
+                        })
+        if len(self.dispatches):
+            logging.info(f"Dispatches: {self.dispatches}")
 
-    def set_tag_values(self):
-        if self.dispatch is None:
-            return
-        time_s = int(time.time())
-        if time_s - self.dispatch['dispatch_time_utc'] > 1800:
-            logging.warning(f"Dispatch > 30 minutes old, ignore dispatch")
-            return
-        if self.dispatch['dispatch_type'] == 'MW':
-            self.mw_set_tag.value = self.dispatch['dispatch_value']
-        elif self.dispatch['dispatch_type'] == 'MVAR':
-            self.mvar_set_tag.value = self.dispatch['dispatch_value']
-        else:
-            logging.warning(f"Unknown dispatch type {self.dispatch['dispatch_type']}")
-            return
-
-    async def acka_dispatch(self):
-        if self.dispatch is None:
-            return
-        corr = self.dispatch['correlation_id']
-        if corr == self.acka_corr_id:
-            return
-        if self.session is None:
+    async def acka_dispatches(self, dispatch: dict):
+        corr_id = dispatch['correlationId']
+        if corr_id == self.acka_corr_id or self.session is None:
             return
         self.make_token()
         if self.state_tag.value in [TRY_HOST, HOST_OK]:
@@ -194,46 +188,53 @@ class TDSConnector():
         put_url = f"{host}{self.endpoint}/{self.put}"
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "Correlation-Id": corr,
+            "Correlation-Id": corr_id,
         }
         try:
-            ack_body = {
-                "ackType": "ACK",
-                "dispatchGroupName": self.dispatch['dispatch_group_name'],
-                "sequenceNumber": self.dispatch['sequence_number'],
-            }
-            logging.info(f"ACK body: {ack_body}")
-            async with self.session.put(put_url, headers=headers,
-                                        json=ack_body) as response:
-                status = response.status
-                txt = await response.text()
-                logging.info(f"ACK corr_id: {corr} status: {status} text: {txt}")
-#                if status != 200:
-#                    return
+#             ack_body = {
+#                 "ackType": "ACK",
+#                 "dispatchGroupName": dispatch['dispatch_group'],
+#                 "sequenceNumber": dispatch['sequence_number'],
+#             }
+#             logging.info(f"ACK body: {ack_body}")
+#             async with self.session.put(put_url, headers=headers,
+#                                         json=ack_body) as response:
+#                 status = response.status
+#                 txt = await response.text()
+#                 logging.info(f"ACK corr_id: {corr_id} status: {status} text: {txt}")
+# #                if status != 200:
+# #                    return
             acka_body = {
                 "ackType": self.auth,
-                "dispatchGroupName": self.dispatch['dispatch_group_name'],
-                "sequenceNumber": self.dispatch['sequence_number'],
+                "dispatchGroupName": dispatch['dispatchGroupName'],
+                "sequenceNumber": dispatch['sequenceNumber']
             }
             logging.info(f"ACKA body: {acka_body}")
             async with self.session.put(put_url, headers=headers,
                                         json=acka_body) as response:
                 status = response.status
                 txt = await response.text()
-                logging.info(f"ACKA corr_id: {corr} status: {status} text: {txt}")
+                logging.info(f"ACKA corr_id: {corr_id} status: {status} text: {txt}")
                 if status == 200:
-                    self.acka_corr_id = corr
+                    self.acka_corr_id = corr_id
         except Exception as e:
-            logging.warning(f"PUT ACKA corr_id: {corr} error: {e}")
+            logging.warning(f"PUT ACKA corr_id: {corr_id} error: {e}")
 
     async def poll(self):
+        if self.state_tag.value == DISABLE:
+            await self.close_session()
+            return
         if self.state_tag.value == RESET:
             await self.close_session()
             self.state_tag.value = TRY_HOST
-        await self.get_dispatch()
-        self.process_dispatch()
-        await self.acka_dispatch()
-        self.set_tag_values()
+        await self.get_dispatches()
+        try:
+            self.process_dispatch()
+        except Exception as e:
+            logging.warning(f"Error processing dispatch: {e}")
+        if len(self.dispatches):
+            for dispatch in self.dispatches:
+                await self.acka_dispatches(dispatch)
 
     async def start(self):
         """Start polling."""

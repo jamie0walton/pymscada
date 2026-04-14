@@ -351,39 +351,32 @@ class MPCRunner:
         BusTask(self.model_runner())
 
 
-class MPCAnalyser:
-    def __init__(self, kwargs: dict):
-        self.model_path = kwargs['load']
-        self.model = {}
-        self.load_model()
-        self.model['tempdir'] = kwargs['tempdir']
+class MPAnalyser:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
-    def load_model(self):
-        """Load the model from a file."""
-        with open(self.model_path, encoding='utf-8') as f:
-            self.model = load(f, Loader=UnsafeLoader)
-
-    def run_model(self):
-        """Run the model."""
-        m = HydraulicModel(self.model, timeout=60)
+    async def start(self):
+        """Run the model analyser and exit."""
+        model_path = self.kwargs.get('load', None)
+        if model_path is None:
+            raise ValueError("load argument is required")
+        timeout = self.kwargs.get('solver_timeout', 60)
+        with open(model_path, encoding='utf-8') as f:
+            model = load(f, Loader=UnsafeLoader)
+        m = HydraulicModel(model, timeout)
         m.solve_lp()
+
 
 class MPControl:
     """Connect to bus, run Model Predictive Control."""
 
     def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int = 1324,
                  **kwargs):
-        if kwargs.get('load'):
-            self.analyser = MPCAnalyser(kwargs)
-            self.analyser.run_model()
-            return
         self.busclient = BusClient(bus_ip, bus_port, module='MP Control')
         self.runner = None
         self.connector_kwargs = kwargs
 
     async def start(self):
-        if self.analyser is not None:
-            raise SystemExit("Early exit for Analyser run.")
         await self.busclient.start()
         self.runner = MPCRunner(**self.connector_kwargs)
         await self.runner.start(self.busclient.rta)

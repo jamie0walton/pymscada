@@ -80,13 +80,13 @@ def create_module_registry():
             help='model predictive control (milp)',
             module_class='pymscada.mp_control:MPControl',
             tags=False,
-            extra_args=[
-                ModuleArgument(
-                    ('--load',),
-                    {'metavar': 'filename', 'default': None,
-                     'help': 'load saved model yaml and solve once'}
-                ),
-            ]
+        ),
+        ModuleDefinition(
+            name='mpanalyser',
+            help='analyse model predictive control (milp)',
+            module_class='pymscada.mp_control:MPAnalyser',
+            tags=False,
+            await_future=False
         ),
         ModuleDefinition(
             name='observer',

@@ -292,14 +292,13 @@
             "justMyCode":true
         },
         {
-            "name":"mpcontrol analyse",
+            "name":"mpanalyse",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["mpcontrol", "--verbose",
-                "--config", "./tmp/run.yaml",
-                "--load", "./tmp/mp_control_model.yaml"
+            "args": ["mpanalyse", "--verbose",
+                "--config", "~/ani/compare/mpanalyse.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true

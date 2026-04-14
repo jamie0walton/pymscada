@@ -21,6 +21,10 @@ class EC:
     left = b'\x1b[D'
     end = b'\x1b[F'
     home = b'\x1b[H'
+    bracket_on = b'\x1b[?2004h'
+    bracket_off = b'\x1b[?2004l'
+    bracket_in = b'\x1b[200~'
+    bracket_out = b'\x1b[201~'
     cr_clr = b'\x1b[2K\x1b[G'  # clear line and move start
     clear_line = b'\x1b[2K'
     mv_start = b'\x1b[G'
@@ -54,32 +58,41 @@ class KeypressProtocol(asyncio.Protocol):
         self.cursor = 0  # cursor position in line
         self.stash = None  # nothing stashed
         self.connection_lost_future = asyncio.Future()
+        self.buf = b''
+        self.paste = False
 
-    def data_received(self, data):
-        """Got keypress, update edit line, send to writer."""
-        if len(data) == 1:
-            if data == EC.backspace and self.cursor > 0 and self.line:
-                self.line = self.line[:self.cursor-1] + self.line[self.cursor:]
-                self.cursor -= 1
-            elif data == EC.enter:
-                if self.line and (not self.lines or
-                                  self.line != self.lines[-1]):
-                    self.lines.append(self.line)
-                self.stash = None
-                self.edit_line(None, 0)
-                self.process_command(self.line)
-                self.line = None
-                self.cursor = 0
-                self.history = None
-                return
-            elif self.line is None:
-                self.line = data
-                self.cursor = 1
-            else:
-                self.line = (self.line[:self.cursor] + data
-                             + self.line[self.cursor:])
-                self.cursor += 1
-        elif data == EC.left:
+    def insert_paste(self, raw):
+        raw = raw.replace(b'\r', b'').replace(b'\n', b'')
+        if not raw:
+            return
+        if self.line is None:
+            self.line = raw
+            self.cursor = len(raw)
+        else:
+            self.line = (self.line[:self.cursor] + raw
+                         + self.line[self.cursor:])
+            self.cursor += len(raw)
+
+    def drain_paste(self):
+        end = EC.bracket_out
+        over = len(end) - 1
+        idx = self.buf.find(end)
+        if idx >= 0:
+            self.insert_paste(self.buf[:idx])
+            self.buf = self.buf[idx + len(end):]
+            self.paste = False
+            self.edit_line(self.line, self.cursor)
+            return True
+        if len(self.buf) <= over:
+            return False
+        take = len(self.buf) - over
+        self.insert_paste(self.buf[:take])
+        self.buf = self.buf[take:]
+        self.edit_line(self.line, self.cursor)
+        return True
+
+    def arrow(self, data):
+        if data == EC.left:
             if self.cursor > 0:
                 self.cursor -= 1
         elif data == EC.right:
@@ -89,7 +102,7 @@ class KeypressProtocol(asyncio.Protocol):
             if not self.lines:
                 return
             if self.history is None:
-                self.stash = self.line  # might be None
+                self.stash = self.line
                 self.history = len(self.lines)
             self.history -= 1
             if self.history < 0:
@@ -109,6 +122,63 @@ class KeypressProtocol(asyncio.Protocol):
                 self.line = b''
             self.cursor = len(self.line)
         self.edit_line(self.line, self.cursor)
+
+    def byte(self, data):
+        if data == EC.backspace and self.cursor > 0 and self.line:
+            self.line = self.line[:self.cursor-1] + self.line[self.cursor:]
+            self.cursor -= 1
+        elif data == EC.enter:
+            if self.line and (not self.lines or
+                              self.line != self.lines[-1]):
+                self.lines.append(self.line)
+            self.stash = None
+            self.edit_line(None, 0)
+            self.process_command(self.line)
+            self.line = None
+            self.cursor = 0
+            self.history = None
+            return
+        elif self.line is None:
+            self.line = data
+            self.cursor = 1
+        else:
+            self.line = (self.line[:self.cursor] + data
+                         + self.line[self.cursor:])
+            self.cursor += 1
+        self.edit_line(self.line, self.cursor)
+
+    def drain_normal(self):
+        if not self.buf:
+            return False
+        inn = EC.bracket_in
+        for data in (EC.left, EC.right, EC.up, EC.down):
+            if len(self.buf) >= len(data) and self.buf.startswith(data):
+                self.buf = self.buf[len(data):]
+                self.arrow(data)
+                return True
+        if len(self.buf) < len(inn) and inn.startswith(self.buf):
+            return False
+        if self.buf.startswith(inn):
+            self.buf = self.buf[len(inn):]
+            self.paste = True
+            return True
+        if self.buf[0] == 0x1b and len(self.buf) < 3:
+            return False
+        b0 = self.buf[:1]
+        self.buf = self.buf[1:]
+        self.byte(b0)
+        return True
+
+    def data_received(self, data):
+        """Got keypress, update edit line, send to writer."""
+        self.buf += data
+        while True:
+            if self.paste:
+                if not self.drain_paste():
+                    break
+            else:
+                if not self.drain_normal():
+                    break
 
     def connection_lost(self, exc):
         """Let parent know protocol transport has disconnected."""
@@ -192,6 +262,7 @@ class ConsoleManager:
         self.fdin_attr = termios.tcgetattr(self.fdin)
         self.fdout_attr = termios.tcgetattr(self.fdout)
         tty.setraw(self.fdin)
+        os.write(self.fdout, EC.bracket_on)
         self.writer = ConsoleWriter()
         self.transport = None
         logger = logging.getLogger()
@@ -265,6 +336,7 @@ class ConsoleManager:
                 lambda: protocol, sys.stdin)
             await protocol.connection_lost_future
         finally:
+            os.write(self.fdout, EC.bracket_off)
             termios.tcsetattr(self.fdout, termios.TCSADRAIN, self.fdout_attr)
             termios.tcsetattr(self.fdin, termios.TCSADRAIN, self.fdin_attr)
 
