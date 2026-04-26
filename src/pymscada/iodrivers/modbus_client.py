@@ -125,7 +125,8 @@ class ModbusClientMap:
         elif self.src_type == 'uint64':
             self.value_chg(self.data_file, self.byte, pack('>Q', tag.value))
         elif self.src_type == 'float32':
-            self.value_chg(self.data_file, self.byte, pack('>f', tag.value))
+            swap = pack('>f', tag.value)
+            self.value_chg(self.data_file, self.byte, swap[2:4] + swap[0:2])
         elif self.src_type == 'float64':
             self.value_chg(self.data_file, self.byte, pack('>d', tag.value))
 
@@ -150,10 +151,13 @@ class ModbusClientMaps():
         """Make the maps."""
         for tagname, v in self.tags.items():
             dtype = v['type']
-            try:
+            if 'read' in v:
                 addr = v['read']
-            except KeyError:
-                addr = v['addr']
+            elif 'write' in v:
+                addr = v['write']
+            else:
+                logging.error(f'{tagname} has no read or write address')
+                continue
             map = ModbusClientMap(tagname, dtype, addr, self.data, self.value_chg)
             size = DTYPES[dtype][3]
             name, unit, file, word, _bit = tag_split(addr)

@@ -1,3 +1,4 @@
+import asyncio
 import aiohttp
 from datetime import datetime, timezone
 import jwt
@@ -11,7 +12,7 @@ TRY_HOST = 1
 HOST_OK = 2
 TRY_ALT_HOST = 3
 ALT_HOST_OK = 4
-DISABLE = 5
+DISABLED = 5
 
 
 def utc_seconds(ds: str) -> int:
@@ -21,7 +22,7 @@ def utc_seconds(ds: str) -> int:
 class TDSConnector():
     def __init__(self, private_key: str, issuer: str, site: str, endpoint: str,
                  host: str, alt_host: str, get: str, put: str, corr_id: str, instructions: list[dict], error_code_tag: str,
-                 state_tag: str):
+                 state_tag: str, acka_time_tag: str):
         with open(private_key, "r") as f:
             self.private_key = f.read()
         self.recv = None
@@ -42,6 +43,7 @@ class TDSConnector():
         self.periodic = Periodic(self.poll, 10.0)
         self.error_code_tag = TagInt(error_code_tag)
         self.state_tag = TagInt(state_tag)
+        self.acka_time_tag = TagInt(acka_time_tag)
         self.instructions = instructions
         for d in self.instructions:
             d['tag'] = TagFloat(d['tag'])
@@ -157,11 +159,11 @@ class TDSConnector():
                         if dt != i['type']:
                             logging.warning(f"Ignoring {dt} {dv:.2f} {dtime}")
                             continue
-                        if time_s - ds > 300:
-                            logging.warning(f"> 5m old {dt} {dv:.2f} {dtime}")
-                            continue
                         if seq_no <= i['sequenceNumber']:
                             logging.warning(f"Ignore sequence {seq_no}")
+                            continue
+                        if time_s - ds > 300:
+                            logging.warning(f"> 5m old {dt} {dv:.2f} {dtime}")
                             continue
                         i['tag'].value = dv
                         i['sequenceNumber'] = seq_no
@@ -177,6 +179,7 @@ class TDSConnector():
             logging.info(f"Dispatches: {self.dispatches}")
 
     async def acka_dispatches(self, dispatch: dict):
+        time_us = int(time.time() * 1000000)
         corr_id = dispatch['correlationId']
         if corr_id == self.acka_corr_id or self.session is None:
             return
@@ -191,19 +194,6 @@ class TDSConnector():
             "Correlation-Id": corr_id,
         }
         try:
-#             ack_body = {
-#                 "ackType": "ACK",
-#                 "dispatchGroupName": dispatch['dispatch_group'],
-#                 "sequenceNumber": dispatch['sequence_number'],
-#             }
-#             logging.info(f"ACK body: {ack_body}")
-#             async with self.session.put(put_url, headers=headers,
-#                                         json=ack_body) as response:
-#                 status = response.status
-#                 txt = await response.text()
-#                 logging.info(f"ACK corr_id: {corr_id} status: {status} text: {txt}")
-# #                if status != 200:
-# #                    return
             acka_body = {
                 "ackType": self.auth,
                 "dispatchGroupName": dispatch['dispatchGroupName'],
@@ -217,11 +207,15 @@ class TDSConnector():
                 logging.info(f"ACKA corr_id: {corr_id} status: {status} text: {txt}")
                 if status == 200:
                     self.acka_corr_id = corr_id
+                    self.acka_time_tag.value = time_us
         except Exception as e:
             logging.warning(f"PUT ACKA corr_id: {corr_id} error: {e}")
 
     async def poll(self):
-        if self.state_tag.value == DISABLE:
+        if self.state_tag.value == DISABLED:
+            if self.session is not None:
+                self.acka_time_tag.value = 0
+                self.error_code_tag.value = 0
             await self.close_session()
             return
         if self.state_tag.value == RESET:
@@ -264,4 +258,5 @@ class TDSClient:
         if self.busclient is not None:
             await self.busclient.start()
         self.connection = TDSConnector(**self.config)
+        await asyncio.sleep(1.0)
         await self.connection.start()

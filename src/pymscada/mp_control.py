@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import shutil
 import time
 from array import array
 from collections.abc import Callable
@@ -27,6 +28,9 @@ FREE = 2
 YET_TO_RUN = 0
 GOOD = 1
 BAD = 2
+
+# OFF = 0 also needed
+CAPTURE = 1
 
 
 def find_matching_key_values(key: str, tree):
@@ -72,7 +76,7 @@ class MPCTag:
                 'period': [bid_period(x) for x in v['times']],
                 'times': v['times'],
                 'values': v['values'],
-                'setpoint': [int(x) for x in v['values']],
+                'setpoint': [x for x in v['values']],
             }
         else:
             raise ValueError(f"Invalid type: {type(self.tag)}")
@@ -131,6 +135,12 @@ class MPCTag:
                 if v != last_v:
                     tsv[t] = v
                     last_v = v
+            t = int(self.tag.time_us / 1e6)
+            if t not in tsv:
+                v = self.tag.value
+                tsv[t] = v
+                logging.warning(f"{self.name} {last_v} {t} {v} "
+                                "added to timeseries")
         self._timeseries = TimeSeries(tsv)
         return self._timeseries
 
@@ -139,8 +149,8 @@ class MPCRunner:
     def __init__(self, temp_dir: str, log_dir: str, control_tag: str,
                  history_tag: str, solve_time_tag: str, last_solve_tag: str,
                  setpoint_tag: str, result_tag: str, status_tag: str,
-                 duration_tag: str, solver_timeout: int, time_step: int,
-                 duration: int, tags: dict, model: dict):
+                 duration_tag: str, capture_tag: str, solver_timeout: int,
+                 time_step: int, duration: int, tags: dict, model: dict):
         self.temp_dir = temp_dir
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
@@ -154,6 +164,8 @@ class MPCRunner:
         self.result_tag = TagDict(result_tag)
         self.duration_tag = TagInt(duration_tag)
         self.duration_tag.add_callback(self.duration_callback)
+        self.capture_tag = TagInt(capture_tag)
+        self.capture_tag.add_callback(self.capture_callback)
         self.solver_timeout = solver_timeout
         self.time_step = time_step
         self.duration = duration
@@ -170,6 +182,12 @@ class MPCRunner:
         self.queue = asyncio.Queue()
         self.solver_running = False
         self.status_tag.value = YET_TO_RUN
+
+    def capture_callback(self, tag: TagInt):
+        """Callback for the capture tag."""
+        if tag.value == CAPTURE:
+            self.queue.put_nowait({'action': 'capture',
+                                   'reason': 'Operator request save'})
 
     def duration_callback(self, tag: TagInt):
         """Callback for the duration tag."""
@@ -216,9 +234,23 @@ class MPCRunner:
 
     def save_model(self):
         """Save the model to a file."""
-        p = Path(self.temp_dir) / f'mp_control_model.yaml'
+        p = Path(self.temp_dir) / f'__mpc_model.yaml'
         with p.open('w', encoding='utf-8') as f:
             dump(self.model, f)
+
+    def capture_result(self):
+        """Capture model result files with timestamp."""
+        y, mo, d, h, m, s = time.localtime()[:6]
+        time_dir = f"{y}-{mo:02d}-{d:02d} {h:02d}:{m:02d}:{s:02d}"
+        pp = Path(self.temp_dir)
+        tp = Path(self.temp_dir) / time_dir
+        try:
+            tp.mkdir()
+        except FileExistsError:
+            logging.info(f"directory {tp} already exists, ignore request")
+            return
+        for f in pp.glob('__mpc*'):
+            shutil.copy(f, tp / f.name)
 
     async def model_runner(self):
         self.control_tag.value = OFF
@@ -236,6 +268,7 @@ class MPCRunner:
                 await loop.run_in_executor(None, m.solve_lp)
                 show = {
                     'actual_time': self.model['actual_time'],
+                    'set_time': m.set_time,
                     'found': m.lp.found,
                     'optimum': m.lp.optimum,
                     'solutioncost': m.lp.solutioncost,
@@ -255,7 +288,11 @@ class MPCRunner:
                 self.solver_running = False
                 if self.control_tag.value == RUNNING:
                     self.control_tag.value = TIMED_RUN
-            pass
+            elif msg['action'] == 'capture':
+                self.capture_result()
+                self.capture_tag.value = OFF
+            else:
+                logging.error(f"Unknown action: {msg['action']}")
 
     def control_tag_callback(self, tag: TagInt):
         """Callback for the control tag."""
@@ -312,6 +349,7 @@ class MPCRunner:
             for time_us, value in repack_data.items():
                 dtag.times_us.append(time_us)
                 dtag.values.append(value)
+                logging.info(f"adding {dtag.name} {time_us} {value:.2f}")
             fill_tags.remove(dtag.name)
             if len(fill_tags):
                 return
@@ -346,6 +384,7 @@ class MPCRunner:
 
     async def start(self, rta: Callable):
         """Start the MPCRunner."""
+        self.control_tag.value = OFF
         await self.fill_history(rta)
         await self.periodic.start()
         BusTask(self.model_runner())

@@ -25,11 +25,16 @@ class MathElement:
         self.recalc_required = True
 
     def recalc(self):
-        self.value = 0.0
+        value = 0.0
+        values = []
         for tag in self.input_tags:
             if not tag.is_none:
-                self.value += tag.value
-        self.output_tag.value = self.value
+                value += tag.value
+                values.append(tag.value)
+        self.output_tag.value = value
+        if abs(self.value - value) > 0.2:
+            logging.info(f"{self.name} = {value:.1f} from {" ".join([f'{v:.1f}' for v in values])}")
+        self.value = value
 
     def follow_step(self):
         if self.recalc_required:

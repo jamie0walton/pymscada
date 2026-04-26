@@ -975,11 +975,14 @@ class BidFixed(Constraint):
         self.cost = None
         self.states = []
         self.outage = {}
+        self.dispatch = 0
         self.bid_offer = {}
         self.window = 3720
         super().__init__(**kwargs)
 
     def create_lp(self, m: HydraulicModel):
+        dperiod = bid_period(m.set_time)
+        logging.info(f"BidFixed {self.name} period {dperiod} dispatch {self.dispatch}")
         for t in m.times:
             if t < m.set_time or t > m.set_time + self.window:
                 continue
@@ -998,6 +1001,9 @@ class BidFixed(Constraint):
                 continue
             bi = self.bid_offer['period'].index(period)
             lock_mw = self.bid_offer['setpoint'][bi]
+            if period == dperiod:
+                lock_mw = self.dispatch
+            logging.info(f"BidFixed {self.name} period {period} lock_mw {lock_mw}")
             if self.cost is None:
                 m.lp.add_row(elements, 'E', lock_mw)
                 m.lp.add_row(c3, 'E', lock_mw)
@@ -1229,7 +1235,7 @@ class RevenueProfile(Constraint):
                 continue
             local_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
             spot_price = self.time_series.get(t)
-            logging.warning(f"{local_time} {spot_price}")
+            # logging.warning(f"{local_time} {spot_price}")
             if t < m.set_time:
                 continue
             # elements = [

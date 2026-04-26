@@ -169,7 +169,7 @@ class WITSConnector:
                     self.failed_time = None
                     data = json.loads(text)
                     self.upload_id_tag.value = str(data['upload_id'])
-                    self.upload_time_tag.value = int(time.time())
+                    self.upload_time_tag.value = int(time.time() * 1e6)
                     self.status_code_tag.value = resp.status
                     for err in data.get('upload_errors', []):
                         logging.info('error in line: %s', err.get('line_no'))
