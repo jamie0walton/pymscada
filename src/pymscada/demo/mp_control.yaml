@@ -1,6 +1,5 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
-temp_dir: /home/jamie/ani/temp
 log_dir: /home/jamie/ani/log
 control_tag: _mpc_control
 history_tag: __history__
@@ -11,11 +10,16 @@ result_tag: _mpc_result
 solver_timeout: 90
 time_step: 600
 duration: 43200
-history_tags:
+status_tag: _mpc_status
+duration_tag: _mpc_duration
+capture_tag: _mpc_capture
+tags:
   I_Galatea_flow:
+    type: float
     age_s: 28800
     deadband: 0.01
   SO_Barrage_flow:
+    type: float
     age_s: 28800
     deadband: 0.01
 model:

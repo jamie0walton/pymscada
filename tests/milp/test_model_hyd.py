@@ -140,7 +140,7 @@ def test_model_times(tmp_path):
         'actual_time': 123456651,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Valve': {
                 'type': 'valve',
@@ -206,7 +206,7 @@ def test_tank_fixed(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -267,7 +267,7 @@ def test_tank_fixed_river(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -344,7 +344,7 @@ def test_tank_variable_empty(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 3600,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -404,7 +404,7 @@ def test_tank_variable_empty_profile_limits(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 4 * 3600,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Inflow': {
                 'type': 'valve',
@@ -502,7 +502,7 @@ def test_genprofile(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -550,7 +550,7 @@ def test_gentimeprofile(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -600,7 +600,7 @@ def test_gentimestep(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 2400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -653,7 +653,7 @@ def test_twogensemi(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 1200,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -718,7 +718,7 @@ def test_twogensemi2(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 600,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -789,7 +789,7 @@ def test_gensemi_changeofstate(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 28 * 600,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'G1': {
                 'type': 'generator',
@@ -877,7 +877,7 @@ def test_valveriverlake(tmp_path):
         'actual_time': 1522494189,
         'time_step': 600,
         'duration': 6000,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -941,7 +941,7 @@ def test_lake_endstate(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1076,7 +1076,7 @@ def test_lake_bidoffer(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1251,7 +1251,7 @@ def test_lake_bidoffer_maxroc(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',
@@ -1426,7 +1426,7 @@ def test_lake_minflow(tmp_path):
         'actual_time': 1522494300,
         'time_step': 600,
         'duration': 14400,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'Rainflow': {
                 'type': 'valve',
@@ -1536,7 +1536,7 @@ def test_lake_bid_minflow(tmp_path):
         'actual_time': 1522494300,
         'time_step': 1800,
         'duration': 36000,
-        'tempdir': str(tmp_path),
+        'logdir': str(tmp_path),
         'model': {
             'System_Inflow': {
                 'type': 'valve',

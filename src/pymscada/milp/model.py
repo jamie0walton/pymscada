@@ -40,7 +40,7 @@ class LpModel():
     add_sos2    piecewise linear interpolation
     """
 
-    def __init__(self, name=None, filename="tmp/__mpc", timeout=30):
+    def __init__(self, name=None, filename="tmp/mpc_solver", timeout=30):
         """Create MILP object to build and solve."""
         if name is None:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

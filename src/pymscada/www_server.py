@@ -32,6 +32,8 @@ def standardise_tag_info(tagname: str, tag: dict):
         tag['dp'] = 2
     elif tag['type'] == 'str' and 'dp' in tag:
         del tag['dp']
+    if 'deadband' not in tag:
+        tag['deadband'] = None
 
 
 class Interface():

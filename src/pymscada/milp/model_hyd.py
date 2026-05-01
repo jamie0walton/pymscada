@@ -102,13 +102,13 @@ class HydraulicModel():
         self.duration = config['duration']
         self.actual_time = config['actual_time']
         self.model: dict[str, Constraint] = {}
-        tmpdir = Path(config['tempdir'])
-        if not tmpdir.exists():
-            raise NotADirectoryError(tmpdir.absolute())
-        self.path = Path(config['tempdir'], '__mpc')
-        self.logpath = None
-        if 'logdir' in config:
-            self.logpath = Path(config['logdir'])
+        root = Path(config['logdir'])
+        if not root.exists():
+            raise NotADirectoryError(root.absolute())
+        live = root / 'live'
+        live.mkdir(parents=True, exist_ok=True)
+        self.path = live / 'mpc_solver'
+        self.logpath = root
         self.timeout = timeout
         self.lp = LpModel()
         self.costs = []
@@ -147,11 +147,16 @@ class HydraulicModel():
 
     def capture_result(self):
         """Save the solver files for postmortem analysis."""
-        now = time.localtime()
-        snaptime = f"{now.tm_year:04d}{now.tm_mon:02d}{now.tm_mday:02d}_" \
-            f"{now.tm_hour:02d}{now.tm_min:02d}{now.tm_sec:02d}"
+        y, mo, d, h, mi, s = time.localtime()[:6]
+        time_dir = f"{y}-{mo:02d}-{d:02d} {h:02d}:{mi:02d}:{s:02d}"
         if self.logpath is None or not self.logpath.exists() or\
                 not self.logpath.is_dir():
+            return
+        dest = self.logpath / time_dir
+        try:
+            dest.mkdir()
+        except FileExistsError:
+            logging.info(f"directory {dest} already exists, skip capture")
             return
         for f in [
             self.path.parent / f"{self.path.name}.rows_cols",
@@ -162,9 +167,7 @@ class HydraulicModel():
             self.path.parent / f"{self.path.name}.param"
         ]:
             try:
-                shutil.copy(f, self.logpath / f"{snaptime}{f.name}")
-                # f.rename(self.logpath / f"{snaptime}{f.name}")
-                # shutil.move(f, f"log/{snaptime}_{f}")
+                shutil.copy(f, dest / f.name)
             except OSError:
                 logging.warning(f"could not move {f} to log")
 

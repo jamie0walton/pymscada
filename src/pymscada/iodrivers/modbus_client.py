@@ -412,6 +412,7 @@ class ModbusClientConnector:
             logging.info('closing')
             self.protocol = None
             self.transport = None
+            self.sent = {}
         if self.transport is None:
             await self.start_connection()
         if self.transport is None:

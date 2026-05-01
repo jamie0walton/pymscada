@@ -91,6 +91,22 @@ def day_seconds(time_s: int):
     return time_s - daystart
 
 
+def interp(xvalue: float, xs: list, ys: list) -> float:
+    """
+    Interpolate inside and outside the range.
+
+    given an X value, xs strictly increasing, ys OK
+    interpolate and extrapolate past x[0] and x[len - 1]
+    """
+    i = 1
+    if xvalue > xs[0]:
+        for (i, v) in enumerate(xs):  # noqa: B007
+            if xvalue < v:
+                break
+    return (xvalue - xs[i - 1]) / (xs[i] - xs[i - 1]) * \
+        (ys[i] - ys[i - 1]) + ys[i - 1]
+
+
 def interp_step(xvalue: float, xs: list, ys: list) -> float:
     """
     Interpolate as step value.

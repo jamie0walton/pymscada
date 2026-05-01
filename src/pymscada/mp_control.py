@@ -146,12 +146,11 @@ class MPCTag:
 
 
 class MPCRunner:
-    def __init__(self, temp_dir: str, log_dir: str, control_tag: str,
+    def __init__(self, log_dir: str, control_tag: str,
                  history_tag: str, solve_time_tag: str, last_solve_tag: str,
                  setpoint_tag: str, result_tag: str, status_tag: str,
                  duration_tag: str, capture_tag: str, solver_timeout: int,
                  time_step: int, duration: int, tags: dict, model: dict):
-        self.temp_dir = temp_dir
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
         self.control_tag.add_callback(self.control_tag_callback)
@@ -193,6 +192,46 @@ class MPCRunner:
         """Callback for the duration tag."""
         self.duration = tag.value * 3600
 
+    # def set_k_v(self, m: dict, node: str, k: str, v):
+    #     """Set a key value in the model."""
+    #     def merge(dst, src):
+    #         if isinstance(src, dict):
+    #             if not isinstance(dst, dict):
+    #                 raise ValueError(f"Invalid merge shape for key: {k}")
+    #             for mk, mv in src.items():
+    #                 if mk not in dst:
+    #                     raise ValueError(f"Invalid merge key: {k}.{mk}")
+    #                 if mv is None:
+    #                     continue
+    #                 if isinstance(mv, dict | list):
+    #                     merge(dst[mk], mv)
+    #                 else:
+    #                     dst[mk] = mv
+    #             return
+    #         if isinstance(src, list):
+    #             if not isinstance(dst, list):
+    #                 raise ValueError(f"Invalid merge shape for key: {k}")
+    #             if len(src) > len(dst):
+    #                 raise ValueError(f"Invalid merge length for key: {k}")
+    #             for i, mv in enumerate(src):
+    #                 if mv is None:
+    #                     continue
+    #                 if isinstance(mv, dict | list):
+    #                     merge(dst[i], mv)
+    #                 else:
+    #                     dst[i] = mv
+    #             return
+    #         raise ValueError(f"Invalid merge value for key: {k}")
+
+    #     if v is None:
+    #         return
+    #     if isinstance(v, dict | list):
+    #         if k not in m[node]:
+    #             raise ValueError(f"Invalid merge key: {k}")
+    #         merge(m[node][k], v)
+    #         return
+    #     m[node][k] = v
+
     def make_model(self, actual_time: int | None=None):
         """
         Create the model needed to run Hydraulic Model. If there is a saved
@@ -204,7 +243,6 @@ class MPCRunner:
         self.model['actual_time'] = actual_time
         self.model['time_step'] = self.time_step
         self.model['duration'] = self.duration
-        self.model['tempdir'] = self.temp_dir
         self.model['logdir'] = self.log_dir
         self.model['model'] = {}
         # TODO this is because of a mutation in HydraulicModel that needs
@@ -231,10 +269,13 @@ class MPCRunner:
                     k = k[:-4]
                     v = self.tags[v].value
                 m[node][k] = v
+                # self.set_k_v(m, node, k, v)
 
     def save_model(self):
         """Save the model to a file."""
-        p = Path(self.temp_dir) / f'__mpc_model.yaml'
+        live = Path(self.log_dir) / 'live'
+        live.mkdir(parents=True, exist_ok=True)
+        p = live / 'mpc_model.yaml'
         with p.open('w', encoding='utf-8') as f:
             dump(self.model, f)
 
@@ -242,14 +283,14 @@ class MPCRunner:
         """Capture model result files with timestamp."""
         y, mo, d, h, m, s = time.localtime()[:6]
         time_dir = f"{y}-{mo:02d}-{d:02d} {h:02d}:{m:02d}:{s:02d}"
-        pp = Path(self.temp_dir)
-        tp = Path(self.temp_dir) / time_dir
+        pp = Path(self.log_dir) / 'live'
+        tp = Path(self.log_dir) / time_dir
         try:
             tp.mkdir()
         except FileExistsError:
             logging.info(f"directory {tp} already exists, ignore request")
             return
-        for f in pp.glob('__mpc*'):
+        for f in pp.glob('mpc_*'):
             shutil.copy(f, tp / f.name)
 
     async def model_runner(self):
