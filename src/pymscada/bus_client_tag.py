@@ -179,7 +179,7 @@ class TagInt(TagTyped):
     def value(self) -> int:
         """Get current int value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagInt {self.name} is None")
         return self._value
 
     @value.setter
@@ -316,7 +316,7 @@ class TagFloat(TagTyped):
     def value(self) -> float:
         """Get current float value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagFloat {self.name} is None")
         return self._value
 
     @value.setter
@@ -437,7 +437,7 @@ class TagStr(TagTyped):
     def value(self) -> str:
         """Get current string value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagStr {self.name} is None")
         return self._value
 
     @value.setter
@@ -475,7 +475,7 @@ class TagBytes(TagTyped):
     def value(self) -> bytes:
         """Get current bytes value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagBytes {self.name} is None")
         return self._value
 
     @value.setter
@@ -513,7 +513,7 @@ class TagList(TagTyped):
     def value(self) -> list:
         """Get current list value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagList {self.name} is None")
         return self._value
 
     @value.setter
@@ -553,7 +553,7 @@ class TagDict(TagTyped):
     def value(self) -> dict:
         """Get current dict value."""
         if self._value is None:
-            raise SystemExit(f"{self.name} value accessed before initialization")
+            raise SystemExit(f"TagDict {self.name} is None")
         return self._value
 
     @value.setter

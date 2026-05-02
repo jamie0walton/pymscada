@@ -277,7 +277,7 @@ class MPCRunner:
         live.mkdir(parents=True, exist_ok=True)
         p = live / 'mpc_model.yaml'
         with p.open('w', encoding='utf-8') as f:
-            dump(self.model, f)
+            dump(self.model, f, sort_keys=False)
 
     def capture_result(self):
         """Capture model result files with timestamp."""
@@ -439,10 +439,21 @@ class MPAnalyser:
         """Run the model analyser and exit."""
         model_path = self.kwargs.get('load', None)
         if model_path is None:
-            raise ValueError("load argument is required")
+            raise ValueError("load is required")
+        log_path = self.kwargs.get('log_path', None)
+        if log_path is None:
+            raise ValueError("log_path is required")
         timeout = self.kwargs.get('solver_timeout', 60)
         with open(model_path, encoding='utf-8') as f:
             model = load(f, Loader=UnsafeLoader)
+        model['logdir'] = log_path
+        # save so can compare
+        live = Path(log_path) / 'live'
+        live.mkdir(parents=True, exist_ok=True)
+        p = live / 'mpc_model.yaml'
+        with p.open('w', encoding='utf-8') as f:
+            dump(model, f, sort_keys=False)
+        # create and solve
         m = HydraulicModel(model, timeout)
         m.solve_lp()
 

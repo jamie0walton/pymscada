@@ -292,13 +292,13 @@
             "justMyCode":true
         },
         {
-            "name":"mpanalyse",
+            "name":"mpanalyser",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["mpanalyse", "--verbose",
-                "--config", "~/ani/compare/mpanalyse.yaml"
+            "args": ["mpanalyser", "--verbose",
+                "--config", "~/ani/log/mpanalyse.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
