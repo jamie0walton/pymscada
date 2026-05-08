@@ -349,6 +349,10 @@ class MPCRunner:
         if self.control_tag.value == TIMED_RUN:
             self.queue.put_nowait({'action': 'run_model',
                                    'reason': 'Setpoint changed'})
+        elif self.control_tag.value == RUNNING:
+            logging.warning(f"Setpoint changed {tag.value} MW while running")
+            self.queue.put_nowait({'action': 'run_model',
+                                   'reason': 'Setpoint changed'})
 
     def model_tags_callback(self, tag: TagInt | TagFloat | TagDict):
         """Single callback, connect changes to correct actions and updates."""
@@ -417,7 +421,7 @@ class MPCRunner:
         """Every second."""
         if self.control_tag.value == TIMED_RUN:
             t = time.localtime()
-            if t.tm_min % 10 == 0 and t.tm_sec == 30:
+            if t.tm_min % 10 == 1 and t.tm_sec == 30:
                 self.queue.put_nowait({'action': 'run_model',
                                        'reason': 'timed run'})
         if self.solver_running:

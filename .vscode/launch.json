@@ -5,57 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name":"bus",
+            "name":"accuweather",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["bus", "--verbose"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"files",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["files", "--verbose",
-                "--config", "../config/files.yaml"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"opnotes",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd":"",
-            "program":"src/pymscada/__main__.py",
-            "args": ["opnotes", "--verbose",
-                "--config", "../config/opnotes.yaml"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"wwwserver",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["wwwserver", "--verbose",
-                "--config", "../config/wwwserver.yaml",
+            "args": ["accuweatherclient", "--verbose",
+                "--config", "../config/accuweather.yaml",
                 "--tags", "../config/tags.yaml",
             ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"history",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["history", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -73,6 +31,16 @@
             "justMyCode":true
         },
         {
+            "name":"bus",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["bus", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"callout",
             "type":"debugpy",
             "request":"launch",
@@ -85,52 +53,16 @@
             "justMyCode":true
         },
         {
-            "name":"observer",
+            "name":"checkout",
             "type":"debugpy",
             "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["observer", "--verbose",
-                "--config", "../ani/config/observer.yaml",
-            ],
+            "cwd":"${workspaceFolder}/..",
+            "program":"pymscada/src/pymscada/__main__.py",
+            "args": ["checkout", "--verbose", "--diff"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
-        {
-            "name":"math",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["math", "--verbose",
-                "--config", "../ani/config/math.yaml",
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"sms",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["sms", "--verbose",
-                "--config", "../config/sms.yaml",
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"simulate",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["simulate", "--verbose"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
+         {
             "name":"console",
             "type":"debugpy",
             "request":"launch",
@@ -145,27 +77,68 @@
             "justMyCode":false
         },
         {
-            "name":"accuweather",
+            "name":"files",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["accuweatherclient", "--verbose",
-                "--config", "../config/accuweather.yaml",
-                "--tags", "../config/tags.yaml",
+            "args": ["files", "--verbose",
+                "--config", "../config/files.yaml"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"history",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["history", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"logixclient",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["logixclient", "--verbose",
+                "--config", "../teviot/config/logixclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
         },
         {
-            "name":"openweather",
+            "name":"logixclient-ecogas",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["openweatherclient", "--verbose",
-                "--config", "/home/jamie/openweather.yaml"
+            "args": ["logixclient", "--verbose",
+                "--config", "../ecogas/logixclient.yaml"
             ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"math",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["math", "--verbose",
+                "--config", "src/pymscada/demo/math.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"modbus_plc",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/demo/modbus_plc.py",
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -187,95 +160,6 @@
             "program":"src/pymscada/__main__.py",
             "args": ["modbusclient", "--verbose",
                 "--config", "../ani/config/modbusclient.yaml"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"snmpclient",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["snmpclient", "--verbose"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"ping",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["ping", "--verbose"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"logixclient",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["logixclient", "--verbose",
-                "--config", "../teviot/config/logixclient.yaml"
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"modbus_plc",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/demo/modbus_plc.py",
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"pi_api",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["piapi", "--verbose",
-                "--config", "../config/piapi.yaml"
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"pi_api_client",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["piapiclient", "--verbose",
-                "--config", "../config/piapiclient.yaml"
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"tds_client",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["tdsclient", "--verbose",
-                "--config", "../ani/config/tdsclient.yaml"
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"wits_client",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["witsclient", "--verbose",
-                "--config", "../ani/config/witsclient.yaml"
-            ],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -304,6 +188,153 @@
             "justMyCode":true
         },
         {
+            "name":"observer",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["observer", "--verbose",
+                "--config", "../ani/config/observer.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"openweather",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["openweatherclient", "--verbose",
+                "--config", "/home/jamie/openweather.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"opnotes",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd":"",
+            "program":"src/pymscada/__main__.py",
+            "args": ["opnotes", "--verbose",
+                "--config", "../config/opnotes.yaml"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"picount",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/tools/get_pi_counts.py",
+            "args": ["2026-01-07"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"ping",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["ping", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"pi_api",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["piapi", "--verbose",
+                "--config", "../config/piapi.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"pi_api_client",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["piapiclient", "--verbose",
+                "--config", "../config/piapiclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"simulate",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["simulate", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"sms",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["sms", "--verbose",
+                "--config", "../config/sms.yaml",
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"snmpclient",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["snmpclient", "--verbose"],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"tds_client",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["tdsclient", "--verbose",
+                "--config", "../ani/config/tdsclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"template",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["template", "--verbose",
+                "--config", "~/ani/config/template.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
+            "name":"wits_client",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["witsclient", "--verbose",
+                "--config", "../ani/config/witsclient.yaml"
+            ],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"wits_api",
             "type":"debugpy",
             "request":"launch",
@@ -316,34 +347,15 @@
             "justMyCode":true
         },
         {
-            "name":"checkout",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd":"${workspaceFolder}/..",
-            "program":"pymscada/src/pymscada/__main__.py",
-            "args": ["checkout", "--verbose", "--diff"],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"ecogas-logixclient",
+            "name":"wwwserver",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
-            "args": ["logixclient", "--verbose",
-                "--config", "../ecogas/logixclient.yaml"
+            "args": ["wwwserver", "--verbose",
+                "--config", "../config/wwwserver.yaml",
+                "--tags", "../config/tags.yaml",
             ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
-            "name":"picount",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/tools/get_pi_counts.py",
-            "args": ["2026-01-07"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

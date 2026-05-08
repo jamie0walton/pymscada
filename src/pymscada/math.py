@@ -1,75 +1,99 @@
 """Math module for simple mathematical functions."""
 import asyncio
 import logging
+import time
 from pymscada.bus_client import BusClient
-from pymscada.bus_client_tag import TagFloat, TagInt
+from pymscada.bus_client_tag import TagFloat, TagInt, TagBytes
 from pymscada.periodic import Periodic
 
 
-class MathElement:
+class MathSum:
     """Math element performs calculations on inputs."""
 
-    def __init__(self, name: str, calc: list[dict] = []):
-        self.name = name
-        self.output_tag = TagFloat(name)
-        self.input_tags: list[TagFloat] = []
-        self.recalc_required = False
-        for action in calc:
-            if action.get('action') == 'add':
-                input_tag = TagFloat(action['tagname'])
-                input_tag.add_callback(self.tag_callback)
-                self.input_tags.append(input_tag)
-        self.value = 0.0
+    def __init__(self, dsttagname: str, tagnames: list[str]):
+        self.dst_tag = TagFloat(dsttagname)
+        self.sum_tags: list[TagFloat] = []
+        self.sum_values = {}
+        self.value = None
+        for tagname in tagnames:
+            sum_tag = TagFloat(tagname)
+            self.sum_tags.append(sum_tag)
+            self.sum_values[tagname] = None
 
     def tag_callback(self, tag: TagFloat | TagInt):
-        self.recalc_required = True
+        self.sum_values[tag.name] = tag.value
+        if None in self.sum_values.values():
+            return
+        value = sum(self.sum_values.values())
+        if self.value is None:
+            self.value = value
+        elif abs(self.value - value) > 0.2:
+            logging.info(f"{self.dst_tag.name} = {value:.1f}")
+            self.dst_tag.value = value
 
-    def recalc(self):
-        value = 0.0
+    def calculate(self, time_us: int):
+        pass
+
+    async def start(self):
+        for tag in self.sum_tags:
+            tag.add_callback(self.tag_callback)
+
+
+class MathMean:
+    def __init__(self, dsttagname: str, srctagname: str,
+                 age: int, interval: int):
+        self.dst_tag = TagFloat(dsttagname)
+        self.src_tag = TagFloat(srctagname)
+        self.src_tag.age_us = age * 1000000
+        self.age = age
+        self.interval = interval
+ 
+    def calculate(self, time_us: int):
+        time_s = int(time_us / 1e6)
+        if time_s % self.interval != 0:
+            return
         values = []
-        for tag in self.input_tags:
-            if not tag.is_none:
-                value += tag.value
-                values.append(tag.value)
-        self.output_tag.value = value
-        if abs(self.value - value) > 0.2:
-            logging.info(f"{self.name} = {value:.1f} from {" ".join([f'{v:.1f}' for v in values])}")
-        self.value = value
+        for t in range(time_s, time_s - self.age, -self.interval):
+            values.append(self.src_tag.get(int(t * 1e6)))
+        self.dst_tag.value = sum(values) / len(values)
 
-    def follow_step(self):
-        if self.recalc_required:
-            self.recalc()
-            self.recalc_required = False
+    async def start(self):
+        pass
 
 
-class Math:
+class MathRunner:
     """Math module for performing calculations on tag inputs."""
 
-    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 config: dict = {}) -> None:
-        self.busclient = None
-        if bus_ip is not None:
-            self.busclient = BusClient(bus_ip, bus_port, module='Math')
-        self.config = config
-        self.elements = {}
-        self.input_tags = {}
+    def __init__(self, config: dict = {}):
+        self.actions: dict[str, MathSum | MathMean] = {}
+        for k, v in config.items():
+            if v['action'] == 'sum':
+                self.actions[k] = MathSum(k, v['tagnames'])
+            elif v['action'] == 'mean':
+                self.actions[k] = MathMean(k, v['tagname'], v['age'],
+                                           v['interval'])
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
     async def periodic_cb(self):
-        for e in self.elements.values():
-            e.follow_step()
+        time_us = int(time.time() * 1e6)
+        for e in self.actions.values():
+            e.calculate(time_us)
 
     async def start(self):
         """Start the math module."""
-        if self.busclient is not None:
-            await self.busclient.start()
-        for name, calc_config in self.config.items():
-            element = MathElement(name, calc_config)
-            self.elements[name] = element
-            for tag in element.input_tags:
-                if tag.name not in self.input_tags:
-                    self.input_tags[tag.name] = tag
-        if self.busclient is not None and len(self.input_tags) > 0:
-            while any(tag.is_none for tag in self.input_tags.values()):
-                await asyncio.sleep(1)
+        for e in self.actions.values():
+            await e.start()
         await self.periodic.start()
+
+
+class Math:
+    def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
+                 config: dict = {}) -> None:
+        self.busclient = BusClient(bus_ip, bus_port, module='Math')
+        self.busclient.history_tag = TagBytes('__history__')
+        self.runner = MathRunner(config)
+
+    async def start(self):
+        await self.busclient.start()
+        await self.busclient.get_history()
+        await self.runner.start()

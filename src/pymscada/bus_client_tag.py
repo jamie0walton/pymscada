@@ -35,8 +35,6 @@ class UniqueTagTyped(type):
                 )
             return existing
         tag: TagTyped = super().__call__(tagname)
-# TODO pretty sure this is not needed
-#        tag.id = None
         cls.__cache[tagname] = tag
         cls.__bus_callback(tag)
         return tag
@@ -157,6 +155,11 @@ class TagTyped(metaclass=UniqueTagTyped):
         """Unpack packed value and set it."""
         raise NotImplementedError(f"{self.name} set_packed_value not implemented")
 
+    @property
+    def age_us(self) -> int | None:
+        """Return age_us."""
+        return None
+
 
 class TagInt(TagTyped):
     """Integer bus tag."""
@@ -265,7 +268,7 @@ class TagInt(TagTyped):
     @age_us.setter
     def age_us(self, age_us: int):
         """Set age for history, clobbers old history when set."""
-        if self._age_us < 0:
+        if self._age_us < 0 and self._value is not None:
             self.times_us.append(self.time_us)
             self.values.append(self.value)
         self._age_us = age_us
@@ -402,11 +405,9 @@ class TagFloat(TagTyped):
     @age_us.setter
     def age_us(self, age_us: int):
         """Set age for history, clobbers old history when set."""
-        if self._age_us < 0:
+        if self._age_us < 0 and self._value is not None:
             self.times_us.append(self.time_us)
-            # TODO check
-            if self._value is not None:
-                self.values.append(self.value)
+            self.values.append(self.value)
         self._age_us = age_us
 
     @property

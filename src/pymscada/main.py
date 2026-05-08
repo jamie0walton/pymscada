@@ -49,8 +49,7 @@ async def run():
     logger.handlers.clear()  # Remove any existing handlers
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
-    logging.info(f'Python Mobile SCADA {version("pymscada")} starting '
-                 f'{options.module_name}')
+    logging.info(f'Python Mobile SCADA {version("pymscada")}')
     if not options.verbose:
         logger.setLevel(logging.WARNING)
     factory = ModuleFactory()

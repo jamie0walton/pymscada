@@ -324,6 +324,7 @@ class ConsoleManager:
                 b'set tagname value or string is cast to type\r\n'
                 b'sub tagname               or s tagname\r\n'
                 b'unsub <match>             or u <match>\r\n'
+                b'quit                      or q\r\n'
                 b'---------------------------------------------')
 
     async def run(self):

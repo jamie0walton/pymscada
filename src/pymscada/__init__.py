@@ -1,6 +1,6 @@
 """SCADA library."""
 from pymscada.bus_server import BusServer
-from pymscada.bus_client import BusClient
+from pymscada.bus_client import BusClient, BusTask
 from pymscada.bus_client_tag import TagTyped, TagFloat, TagInt, TagDict, TagStr, TagList
 from pymscada.config import Config
 from pymscada.callout import Callout, ALM
@@ -18,7 +18,7 @@ from pymscada.tag import Tag
 
 __all__ = [
     'BusServer',
-    'BusClient',
+    'BusClient', 'BusTask',
     'TagTyped', 'TagFloat', 'TagInt', 'TagStr', 'TagDict', 'TagList',
     'Config',
     'Callout', 'ALM',

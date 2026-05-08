@@ -1,0 +1,6 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+config:
+  time_tag: {name: _site_time, age_us: 600000000}
+  none_tag: {name: _none}
+  template_tag: {name: _template, type: dict}

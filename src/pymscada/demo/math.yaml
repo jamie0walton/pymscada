@@ -2,17 +2,35 @@ bus_ip: 127.0.0.1
 bus_port: 1324
 config:
   SO_Sum_Gen:
-  - {action: add, tagname: I_Aniwhenua_G1_MW}
-  - {action: add, tagname: I_Aniwhenua_G2_MW}
+    action: sum
+    tagnames: 
+    - I_Aniwhenua_G1_MW
+    - I_Aniwhenua_G2_MW
   SO_Station_flow:
-  - {action: add, tagname: SO_Aniwhenua_G1_flow}
-  - {action: add, tagname: SO_Aniwhenua_G2_flow}
+    action: sum
+    tagnames: 
+    - SO_Aniwhenua_G1_flow
+    - SO_Aniwhenua_G2_flow
   SO_Barrage_flow:
-  - {action: add, tagname: SO_RadialGate_1_flow}
-  - {action: add, tagname: SO_RadialGate_2_flow}
-  - {action: add, tagname: SO_FlapGate_1_flow}
-  - {action: add, tagname: SO_FlapGate_2_flow}
-  - {action: add, tagname: SO_FlapGate_3_flow}
+    action: sum
+    tagnames:
+    - SO_RadialGate_1_flow
+    - SO_RadialGate_2_flow
+    - SO_FlapGate_1_flow
+    - SO_FlapGate_2_flow
+    - SO_FlapGate_3_flow
   SO_Lake_Aniwhenua_Inflow:
-  - {action: add, tagname: SO_Galatea_delay_flow}
-  - {action: add, tagname: SO_Lake_Aniwhenua_Rainflow}
+    action: sum
+    tagnames:
+    - SO_Galatea_delay_flow
+    - SO_Lake_Aniwhenua_Rainflow
+  SO_Lake_Aniwhenua_Inflow_mean:
+    action: mean
+    tagname: SO_Lake_Aniwhenua_Inflow
+    age: 28800
+    interval: 600
+  SO_Lake_Aniwhenua_Rainflow_mean:
+    action: mean
+    tagname: SO_Lake_Aniwhenua_Rainflow
+    age: 28800
+    interval: 600

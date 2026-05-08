@@ -245,6 +245,12 @@ def create_module_registry():
                 )
             ]
         ),
+        ModuleDefinition(
+            name='template',
+            help='example bus client module',
+            module_class='pymscada.module_template:Template',
+            tags=False,
+        ),
     ]
 
 class ModuleFactory:
@@ -291,8 +297,6 @@ class ModuleFactory:
         if options.module_name not in self.modules:
             raise ValueError(f'{options.module_name} does not exist')
         module_def = self.modules[options.module_name]
-        logging.info(f'Python Mobile SCADA {version("pymscada")} '
-                     f'starting {module_def.name}')
         # Import the module class only when needed
         if isinstance(module_def.module_class, str):
             module_path, class_name = module_def.module_class.split(':')

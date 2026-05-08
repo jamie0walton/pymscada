@@ -34,7 +34,7 @@ from pymscada.tag import Tag, TYPES
 ITEM_SIZE = 16  # Q + q, Q or d
 ITEM_COUNT = 1024
 CHUNK_SIZE = ITEM_COUNT * ITEM_SIZE
-FILE_CHUNKS = 64
+FILE_CHUNKS = 6400
 
 
 def standardise_tag_info(tagname: str, tag: dict):
