@@ -286,13 +286,16 @@ class ModbusClientConnector:
             tables[table] = max(tables[table], end)
         self.mapping.add_data_table(tables, self.write_tag_update)
         self._mbap_tr = 0
+        self.age_count = 0
 
     def process(self, msg):
         """Process received message, match to transaction."""
         # logging.info(f"messages in sent {len(self.sent)}")
         mbap_tr, _mbap_pr, _mbap_len, mbap_unit, pdu_fc = unpack_from(
             ">3H2B", msg, 0)
-        logging.info(f"process {mbap_tr}")
+        logging.warning(f"process {mbap_tr}")
+        if self.age_count > 0:
+            self.age_count -= 1
         if pdu_fc == 3:
             data = msg[9:]
             self.mapping.set_data(name=self.name, data=data,
@@ -311,7 +314,6 @@ class ModbusClientConnector:
         else:  # Unsupported
             logging.info(f"Received function code {pdu_fc}")
             return
-        pass
 
     async def start_connection(self):
         """Start the UDP or TCP connection."""
@@ -408,11 +410,16 @@ class ModbusClientConnector:
 
     async def poll(self):
         """Create Modbus polling connections."""
+        self.age_count += 1
+        if self.transport is not None and self.age_count > 15:
+            logging.warning('modbusclient age reconnect')
+            self.transport.close()
         if self.transport is not None and self.transport.is_closing() is True:
-            logging.info('closing')
+            logging.warning('closing')
             self.protocol = None
             self.transport = None
             self.sent = {}
+            self.age_count = 0
         if self.transport is None:
             await self.start_connection()
         if self.transport is None:

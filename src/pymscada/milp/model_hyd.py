@@ -1228,16 +1228,21 @@ class RevenueProfile(Constraint):
         self.name = ''
         self.cost = 1.0
         self.generation = ''
+        self.min_price = 0.0
         super().__init__(**kwargs)
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
 
     def create_lp(self, m: HydraulicModel):
+        if self.time_series is None:
+            raise ValueError(f'{self.name} must have a flow time_series.')
         for t in m.times:
             if t < m.set_time:
                 continue
-            local_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
+            # local_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
             spot_price = self.time_series.get(t)
+            if spot_price < self.min_price:
+                spot_price = 0.0
             # logging.warning(f"{local_time} {spot_price}")
             if t < m.set_time:
                 continue
