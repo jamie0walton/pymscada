@@ -9,5 +9,15 @@
         "titleBar.activeBackground": "#31849b",
         "titleBar.inactiveBackground":"#31849b"
     },
-    "remote.autoForwardPorts": false
+    "remote.autoForwardPorts": false,
+    "github.copilot.enable": {
+        "*": true
+    },
+    "github.copilot.inlineSuggest.enable": true,
+    "github.copilot.suggestionDelay": 0,
+    "copilot.instructions": [
+        {
+            "file": "copilot-instructions.md"
+        }
+    ]
 }
