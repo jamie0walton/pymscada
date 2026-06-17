@@ -274,6 +274,7 @@ class ModbusClientConnector:
         self.periodic = Periodic(self.poll, rate)
         self.sleep = sleep  # some devices require time between polls
         self.mapping = mapping
+        self.queue = asyncio.Queue()
         self.sent = {}
         tables = {}
         for file_range in poll:  # chain(read, writeok):
@@ -286,16 +287,13 @@ class ModbusClientConnector:
             tables[table] = max(tables[table], end)
         self.mapping.add_data_table(tables, self.write_tag_update)
         self._mbap_tr = 0
-        self.age_count = 0
 
     def process(self, msg):
         """Process received message, match to transaction."""
         # logging.info(f"messages in sent {len(self.sent)}")
         mbap_tr, _mbap_pr, _mbap_len, mbap_unit, pdu_fc = unpack_from(
             ">3H2B", msg, 0)
-        logging.warning(f"process {mbap_tr}")
-        if self.age_count > 0:
-            self.age_count -= 1
+        # logging.warning(f"process {mbap_tr}")
         if pdu_fc == 3:
             data = msg[9:]
             self.mapping.set_data(name=self.name, data=data,
@@ -340,9 +338,8 @@ class ModbusClientConnector:
             self._mbap_tr = 0
         return self._mbap_tr
 
-    def mb_read(self, unit: int, file: str, start: int, end: int):
+    def mb_read(self, mbap_tr, unit: int, file: str, start: int, end: int):
         """Build read, save the transaction for matching responses."""
-        mbap_tr = self.mbap_tr()
         mbap_pr = 0  # protocol always 0
         mbap_len = None
         mbap_unit = unit
@@ -369,11 +366,10 @@ class ModbusClientConnector:
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
 
-    def mb_write(self, unit: int, file: str, start: int, end: int,
+    def mb_write(self, mbap_tr, unit: int, file: str, start: int, end: int,
                  data: bytes):
         """Build write, save transaction to match."""
         logging.debug(f"would write {unit} {file} {start} {end}")
-        mbap_tr = self.mbap_tr()
         mbap_pr = 0  # protocol always 0
         mbap_len = None
         mbap_unit = unit
@@ -397,40 +393,67 @@ class ModbusClientConnector:
             logging.info(f"TCP write {mbap_unit} {file} {start} {end}")
             self.transport.write(msg)  # type: ignore
 
-    def write_tag_update(self, addr: str, byte: int, data: bytes):
-        """Write out any tag updates."""
-        if self.transport is None:
-            return
-        _, unit, file = addr.split(':')
-        mbap_unit = int(unit)
-        start = byte // 2
-        end = start + len(data) // 2
-        self.mb_write(mbap_unit, file, start, end, data)
-        pass
-
-    async def poll(self):
-        """Create Modbus polling connections."""
-        self.age_count += 1
-        if self.transport is not None and self.age_count > 15:
-            logging.warning('modbusclient age reconnect')
-            self.transport.close()
+    async def check_transport(self):
         if self.transport is not None and self.transport.is_closing() is True:
             logging.warning('closing')
             self.protocol = None
             self.transport = None
             self.sent = {}
-            self.age_count = 0
         if self.transport is None:
             await self.start_connection()
-        if self.transport is None:
+
+    async def message_queue(self):
+        while True:
+            msg = await self.queue.get()
+            logging.debug(f"from queue: {msg}")
+            await self.check_transport()
+            action = msg['action']
+            del msg['action']
+            if action == 'read':
+                self.mb_read(**msg)
+            elif action == 'write':
+                self.mb_write(**msg)
+            i = 0
+            while len(self.sent) > 0 and self.sleep > 0 and i < 10:
+                await asyncio.sleep(self.sleep)
+                i += 1
+                if i > 5:
+                    logging.warning(f"queue long {i} {self.sent}")
+
+    def write_tag_update(self, addr: str, byte: int, data: bytes):
+        """Write out any tag updates."""
+        _rtu, unit, file = addr.split(':')
+        start = byte // 2
+        end = start + len(data) // 2
+        self.queue.put_nowait({
+            'action': 'write',
+            'mbap_tr': self.mbap_tr(),
+            'unit': int(unit),
+            'file': file,
+            'start': start,
+            'end': end,
+            'data': data
+        })
+
+    async def poll(self):
+        """Create Modbus polling connections."""
+        qsize = int(self.queue.qsize())
+        if qsize > len(self.read) * 3:
+            logging.warning(f"Queue {qsize} skipping poll")
             return
         for poll in self.read:
-            self.mb_read(**poll)
-            if self.sleep > 0:
-                await asyncio.sleep(self.sleep)
+            self.queue.put_nowait({
+                'action': 'read',
+                'mbap_tr': self.mbap_tr(),
+                'unit': int(poll['unit']),
+                'file': poll['file'],
+                'start': poll['start'],
+                'end': poll['end']
+            })
 
     async def start(self):
         """Start polling."""
+        asyncio.create_task(self.message_queue())
         await self.periodic.start()
 
 
