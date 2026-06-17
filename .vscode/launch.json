@@ -128,7 +128,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["math", "--verbose",
-                "--config", "src/pymscada/demo/math.yaml",
+                "--config", "../ani/config/math.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true

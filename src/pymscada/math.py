@@ -12,6 +12,7 @@ class MathSum:
 
     def __init__(self, dsttagname: str, tagnames: list[str]):
         self.dst_tag = TagFloat(dsttagname)
+        self.dst_tag.deadband = 0.1
         self.sum_tags: list[TagFloat] = []
         self.sum_values = {}
         self.value = None
@@ -43,6 +44,7 @@ class MathMean:
     def __init__(self, dsttagname: str, srctagname: str,
                  age: int, interval: int):
         self.dst_tag = TagFloat(dsttagname)
+        self.dst_tag.deadband = 0.1
         self.src_tag = TagFloat(srctagname)
         self.src_tag.age_us = age * 1000000
         self.age = age

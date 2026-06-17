@@ -105,13 +105,13 @@ class ModbusClientMap:
         else:
             return
         if value != self.tag.value:
-            logging.info(f'updating {self.tag.name} from {self.tag.value}'
+            logging.warning(f'updating {self.tag.name} from {self.tag.value}'
                          f' to {value}')
             self.tag.value = value, time_us, self.map_bus
 
     def tag_value_ext(self, tag: Tag):
         """Call external tag value update to write remote table."""
-        logging.info(f'tag_value_changed {tag.name} {tag.value}')
+        logging.warning(f'tag_value_changed {tag.name} {tag.value}')
         if self.src_type == 'int16':
             self.value_chg(self.data_file, self.byte, pack('>h', tag.value))
         elif self.src_type == 'uint16':
@@ -414,10 +414,10 @@ class ModbusClientConnector:
             elif action == 'write':
                 self.mb_write(**msg)
             i = 0
-            while len(self.sent) > 0 and self.sleep > 0 and i < 10:
+            while len(self.sent) > 0 and self.sleep > 0:
                 await asyncio.sleep(self.sleep)
                 i += 1
-                if i > 5:
+                if i % 10 == 0:
                     logging.warning(f"queue long {i} {self.sent}")
 
     def write_tag_update(self, addr: str, byte: int, data: bytes):
