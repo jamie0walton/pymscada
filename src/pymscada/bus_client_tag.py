@@ -202,7 +202,7 @@ class TagInt(TagTyped):
             if deadband is not None:
                 deadband = 0
         if deadband is None or self._value is None or \
-                abs(self._value - value) > deadband:
+                abs(self._value - value) >= deadband:
             super().set_value(value, time_us, bus)
             if self._age_us >= 0:
                 self.store()
@@ -339,7 +339,7 @@ class TagFloat(TagTyped):
             if deadband is not None:
                 deadband = 0.0
         if deadband is None or self._value is None or \
-                abs(self._value - value) > deadband:
+                abs(self._value - value) >= deadband:
             super().set_value(value, time_us, bus)
             if self._age_us >= 0:
                 self.store()

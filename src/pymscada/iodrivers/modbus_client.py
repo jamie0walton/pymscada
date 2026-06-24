@@ -176,6 +176,7 @@ class ModbusClientConnector:
         self.make_data()
         self.periodic = Periodic(self.poll, rate)
         self.sent = {}
+        self.max_sent = 5 * (len(self.reads) + len(self.writes))
         self._mbap_tr = 0
 
     async def start_connection(self):
@@ -187,7 +188,7 @@ class ModbusClientConnector:
                     lambda: ModbusClientProtocol(self.process),
                     self.ip, self.port)
         except Exception as e:
-            logging.warning(f'start_connection {e}')
+            logging.info(f'start_connection {e}')
 
     def update_tag_value(self, data_file: str, tagname: str, time_us: int):
         read = self.tags.reads[tagname]
@@ -223,13 +224,13 @@ class ModbusClientConnector:
             value = unpack_from('>d', data, read.byte)[0]
         else:
             return
-        # if value != read.tag.value:
-        logging.warning(f"update_tag_value {read.tag.name} from {data_file} "
-                        f"{read.word} {read.bit} {value}")
-        read.tag.set_value(value, time_us)
+        if read.tag.is_none or value != read.tag.value:
+            logging.debug(f"update_tag_value {read.tag.name} from "
+                          f"{data_file} {read.word} {read.bit} {value}")
+            read.tag.set_value(value, time_us)
 
     def update_tag_values(self, data_file: str, start: int, end: int):
-        logging.warning(f'update_tag_value {data_file} {start} {end}')
+        logging.info(f'update_tag_value {data_file} {start} {end}')
         time_us = int(time() * 1e6)
         update = set()
         for word in range(start // 2, end // 2):
@@ -244,7 +245,7 @@ class ModbusClientConnector:
         write = self.tags.writes[tag.name]
         data_file = f"{write.rtu}:{write.unit}:{write.file}"
         data = self.data[data_file]
-        logging.warning(f"update_write_table {data_file} {write.word} "
+        logging.info(f"update_write_table {data_file} {write.word} "
                         f"{write.bit} from {tag.name} {tag.value}")
         if write.src_type == 'bool':
             word_value = unpack_from('>H', data, write.byte)[0]
@@ -279,8 +280,8 @@ class ModbusClientConnector:
         start = tr['pdu_start'] * 2
         end = start + tr['pdu_count'] * 2
         data_file = f'{self.name}:{tr['unit']}:{tr['file']}'
-        logging.warning(f"set_data {data_file} {start} {end} "
-                        f"{len(data)} {mbap_tr}")
+        logging.info(f"set_data {data_file} {start} {end} "
+                     f"{len(data)} {mbap_tr}")
         self.data[data_file][start:end] = data
         self.update_tag_values(data_file, start, end)
 
@@ -290,29 +291,41 @@ class ModbusClientConnector:
         start = pdu_start * 2
         end = start + pdu_count * 2
         data = self.data[data_file][start:end]
-        logging.warning(f"get_data {data_file} {start} {end} "
-                        f"{len(data)} {mbap_tr}")
+        logging.info(f"get_data {data_file} {start} {end} "
+                     f"{len(data)} {mbap_tr}")
         return data
 
     def process(self, msg):
         """Process received message, match to transaction."""
-        mbap_tr, _mbap_pr, _mbap_len, mbap_unit, pdu_fc = unpack_from(
+        mbap_tr, mbap_pr, mbap_len, mbap_unit, pdu_fc = unpack_from(
             ">3H2B", msg, 0)
         if pdu_fc == 3:
             data = msg[9:]
+            logging.warning(f"process tr {mbap_tr} pr {mbap_pr} "
+                            f"len {mbap_len} unit {mbap_unit} fc {pdu_fc} "
+                            f"data {data[:20].hex(' ')} ...")
             self.set_data(mbap_tr, data)
-            try:
+            if mbap_tr in self.sent:
                 del self.sent[mbap_tr]
-            except KeyError:
-                logging.warning(f"mbap_tr {mbap_tr} not found in sent")
         elif pdu_fc == 16:
             pdu_start, pdu_count = unpack_from(">2H", msg, 8)
-            pass
+            logging.warning(f"process tr {mbap_tr} pr {mbap_pr} "
+                            f"len {mbap_len} unit {mbap_unit} fc {pdu_fc} "
+                            f"data {pdu_start} count {pdu_count}")
+            if mbap_tr in self.sent:
+                del self.sent[mbap_tr]
         elif pdu_fc > 128:
-            errorcode, *_ = unpack_from('>B', msg, 8)
-            logging.error(f"process error {pdu_fc - 128} {errorcode}")
+            error_code, *_ = unpack_from('>B', msg, 8)
+            logging.warning(f"process tr {mbap_tr} pr {mbap_pr} "
+                            f"len {mbap_len} unit {mbap_unit} fc {pdu_fc} "
+                            f"ERROR {pdu_fc - 128} count {error_code}")
+            if mbap_tr in self.sent:
+                del self.sent[mbap_tr]
         else:
-            logging.error(f"process unsupported {pdu_fc}")
+            logging.error(f"process tr {mbap_tr} pr {mbap_pr} "
+                          f"len {mbap_len} unit {mbap_unit} fc {pdu_fc}")
+            if mbap_tr in self.sent:
+                del self.sent[mbap_tr]
 
     def mbap_tr(self):
         """Global transaction number provider."""
@@ -334,13 +347,13 @@ class ModbusClientConnector:
             pdu = pack(">B2H", pdu_fc, pdu_start, pdu_count)
             pdu_len = 5
         else:
-            logging.warning(f"no support for {file}")
+            logging.error(f"no support for {file}")
             return
         mbap_len = pdu_len + 1
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
-        # logging.info(f"TCP read {mbap_unit} {file} {pdu_start} "
-        #                 f"{pdu_count} {msg}")
+        logging.warning(f"Read tr {mbap_tr} unit {mbap_unit} file {file} "
+                        f"pdu_start {pdu_start} count {pdu_count} ")
         self.transport.write(msg)  # type: ignore
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
@@ -360,13 +373,17 @@ class ModbusClientConnector:
                        ) + data
             pdu_len = 6 + pdu_count * 2
         else:
-            logging.warning(f"no support for {file}")
+            logging.error(f"no support for {file}")
             return
         mbap_len = pdu_len + 1
         mbap = pack(">3H1B", mbap_tr, mbap_pr, mbap_len, mbap_unit)
         msg = mbap + pdu
-        # logging.info(f"TCP write {mbap_unit} {file} {start} {end}")
+        logging.warning(f"Write tr {mbap_tr} unit {mbap_unit} file {file} "
+                        f"pdu_start {pdu_start} count {pdu_count} "
+                        f"data {data[:20].hex(' ')} ...")
         self.transport.write(msg)  # type: ignore
+        self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
+                              "pdu_start": pdu_start, "pdu_count": pdu_count}
 
     def make_data(self):
         """Create words for exchange with RTU."""
@@ -391,10 +408,10 @@ class ModbusClientConnector:
         if self.connected == START_UP:
             if offline:
                 await self.start_connection()
-                logging.warning(f"{self.name} connecting")
+                logging.warning(f"poll {self.name} connecting")
             else:
                 self.connected = READ_WRITES
-                logging.warning(f"{self.name} connected")
+                logging.warning(f"poll {self.name} connected")
         elif self.connected == OFFLINE:
             if offline:
                 self.sent = {}
@@ -405,27 +422,31 @@ class ModbusClientConnector:
         if offline:
             self.connected_wait = 5
             self.connected = OFFLINE
+            logging.warning(f"poll {self.name} offline")
             return
-            logging.warning(f"{self.name} offline")
         if self.connected == READ_WRITES:
             for read in self.writes:
                 self.mb_read(**read)
             self.connected = WRITES_READ
             self.connected_wait = 2
-            logging.warning(f"{self.name} read writes")
+            logging.warning(f"poll {self.name} read writes")
         elif self.connected == WRITES_READ:
             if len(self.sent) == 0:
                 self.connected = READ_AND_WRITE
-                logging.warning(f"{self.name} writes read")
+                logging.warning(f"poll {self.name} writes read")
             else:
-                # self.transport.close()  # type: ignore
                 self.connected_wait = 5
         elif self.connected == READ_AND_WRITE:
             for read in self.reads:
                 self.mb_read(**read)
             for write in self.writes:
                 self.mb_write(**write)
-            logging.warning(f"{self.name} read/write")
+            sent_count = len(self.sent)
+            logging.warning(f"poll {self.name} sent {sent_count}")
+            if sent_count > self.max_sent:
+                logging.error(f"poll {sent_count} > {self.max_sent} "
+                              f"closing transport")
+                self.transport.close()  # type: ignore
 
     async def start(self):
         """Start polling."""
