@@ -28,8 +28,7 @@ class MathSum:
         value = sum(self.sum_values.values())
         if self.value is None:
             self.value = value
-        elif abs(self.value - value) > 0.2:
-            logging.info(f"{self.dst_tag.name} = {value:.1f}")
+        else:
             self.dst_tag.value = value
 
     def calculate(self, time_us: int):
@@ -90,7 +89,7 @@ class MathRunner:
 
 class Math:
     def __init__(self, bus_ip: str = '127.0.0.1', bus_port: int = 1324,
-                 config: dict = {}) -> None:
+                 config: dict = {}, tag_info: dict[str, dict] = {}) -> None:
         self.busclient = BusClient(bus_ip, bus_port, module='Math')
         self.busclient.history_tag = TagBytes('__history__')
         self.runner = MathRunner(config)

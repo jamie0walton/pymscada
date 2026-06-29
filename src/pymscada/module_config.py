@@ -72,8 +72,7 @@ def create_module_registry():
         ModuleDefinition(
             name='math',
             help='simple mathematical functions',
-            module_class='pymscada.math:Math',
-            tags=False
+            module_class='pymscada.math:Math'
         ),
         ModuleDefinition(
             name='mpcontrol',

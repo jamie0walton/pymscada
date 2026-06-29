@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from itertools import chain
+import socket
 from struct import pack, unpack, pack_into, unpack_from
 from time import time
 from pymscada.bus_client import BusClient
@@ -113,6 +114,8 @@ class ModbusClientProtocol(asyncio.Protocol):
         self.peername = None
         self.sockname = None
         self.transport = None
+        self.lock = asyncio.Lock()
+        self.response: asyncio.Future | None = None
 
     def connection_lost(self, exc):
         """Modbus connection lost."""
@@ -123,6 +126,9 @@ class ModbusClientProtocol(asyncio.Protocol):
         """Modbus connection made."""
         self.peername = transport.get_extra_info('peername')
         self.sockname = transport.get_extra_info('sockname')
+        sock = transport.get_extra_info('socket')
+        if sock is not None:
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         logging.info(f'connection_made {self.sockname} to {self.peername}')
         # transport.set_write_buffer_limits(high=0)  # type: ignore
         self.transport = transport
@@ -165,6 +171,7 @@ class ModbusClientConnector:
         self.port = port
         self.connected = START_UP
         self.connected_wait = 0
+        self.reconnect = False
         self.transport = None
         self.protocol = None
         self.reads = reads
@@ -427,9 +434,14 @@ class ModbusClientConnector:
         if self.connected == READ_WRITES:
             for read in self.writes:
                 self.mb_read(**read)
-            self.connected = WRITES_READ
-            self.connected_wait = 2
-            logging.warning(f"poll {self.name} read writes")
+            if self.reconnect:
+                self.connected = READ_AND_WRITE
+                self.connected_wait = 2
+                logging.warning(f"poll {self.name} reconnect")
+            else:
+                self.connected = WRITES_READ
+                self.connected_wait = 2
+                logging.warning(f"poll {self.name} read writes")
         elif self.connected == WRITES_READ:
             if len(self.sent) == 0:
                 self.connected = READ_AND_WRITE
@@ -437,6 +449,7 @@ class ModbusClientConnector:
             else:
                 self.connected_wait = 5
         elif self.connected == READ_AND_WRITE:
+            self.reconnect = True
             for read in self.reads:
                 self.mb_read(**read)
             for write in self.writes:

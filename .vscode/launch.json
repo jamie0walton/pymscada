@@ -129,6 +129,7 @@
             "program":"src/pymscada/__main__.py",
             "args": ["math", "--verbose",
                 "--config", "../ani/config/math.yaml",
+                "--tags", "../ani/config/tags.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
