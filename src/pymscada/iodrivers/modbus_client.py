@@ -43,6 +43,7 @@ CONNECT = 2
 READ_WRITES = 3
 WRITES_READ = 4
 READ_AND_WRITE = 5
+MB_TIMEOUT = 1.0
 
 
 class Map:
@@ -114,8 +115,6 @@ class ModbusClientProtocol(asyncio.Protocol):
         self.peername = None
         self.sockname = None
         self.transport = None
-        self.lock = asyncio.Lock()
-        self.response: asyncio.Future | None = None
 
     def connection_lost(self, exc):
         """Modbus connection lost."""
@@ -176,6 +175,8 @@ class ModbusClientConnector:
         self.protocol = None
         self.reads = reads
         self.writes = writes
+        self.lock = asyncio.Lock()
+        self.response: asyncio.Future | None = None
         self.tags = tags
         for write in self.tags.writes.values():
             write.tag.add_callback(self.update_write_table)
@@ -306,6 +307,7 @@ class ModbusClientConnector:
         """Process received message, match to transaction."""
         mbap_tr, mbap_pr, mbap_len, mbap_unit, pdu_fc = unpack_from(
             ">3H2B", msg, 0)
+        expected = mbap_tr in self.sent
         if pdu_fc == 3:
             data = msg[9:]
             logging.warning(f"process tr {mbap_tr} pr {mbap_pr} "
@@ -333,6 +335,9 @@ class ModbusClientConnector:
                           f"len {mbap_len} unit {mbap_unit} fc {pdu_fc}")
             if mbap_tr in self.sent:
                 del self.sent[mbap_tr]
+        if expected and self.response is not None \
+                and not self.response.done():
+            self.response.set_result(mbap_tr)
 
     def mbap_tr(self):
         """Global transaction number provider."""
@@ -341,7 +346,28 @@ class ModbusClientConnector:
             self._mbap_tr = 0
         return self._mbap_tr
 
-    def mb_read(self, unit: int, file: str, start: int, end: int):
+    async def send_and_wait(self, msg, mbap_tr):
+        """Send one ADU and wait for its response before returning.
+
+        The lock guarantees a single in-flight transaction, so requests are
+        never buffered together and TCP cannot coalesce them into one
+        multi-PDU segment. A timeout stops a stalled PLC from hanging the
+        poll loop.
+        """
+        if self.transport is None:
+            return
+        async with self.lock:
+            self.response = asyncio.get_running_loop().create_future()
+            self.transport.write(msg)  # type: ignore
+            try:
+                await asyncio.wait_for(self.response, MB_TIMEOUT)
+            except asyncio.TimeoutError:
+                logging.error(f"{self.name} tr {mbap_tr} response timeout")
+                self.sent.pop(mbap_tr, None)
+            finally:
+                self.response = None
+
+    async def mb_read(self, unit: int, file: str, start: int, end: int):
         """Build read, save the transaction for matching responses."""
         mbap_tr = self.mbap_tr()
         mbap_pr = 0  # protocol always 0
@@ -361,11 +387,11 @@ class ModbusClientConnector:
         msg = mbap + pdu
         logging.warning(f"Read tr {mbap_tr} unit {mbap_unit} file {file} "
                         f"pdu_start {pdu_start} count {pdu_count} ")
-        self.transport.write(msg)  # type: ignore
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
+        await self.send_and_wait(msg, mbap_tr)
 
-    def mb_write(self, unit: int, file: str, start: int, end: int):
+    async def mb_write(self, unit: int, file: str, start: int, end: int):
         """Build write, save transaction to match."""
         mbap_tr = self.mbap_tr()
         mbap_pr = 0  # protocol always 0
@@ -388,9 +414,9 @@ class ModbusClientConnector:
         logging.warning(f"Write tr {mbap_tr} unit {mbap_unit} file {file} "
                         f"pdu_start {pdu_start} count {pdu_count} "
                         f"data {data[:20].hex(' ')} ...")
-        self.transport.write(msg)  # type: ignore
         self.sent[mbap_tr] = {"unit": mbap_unit, "file": file,
                               "pdu_start": pdu_start, "pdu_count": pdu_count}
+        await self.send_and_wait(msg, mbap_tr)
 
     def make_data(self):
         """Create words for exchange with RTU."""
@@ -433,7 +459,7 @@ class ModbusClientConnector:
             return
         if self.connected == READ_WRITES:
             for read in self.writes:
-                self.mb_read(**read)
+                await self.mb_read(**read)
             if self.reconnect:
                 self.connected = READ_AND_WRITE
                 self.connected_wait = 2
@@ -451,9 +477,9 @@ class ModbusClientConnector:
         elif self.connected == READ_AND_WRITE:
             self.reconnect = True
             for read in self.reads:
-                self.mb_read(**read)
+                await self.mb_read(**read)
             for write in self.writes:
-                self.mb_write(**write)
+                await self.mb_write(**write)
             sent_count = len(self.sent)
             logging.warning(f"poll {self.name} sent {sent_count}")
             if sent_count > self.max_sent:
