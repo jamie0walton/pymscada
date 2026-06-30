@@ -184,7 +184,8 @@ class ModbusClientConnector:
         self.make_data()
         self.periodic = Periodic(self.poll, rate)
         self.sent = {}
-        self.max_sent = 5 * (len(self.reads) + len(self.writes))
+        self.timeouts = 0
+        self.max_timeouts = 3
         self._mbap_tr = 0
 
     async def start_connection(self):
@@ -361,9 +362,10 @@ class ModbusClientConnector:
             self.transport.write(msg)  # type: ignore
             try:
                 await asyncio.wait_for(self.response, MB_TIMEOUT)
+                self.timeouts = 0
             except asyncio.TimeoutError:
-                logging.error(f"{self.name} tr {mbap_tr} response timeout")
                 self.sent.pop(mbap_tr, None)
+                self.timeouts += 1
             finally:
                 self.response = None
 
@@ -448,6 +450,7 @@ class ModbusClientConnector:
         elif self.connected == OFFLINE:
             if offline:
                 self.sent = {}
+                self.timeouts = 0
                 self.connected_wait = 5
                 await self.start_connection()
             else:
@@ -480,11 +483,10 @@ class ModbusClientConnector:
                 await self.mb_read(**read)
             for write in self.writes:
                 await self.mb_write(**write)
-            sent_count = len(self.sent)
-            logging.warning(f"poll {self.name} sent {sent_count}")
-            if sent_count > self.max_sent:
-                logging.error(f"poll {sent_count} > {self.max_sent} "
-                              f"closing transport")
+            logging.warning(f"poll {self.name} timeouts {self.timeouts}")
+            if self.timeouts > self.max_timeouts:
+                logging.error(f"poll {self.name} {self.timeouts} consecutive "
+                              f"timeouts, closing transport")
                 self.transport.close()  # type: ignore
 
     async def start(self):
