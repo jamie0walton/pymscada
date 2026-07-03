@@ -46,8 +46,6 @@ def standardise_tag_info(tagname: str, tag: dict):
     if 'desc' not in tag:
         logging.warning(f"Tag {tagname} has no description, using name")
         tag['desc'] = tag['name']
-    if 'group' not in tag:
-        tag['group'] = ''
     if 'multi' in tag:
         tag['type'] = int
     else:
@@ -106,8 +104,7 @@ class Alarm():
     Notifies Alarms of state changes via state callback.
     """
 
-    def __init__(self, tagname: str, tag: dict, alarm: str, group: str,
-                 state_cb) -> None:
+    def __init__(self, tagname: str, tag: dict, alarm: str, state_cb):
         """Initialize alarm with tag and condition(s)."""
         self.alarm_id = f'{tagname} {alarm}'
         self.tag = Tag(tagname, tag['type'])
@@ -115,7 +112,6 @@ class Alarm():
         self.tag.dp = tag['dp']
         self.tag.units = tag['units']
         self.tag.add_callback(self.callback)
-        self.group = group
         self.state_cb = state_cb
         self.timing_value = None
         self.timing_us = None
@@ -211,9 +207,8 @@ class Alarms:
             standardise_tag_info(tagname, tag)
             if 'alarm' not in tag or tag['type'] not in (int, float):
                 continue
-            group = tag['group']
             for alarm in tag['alarm']:
-                new_alarm = Alarm(tagname, tag, alarm, group, self.state_cb)
+                new_alarm = Alarm(tagname, tag, alarm, self.state_cb)
                 self.alarms.append(new_alarm)
         self.busclient = BusClient(bus_ip, bus_port, module='Alarms')
         self.rta = Tag(rta_tag, dict)
@@ -253,7 +248,7 @@ class Alarms:
             'alarm_string': self.rta.name,
             'kind': INF,
             'desc': 'Alarm logging started',
-            'group': '__system__'
+            'group': ''
         }
         self.rta_cb(startup_record)
 
@@ -293,7 +288,7 @@ class Alarms:
             'kind': kind,
             'desc': f'{alarm.tag.desc} {value:.{alarm.tag.dp}f}'
                     f' {alarm.tag.units}',
-            'group': alarm.group
+            'group': ''
         })
 
     def rta_cb(self, request):
@@ -330,7 +325,7 @@ class Alarms:
                         'alarm_string': res[2],
                         'kind': res[3],
                         'desc': res[4],
-                        'group': res[5]
+                        'group': ''
                     }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
@@ -352,7 +347,7 @@ class Alarms:
                                 'alarm_string': res[2],
                                 'kind': res[3],
                                 'desc': res[4],
-                                'group': res[5]
+                                'group': ''
                             }
                     else:
                         self.cursor.execute(
@@ -372,7 +367,7 @@ class Alarms:
                                     'alarm_string': res[2],
                                     'kind': res[3],
                                     'desc': res[4],
-                                    'group': res[5]
+                                    'group': ''
                                 }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb update {error}')
@@ -391,7 +386,7 @@ class Alarms:
                             'alarm_string': res[2],
                             'kind': res[3],
                             'desc': res[4],
-                            'group': res[5]
+                            'group': ''
                         }
             except sqlite3.IntegrityError as error:
                 logging.warning(f'Alarms rta_cb {error}')
@@ -461,7 +456,7 @@ class Alarms:
                         'alarm_string': alarm.alarm_id,
                         'kind': ACT,
                         'desc': desc,
-                        'group': alarm.group
+                        'group': ''
                     })
                     break
  

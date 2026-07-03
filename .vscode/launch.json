@@ -47,7 +47,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["callout", "--verbose",
-                "--config", "../config/callout.yaml",
+                "--config", "../ani/config/callout.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -284,7 +284,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["sms", "--verbose",
-                "--config", "../config/sms.yaml",
+                "--config", "../ani/config/sms.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true

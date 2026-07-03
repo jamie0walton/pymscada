@@ -449,8 +449,9 @@ class TagStr(TagTyped):
     @property
     def packed_value(self) -> bytes:
         """Return packed string value for bus protocol."""
-        size = len(self.value)
-        return struct.pack(f'!B{size}s', pc.TYPE.STR, self.value.encode())
+        encoded_str = self.value.encode()
+        size = len(encoded_str)
+        return struct.pack(f'!B{size}s', pc.TYPE.STR, encoded_str)
 
     def set_packed_value(self, value: bytes, time_us: int, bus: int):
         """Unpack packed string value and set it."""
