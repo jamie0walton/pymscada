@@ -1035,6 +1035,8 @@ class Match(Constraint):
 
     def create_lp(self, m: HydraulicModel):
         # TODO need a condition for when generators are not free
+        if self.state1 != FREE or self.state2 != FREE:
+            return
         for t in m.times:
             if t < m.set_time:
                 continue

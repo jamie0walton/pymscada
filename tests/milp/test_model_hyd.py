@@ -709,6 +709,71 @@ def test_twogensemi(tmp_path):
     m.remove_result()
 
 
+def test_twogenonefixed(tmp_path):
+    """MW output semi-continuous."""
+    power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
+    power2 = TimeSeries({1522494000: 5.2, 1522494300: 5.1})
+    model = {
+        'name': 'test',
+        'actual_time': 1522494300,
+        'time_step': 600,
+        'duration': 1200,
+        'logdir': str(tmp_path),
+        'model': {
+            'G1': {
+                'type': 'generator',
+                'time_series': power1,
+                'state': FREE,
+                'ranges': [
+                    [0.0],
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'G2': {
+                'type': 'generator',
+                'time_series': power2,
+                'state': FIXED,
+                'ranges': [
+                    [0.0],
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'MWset': {
+                'type': 'cost',
+                'cost': 10,
+                'measurement': 'power',
+                'elements': [
+                    'G1',
+                    'G2',
+                ],
+                'timeofday': [
+                    [0, 3.0],
+                    [600, 14.0],
+                    [1200, 22.0]
+                ]
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
+    times = list(results['G1']['Power'].keys())[:5]
+    g1_power = [results['G1']['Power'][t] for t in times]
+    g1_flow = [results['G1']['Flow'][t] for t in times]
+    g2_power = [results['G2']['Power'][t] for t in times]
+    g2_flow = [results['G2']['Flow'][t] for t in times]
+    station = [sum(i) for i in zip(g1_power, g2_power)]
+    station_flow = [sum(i) for i in zip(g1_flow, g2_flow)]
+    assert station == pytest.approx([13.6, 13.6, 6.8, 14.0, 19.6])
+    assert station_flow == pytest.approx([44.4, 44.4, 22.2, 45.4, 69.9])
+    assert m.lp.solutioncost == pytest.approx(62.0)
+    m.remove_result()
+
+
 def test_twogensemi2(tmp_path):
     """MW output semi-continuous, 2 generators."""
     power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
@@ -1700,6 +1765,243 @@ def test_lake_bid_minflow(tmp_path):
                     'G1',
                     'G2'
                 ],
+            }
+        }
+    }
+    m = HydraulicModel(model, timeout=3600)
+    m.solve_lp()
+    results = m.lp.resultsdict
+    if results is None:
+        pytest.fail('results is None')
+    times = sorted(results['Lake_Aniwhenua']['Level'].keys())
+    level = get_samples(m, 'Lake_Aniwhenua', 'Level', times)
+    barrage = get_samples(m, 'Barrage', 'Flow', times)
+    g1_power = get_samples(m, 'G1', 'Power', times)
+    g2_power = get_samples(m, 'G2', 'Power', times)
+    station = [sum(i) for i in zip(g1_power, g2_power)]
+    bid = list(results['Gen']['Bid'].values())
+    assert level == pytest.approx([146.6, 146.6, 146.636, 146.672, 146.708,
+                                   146.75, 146.77, 146.78, 146.769, 146.758,
+                                   146.751, 146.751, 146.75, 146.75, 146.75,
+                                   146.758, 146.779, 146.8, 146.808, 146.805,
+                                   146.803, 146.8], abs=0.001)
+    assert barrage == pytest.approx([2.5, 0.0, 6.3, 6.3, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    assert station == pytest.approx([6.8, 7.4, 7.4, 7.4, 7.4, 12.4, 17.4,
+                                     22.4, 22.4, 21.827, 20.782, 20.782,
+                                     20.782, 20.782, 18.6, 13.6, 13.6, 18.6,
+                                     21.168, 21.168, 21.168, 21.168], abs=0.001)
+    assert bid == pytest.approx([6.9, 6.9, 6.9, 6.9, 12.4, 17.4, 22.4, 22.4,
+                                 21.827, 20.782, 20.782, 20.782, 20.782, 18.6,
+                                 13.6, 13.6, 18.6, 21.168, 21.168, 21.168,
+                                 21.168], abs=0.001)
+    assert m.lp.solutioncost == pytest.approx(6840126116.8)
+    m.remove_result()
+
+
+def test_lake_bid_minflow_match(tmp_path):
+    """Add rate of change limit."""
+    # Results changed slightly for this one, the overall cost was almost
+    # identical so call it ok.
+    upper = TimeSeries({1522494000: 65.0})
+    sysinflow = TimeSeries({1522493400: 65.0})
+    barrage = TimeSeries({1522494000: 2.5})
+    tail = TimeSeries({1522492200: 2.5})
+    sysoutflow = TimeSeries({1522494000: 7.0})
+    power1 = TimeSeries({1522492200: 6.2, 1522494000: 6.0})
+    power2 = TimeSeries({1522492200: 0.2, 1522494000: 0.0})
+    lake = TimeSeries(146.6)
+    model = {
+        'name': 'test',
+        'actual_time': 1522494300,
+        'time_step': 1800,
+        'duration': 36000,
+        'logdir': str(tmp_path),
+        'model': {
+            'System_Inflow': {
+                'type': 'valve',
+                'time_series': sysinflow,
+                'dstnode': 'Galatea_Site',
+                'state': FIXED
+            },
+            'Galatea_Site': {
+                'type': 'summing'
+            },
+            'Upper': {
+                'type': 'river',
+                'time_series': upper,
+                'delay': 1800,
+                'srcnode': 'Galatea_Site',
+                'dstnode': 'Lake_Aniwhenua',
+                'history': upper
+            },
+            'Lake_Aniwhenua': {
+                'type': 'storage',
+                'time_series': lake,
+                # 'low': 146.6,
+                # 'high': 146.8,
+                # 'limitcost': 10000.0,
+                'LV': LV,
+                'costs': [
+                    [146.5, 146.6, 146.8, 146.9],
+                    [[1, 0.0000001], [0, 0], [0.0000001, 1]]
+                ]
+            },
+            'G1': {
+                'type': 'generator',
+                'time_series': power1,
+                'state': FREE,
+                'srcnode': 'Lake_Aniwhenua',
+                'ranges': [
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'G2': {
+                'type': 'generator',
+                'time_series': power2,
+                'state': FREE,
+                'srcnode': 'Lake_Aniwhenua',
+                'startlimit': [1, 1200, 1000.0],
+                'ranges': [
+                    [0.0],
+                    [6.8, 12.8]
+                ],
+                'PQ': PQ
+            },
+            'Barrage': {
+                'type': 'valve',
+                'time_series': barrage,
+                'state': FREE,
+                'srcnode': 'Lake_Aniwhenua',
+                'dstnode': 'Barrage_Tail'
+            },
+            'Barrage_Flow_Cost': {
+                'type': 'cost',
+                'cost': 10000.0,
+                'measurement': 'flow',
+                'elements': [
+                    'Barrage',
+                ],
+                'timeofday': [
+                    [0, 0.0],
+                ]
+            },
+            'Barrage_Tail': {
+                'type': 'summing'
+            },
+            'Lower': {
+                'type': 'river',
+                'time_series': tail,
+                'delay': 1800,
+                'srcnode': 'Barrage_Tail'
+            },
+            'System_Outflow_Consent': {
+                'type': 'consent',
+                'cost': 900000000,
+                'elements': ['Lower', 'G1', 'G2'],
+                'day': 30.0,
+                'night': 30.0
+            },
+            'G1Change': {
+                'type': 'change_cost',
+                'cost': 0.1,
+                'element': 'G1'
+            },
+            'G2Change': {
+                'type': 'change_cost',
+                'cost': 0.1,
+                'element': 'G2'
+            },
+            'Delta': {
+                'type': 'delta_cost',
+                'cost': 0.1,
+                'elements': ['G1', 'G2']
+            },
+            'LakeProfile': {
+                'type': 'profile',
+                'cost': 0.0001,
+                'lowcost': 0.00001,
+                'element': 'Lake_Aniwhenua',
+                'timeofday': [
+                    [0 * 3600, 146.6],
+                    [2 * 3600, 146.8],
+                    [4 * 3600, 146.6],
+                    [6 * 3600, 146.8],
+                    [8 * 3600, 146.6],
+                    [10 * 3600, 146.8],
+                    [12 * 3600, 146.6],
+                    [14 * 3600, 146.8],
+                    [16 * 3600, 146.6],
+                ],
+                'LV': LV
+            },
+            'Bid': {
+                'type': 'bid_offer',
+                'band': 0.5,
+                'elements': [
+                    'G1',
+                    'G2'
+                ],
+                'active_bid': 6.9,
+                'window': 90 * 60 + 90,
+                'states': [None, None, 0, 'OFF'],
+                'bid_offer': {
+                    'period': [
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+                        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+                        40, 41, 42, 43, 44, 45, 46, 47, 48
+                    ],
+                    'setpoint': [
+                        6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9,
+                        6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9,
+                        6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9,
+                        6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9,
+                        6.9, 6.9, 6.9, 6.9
+                    ]
+                },
+                'outage': {
+                    'times': BID_OFFER_OUTAGE_TIMES,
+                    'setpoint': [
+                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    ]
+                }
+            },
+            'MWRate': {
+                'type': 'step_cost',
+                # high cost + narrow band really hurts solve time
+                'incost': 0.1,
+                'outcost': 10000,
+                'band': 5.0,
+                'elements': [
+                    'G1',
+                    'G2'
+                ],
+            },
+            'Match': {
+                'type': 'match',
+                'elements': [
+                    'G1',
+                    'G2'
+                ],
+                'states': [
+                    [['G1', 'G', 7.0]],
+                    [['G2', 'G', 7.0]],
+                    [['G1', 'G', 7.0], ['G2', 'G', 7.0]],
+                    [['G1', 'E', 0.0]],
+                    [['G2', 'E', 0.0]]
+                ],
+                'outage': {
+                    'times': [1522494000 + 1800 * x for x in range(30)],
+                    'period': [1 + x for x in range(30)],
+                    'setpoint': [0 for x in range(30)]
+                },
+                'state1': FREE,
+                'state2': FREE
             }
         }
     }
