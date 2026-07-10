@@ -91,6 +91,10 @@ class BusConnection():
     def write(self, command: pc.COMMAND, tag_id: int, time_us: int,
               data: bytes):
         """Write a message."""
+        if self.writer.is_closing():
+            if not self.read_task.done():
+                self.read_task.cancel()
+            return
         if data is None:
             data = b''
         for i in range(0, len(data) + 1, pc.MAX_LEN):
@@ -98,11 +102,7 @@ class BusConnection():
             size = len(snip)
             msg = pack(f"!BBHHQ{size}s", PROTOCOL_VERSION, command, tag_id,
                        size, time_us, snip)
-            try:
-                self.writer.write(msg)
-            except (asyncio.IncompleteReadError, ConnectionResetError) as e:
-                logging.warning(f'write {BusTags._tag_by_id[tag_id]} {e}')
-                self.read_task.cancel()
+            self.writer.write(msg)
 
     async def read(self):
         """Read forever."""
