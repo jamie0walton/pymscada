@@ -1,5 +1,6 @@
 """Callout handling."""
 import logging
+import random
 import socket
 import time
 from pymscada.bus_client import BusClient
@@ -32,6 +33,29 @@ CALLOUT = 2
 
 SENT = 0
 REMIND = 1
+
+
+def friendly_message(name: str) -> str:
+    """Return a random friendly reply using the callee's first name."""
+    firstname = name.split()[0] if name.strip() else name
+    messages = [
+        f"Great observation {firstname}. Thank you.",
+        f"Thanks {firstname}, that's helpful.",
+        f"Nice catch {firstname}, appreciate it.",
+        f"Good spot {firstname}, thanks.",
+        f"Cheers {firstname}, noted.",
+        f"Thanks for the update {firstname}.",
+        f"Appreciate you letting us know {firstname}.",
+        f"Good to hear from you {firstname}, thanks.",
+        f"Well spotted {firstname}, cheers.",
+        f"Thanks {firstname}, we'll take it from here.",
+        f"Much appreciated {firstname}.",
+        f"Roger that {firstname}, thanks.",
+        f"Got it {firstname}, thanks for the heads up.",
+        f"Thanks for keeping an eye out {firstname}.",
+        f"Legend {firstname}, thanks for that.",
+    ]
+    return random.choice(messages)
 
 
 class CalloutCallee:
@@ -227,7 +251,7 @@ class Callout:
         else:
             self.sms_send_tag.value = {
                 'number': number,
-                'message': f"Great observation {ack_name}. Thank you."
+                'message': friendly_message(ack_name)
             }
 
 
