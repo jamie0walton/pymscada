@@ -11,6 +11,122 @@ from pymscada.periodic import Periodic
 from pymscada.tag import Tag
 
 
+class RUT240:
+    """RUT240 SMS modem."""
+    # disable RMS settings
+    # just use admin for api call, too damned obscure to configure
+    # need to configure SMS to http gateway for incoming SMS
+    # point to this server, use aiohttp to serve, awkward but
+    # by exception so fast and light
+    # set the http forward to use sms_number and sms_message
+    # If keeping it simple (i.e. limit to SMS and LAN)
+    # Network WAN - turn all off, LAN - static, Wireless - turn off
+    
+    
+    def __init__(self, ip: str = None, username: str = None,
+                 password: str = None, port: int = 8080,
+                 recv_cb: Callable = None, info: dict = {}):
+        if ip is None:
+            raise ValueError('ip is required')
+        if username is None:
+            raise ValueError('username is required')
+        if password is None:
+            raise ValueError('password is required')
+
+        self.ip = ip
+        self.username = username
+        self.password = password
+        self.port = port
+        self.recv_cb = recv_cb
+        self.tags = {}
+        for info, tagname in info.items():
+            self.tags[info] = Tag(tagname, str)
+        self.token = None
+        self.modem = None
+        self.carrier = None
+        self.webapp = None
+
+    async def login(self):
+        url = f'https://{self.ip}/api/login'
+        json = {'username': self.username,
+                'password': self.password}
+        headers = {'Content-Type': 'application/json'}
+        async with ClientSession() as session:
+            async with session.post(url, json=json, headers=headers,
+                    ssl=False) as response:
+                if response.status == 200:
+                    resp = await response.json()
+                    self.token = resp['data']['token']
+                    logging.info(f'RUT241 login token {self.token}')
+                else:
+                    logging.error(f'RUT241 login error {response.status} '
+                                  f'{response.text}')
+
+    async def get_modem_info(self):
+        if self.token is None:
+            await self.login()
+        if self.token is None:
+            return
+        url = f'https://{self.ip}/api/modems/apns/status'
+        headers = {'Authorization': f'Bearer {self.token}'}
+        async with ClientSession() as session:
+            async with session.get(url, headers=headers, ssl=False) as response:
+                if response.status == 200:
+                    resp = await response.json()
+                    self.modem = next(find_nodes('modem', resp))['modem']
+                    self.carrier = next(find_nodes('carrier', resp))['carrier']
+                    logging.info(f'RUT241 {self.modem} on {self.carrier}')
+                else:
+                    self.token = None
+                    logging.error(f'RUT241 lost token {response.status} '
+                                  f'{response.text}')
+
+    async def send_sms(self, phone: str, message: str):
+        url = f'https://{self.ip}/api/messages/actions/send'
+        headers = {'Authorization': f'Bearer {self.token}',
+                   'Content-Type': 'application/json'}
+        json = {'data': {
+                    'number': phone,
+                    'message': message,
+                    'modem': self.modem
+                }}
+        logging.info(f'RUT241 {json}')
+        async with ClientSession() as session:
+            async with session.post(url, headers=headers, json=json, ssl=False) as response:
+                if response.status == 200:
+                    resp = await response.json()
+                    logging.info(f'RUT241 {resp}')
+                else:
+                    logging.error(f'RUT241 {response.status} {response.text}')
+
+    async def listen_sms(self):
+        webserver = web.Application()
+        
+        async def post_handler(request):
+            data = await request.post()
+            if data['sms_message'][:2].upper() == 'IN':
+                tag = self.tags['__default__']
+                if tag.value is None:
+                    message = '__default__'
+                else:
+                    message = tag.value
+                asyncio.create_task(self.send_sms(data['sms_number'], message))
+                return web.Response(text='OK', status=200)
+            if self.recv_cb is not None:
+                self.recv_cb(dict(data))
+            return web.Response(text='OK', status=200)
+        
+        webserver.router.add_post('/', post_handler)
+        self.webapp = web.AppRunner(webserver)
+        await self.webapp.setup()
+        site = web.TCPSite(self.webapp, '0.0.0.0', self.port)
+        await site.start()
+
+    async def stop_listening(self):
+        if self.webapp is not None:
+            await self.webapp.cleanup()
+
+
 class RUT241:
     """RUT241 SMS modem."""
     # disable RMS settings
@@ -163,7 +279,11 @@ class SMS:
             raise ValueError('sms_send_tag must be a non-empty string')
         if not isinstance(sms_recv_tag, str) or not sms_recv_tag:
             raise ValueError('sms_recv_tag must be a non-empty string')
-        if modem == 'rut241':
+        if modem == 'rut240':
+            self.modem = RUT241(ip=modem_ip, username=username,
+                                password=password, port=listen_port,
+                                recv_cb=self.sms_recv_cb, info=info)
+        elif modem == 'rut241':
             self.modem = RUT241(ip=modem_ip, username=username,
                                 password=password, port=listen_port,
                                 recv_cb=self.sms_recv_cb, info=info)

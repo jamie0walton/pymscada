@@ -234,6 +234,7 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.COMMAND.ERR, tag_id, time_us,
                     f"SUBscribe KeyError {tag_id}".encode())
+                return
             self.connections[bus_id].write(pc.COMMAND.SET, tag_id, tag.time_us,
                                            tag.value)
             tag.add_callback(self.publish, bus_id)
@@ -254,6 +255,7 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.COMMAND.ERR, tag_id, time_us,
                     f"GET KeyError for {tag_id}".encode())
+                return
             self.connections[bus_id].write(pc.COMMAND.SET, tag.id, tag.time_us,
                                            tag.value)
         elif cmd == pc.COMMAND.UNSUB:
@@ -263,6 +265,7 @@ class BusServer:
                 self.connections[bus_id].write(
                     pc.COMMAND.ERR, tag_id, time_us,
                     f"UNSubscribe KeyError for {tag_id}".encode())
+                return
             tag.del_callback(self.publish, bus_id)
         elif cmd == pc.COMMAND.LIST:
             tagname_list = []
