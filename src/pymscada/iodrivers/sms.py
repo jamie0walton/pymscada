@@ -24,9 +24,8 @@ class RUT240:
     # Network WAN - turn all off, LAN - static, Wireless - turn off
     
     
-    def __init__(self, ip: str = None, username: str = None,
-                 password: str = None, port: int = 8080,
-                 recv_cb: Callable = None, info: dict = {}):
+    def __init__(self, ip: str, username: str, password: str, port: int,
+                 recv_cb: Callable, info: dict = {}):
         if ip is None:
             raise ValueError('ip is required')
         if username is None:
@@ -101,10 +100,7 @@ class RUT240:
             sms = {'sms_number': number, 'sms_message': message}
             if message[:2].upper() == 'IN':
                 tag = self.tags['__default__']
-                if tag.value is None:
-                    reply = '__default__'
-                else:
-                    reply = tag.value
+                reply = tag.value if tag.value is not None else '__default__'
                 asyncio.create_task(self.send_sms(number, reply))
                 return web.Response(text='OK', status=200)
             if self.recv_cb is not None:
@@ -134,9 +130,8 @@ class RUT241:
     # Network WAN - turn all off, LAN - static, Wireless - turn off
     
     
-    def __init__(self, ip: str = None, username: str = None,
-                 password: str = None, port: int = 8080,
-                 recv_cb: Callable = None, info: dict = {}):
+    def __init__(self, ip: str, username: str, password: str, port: int,
+                 recv_cb: Callable, info: dict = {}):
         if ip is None:
             raise ValueError('ip is required')
         if username is None:
@@ -215,16 +210,16 @@ class RUT241:
         
         async def post_handler(request):
             data = await request.post()
-            if data['sms_message'][:2].upper() == 'IN':
+            number = data.get('sms_number')
+            text = data.get('sms_message')
+            if not isinstance(number, str) or not isinstance(text, str):
+                logging.warning(f"not str {data}")
+            elif text[:2].upper() == 'IN':
                 tag = self.tags['__default__']
-                if tag.value is None:
-                    message = '__default__'
-                else:
-                    message = tag.value
-                asyncio.create_task(self.send_sms(data['sms_number'], message))
-                return web.Response(text='OK', status=200)
-            if self.recv_cb is not None:
-                self.recv_cb(dict(data))
+                reply = tag.value if tag.value is not None else '__default__'
+                asyncio.create_task(self.send_sms(number, reply))
+            elif self.recv_cb is not None:
+                self.recv_cb({'sms_number': number, 'sms_message': text})
             return web.Response(text='OK', status=200)
         
         webserver.router.add_post('/', post_handler)
@@ -274,6 +269,16 @@ class SMS:
             raise ValueError('sms_send_tag must be a non-empty string')
         if not isinstance(sms_recv_tag, str) or not sms_recv_tag:
             raise ValueError('sms_recv_tag must be a non-empty string')
+        if not isinstance(modem, str) or modem not in ['rut240', 'rut241']:
+            raise ValueError('modem must be "rut240" or "rut241"')
+        if modem_ip is None:
+            raise ValueError('modem_ip is required')
+        if username is None:
+            raise ValueError('username is required')
+        if password is None:
+            raise ValueError('password is required')
+        if not isinstance(listen_port, int):
+            raise TypeError('listen_port must be an integer')
         if modem == 'rut240':
             self.modem = RUT240(ip=modem_ip, username=username,
                                 password=password, port=listen_port,

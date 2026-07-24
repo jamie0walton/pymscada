@@ -20,3 +20,8 @@ Mandatory rules for documentation files, markdown and txt:
 - Be concise
 - Be correct
 - Add empty lines around headings, paragraphs, lists and code sections, nowhere else.
+
+Track a roadmap for the project:
+- Confirm with me before changing the roadmap
+- Save details in copilot-roadmap.md
+- Update status of each item in the roadmap as it progresses

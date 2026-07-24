@@ -218,7 +218,7 @@ class Callout:
         others = [callee for callee in self.callees
                     if callee.name in update_callee]
         for callee in others:
-            if callee == ack_name:
+            if callee == ack_name and not 'unacked' in ack_str:
                 continue
             self.sms_send_tag.value = {
                 'number': callee.sms,

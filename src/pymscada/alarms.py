@@ -121,7 +121,8 @@ class Alarm():
 
     def callback(self, tag: Tag):
         """Handle tag value changes and generate ALM/RTN messages."""
-        if tag.value is None or tag.time_us < self.disabled_until:
+        if tag.value is None or self.disabled_until == -1 or \
+                tag.time_us < self.disabled_until:
             return
         value = float(tag.value)
         new_in_alarm = False
@@ -406,6 +407,7 @@ class Alarms:
             self.rta.value = {'__rta_id__': request['__rta_id__'],
                               'data': {'in_alarm': list(self.in_alarm)}}
         elif request['action'] == 'ENABLE':
+            logging.warning(f"Enable: {request}")
             time_us = int(time.time() * 1000000)
             local_time = time.localtime(time_us / 1000000)
             for alarm in self.alarms:
@@ -414,6 +416,7 @@ class Alarms:
                     if enable == 'Enable':
                         disabled_until_us = 0
                     else:
+                        disabled_until_us = None
                         if enable == 'Disable until 8am':
                             target_hour = 8
                             target_day_offset = 0
@@ -426,21 +429,27 @@ class Alarms:
                             target_hour = 8
                             target_day_offset = (0 - local_time.tm_wday) % 7
                             next_offset = 7
+                        elif enable == 'Disable Forever':
+                            target_hour = 0
+                            target_day_offset = 1000
+                            next_offset = 1
+                            disabled_until_us = -1
                         else:
                             disabled_until_us = 0
                             break
-                        target_s = time.mktime((
-                            local_time.tm_year, local_time.tm_mon,
-                            local_time.tm_mday + target_day_offset,
-                            target_hour, 0, 0, 0, 0, -1
-                        ))
-                        if target_s * 1000000 <= time_us:
+                        if disabled_until_us is None:
                             target_s = time.mktime((
                                 local_time.tm_year, local_time.tm_mon,
-                                local_time.tm_mday + next_offset, 
+                                local_time.tm_mday + target_day_offset,
                                 target_hour, 0, 0, 0, 0, -1
                             ))
-                        disabled_until_us = int(target_s * 1000000)
+                            if target_s * 1000000 <= time_us:
+                                target_s = time.mktime((
+                                    local_time.tm_year, local_time.tm_mon,
+                                    local_time.tm_mday + next_offset, 
+                                    target_hour, 0, 0, 0, 0, -1
+                                ))
+                            disabled_until_us = int(target_s * 1000000)
                     alarm.disabled_until = disabled_until_us
                     ts = time.strftime(
                         "%Y-%m-%d %H:%M:%S",
@@ -448,6 +457,8 @@ class Alarms:
                     )
                     if disabled_until_us == 0:
                         desc = 'Enable'
+                    elif disabled_until_us == -1:
+                        desc = 'Disabled Forever (restart TO DO)'
                     else:
                         desc = f'Disable until {ts}'
                     self.rta_cb({
