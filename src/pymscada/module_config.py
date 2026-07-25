@@ -101,12 +101,15 @@ def create_module_registry():
             tags=False,
             await_future=False,
             epilog=dedent("""
+                You MUST run inside your target config folder:
+                  cd /path/to/config
+                  pymscada checkout --paths
                 To add to systemd:
                   su -
-                  cd /lib/systemd/system
-                  cp config/pymscada-bus.service .
-                  systemctl enable pymscada-bus
-                  systemctl start pymscada-bus"""),
+                  cd /etc/systemd/system
+                  ln -s /path/to/project/systemd/ms-bus.service .
+                  systemctl start ms-bus
+                  repeat as needed for other modules."""),
             extra_args=[
                 ModuleArgument(
                     ('--overwrite',),
@@ -117,6 +120,11 @@ def create_module_registry():
                     ('--diff',),
                     {'action': 'store_true', 'default': False,
                      'help': 'compare default with existing'}
+                ),
+                ModuleArgument(
+                    ('--paths',),
+                    {'action': 'store_true', 'default': False,
+                     'help': 'show paths used for substitution'}
                 )
             ]
         ),

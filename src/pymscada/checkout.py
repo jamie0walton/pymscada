@@ -15,14 +15,14 @@ class Checkout:
             '__PYTHON__': Path(f'{sys.exec_prefix}/bin/python').absolute(),
             '__PYMSCADA__': Path(sys.argv[0]).absolute(),
             '__DIR__': Path('.').absolute(),
-            '__HOME__': Path.home().absolute(),
+            # '__HOME__': Path.home().absolute(),
             '__USER__': getpass.getuser()
         }
         if sys.platform == "win32":
             self.path['__PYTHON__'] = Path(f'{sys.exec_prefix}/python.exe').absolute()
-        
         self.overwrite = kwargs.get('overwrite', False)
         self.diff = kwargs.get('diff', False)
+        self.paths = kwargs.get('paths', False)
 
     def make_history(self):
         """Make the history folder if missing."""
@@ -91,12 +91,14 @@ class Checkout:
 
     async def start(self):
         """Execute checkout process."""
-        for name in ['__PYTHON__', '__PYMSCADA__', '__DIR__', '__HOME__']:
+        for name in ['__PYTHON__', '__PYMSCADA__', '__DIR__']:
             if not self.path[name].exists():
                 raise SystemExit(f'{self.path[name]} is missing')
         
         if self.diff:
             self.compare_config()
+        elif self.paths:
+            print('\n'.join([f'{k} = {v}' for k, v in self.path.items()]))
         else:
             self.make_history()
             self.make_pdf()

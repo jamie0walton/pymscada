@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ alarms --config __DIR__/yaml/alarms.yaml --tags __DIR__/config/tags.yaml
+    ExecStart=__PYMSCADA__ alarms --config __DIR__/yaml/alarms.yaml --tags __DIR__/yaml/tags.yaml
     Restart=always
     RestartSec=5
     User=__USER__

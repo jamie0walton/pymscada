@@ -1,16 +1,18 @@
 """Read config, either from command line argument or from resources."""
 import importlib.resources
+from itertools import chain
 import logging
 import os
 import re
 from pathlib import Path
 from yaml import safe_load_all, YAMLError
-from pymscada import demo, pdf
+from pymscada import systemd, yaml
 
 
 def get_demo_file(filename: str):
     """Provide file resources to package."""
-    fn = importlib.resources.files(demo).joinpath(filename)
+    bn = systemd if filename.endswith('.service') else yaml
+    fn = importlib.resources.files(bn).joinpath(filename)
     if fn.is_file():
         return fn
     else:
@@ -19,9 +21,10 @@ def get_demo_file(filename: str):
 
 def get_demo_files():
     """Provide an iterable of the demo files."""
-    demo_iter = importlib.resources.files(demo).iterdir()
+    sd = importlib.resources.files(systemd).iterdir()
+    yd = importlib.resources.files(yaml).iterdir()
     files = []
-    for f in demo_iter:
+    for f in chain(sd, yd):
         if not f.is_file() or f.name == '__init__.py':
             continue
         files.append(f)

@@ -6,7 +6,7 @@ bus_port: 1324
 ip: 0.0.0.0
 port: 8324
 get_path:
-serve_path: __HOME__
+serve_path: __DIR__
 config:
   primary_color: *primary_color
   secondary_color: *secondary_color

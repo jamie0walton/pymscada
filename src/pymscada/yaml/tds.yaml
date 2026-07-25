@@ -1,6 +1,6 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
-private_key: __HOME__/private_key.pem
+private_key: __DIR__/private_key.pem
 issuer: ${MSCADA_TDS_ISSUER}
 site: ${MSCADA_TDS_SITE}
 endpoint: ${MSCADA_TDS_ENDPOINT}

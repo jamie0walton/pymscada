@@ -1,6 +1,6 @@
 bus_ip: 127.0.0.1
 bus_port: 1324
-log_dir: __HOME__/log
+log_dir: __DIR__/log
 control_tag: _mpc_control
 history_tag: __history__
 solve_time_tag: _mpc_solve_time
