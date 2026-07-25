@@ -1,0 +1,15 @@
+[Unit]
+    Description=pymscada - Ping client
+    BindsTo=pymscada-bus.service
+    After=pymscada-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ pingclient --config __DIR__/yaml/ping.yaml
+    Restart=always
+    RestartSec=5
+    User=root
+    Group=root
+
+[Install]
+    WantedBy=multi-user.target

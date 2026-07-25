@@ -1,0 +1,13 @@
+[Unit]
+    Description=pymscada - main bus
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ bus --config __DIR__/yaml/bus.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+
+[Install]
+    WantedBy=multi-user.target

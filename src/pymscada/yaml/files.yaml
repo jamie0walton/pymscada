@@ -1,0 +1,5 @@
+bus_ip: 127.0.0.1
+bus_port: 1324
+path: __HOME__
+files:
+- path: yaml/*.yaml
