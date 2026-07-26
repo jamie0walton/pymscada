@@ -1,0 +1,15 @@
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+proxy:
+api:
+  # tagnames are assigned by gxp_list
+  # i.e. MAT1101, MAT1101_Realtime, MAT1101_Forecast
+  url: ${MSCADA_WITS_URL}
+  client_id: ${MSCADA_WITS_CLIENT_ID}
+  client_secret: ${MSCADA_WITS_CLIENT_SECRET}
+  gxp_list:
+    - MAT1101
+    - CYD2201
+    - BEN2201
+  back: 1
+  forward: 12

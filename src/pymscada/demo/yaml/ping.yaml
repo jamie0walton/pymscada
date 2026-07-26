@@ -1,0 +1,9 @@
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+tags:
+  localhost_ping:
+    type: ping
+    addr: '127.0.0.1'
+  google_ping:
+    type: ping
+    addr: www.google.com

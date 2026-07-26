@@ -1,0 +1,5 @@
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+rta_tag: __opnotes__
+db: __DIR__/log/opnotes.sqlite
+table: opnotes

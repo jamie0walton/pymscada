@@ -1,0 +1,3 @@
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+path: __DIR__/history

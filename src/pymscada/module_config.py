@@ -107,9 +107,17 @@ def create_module_registry():
                 To add to systemd:
                   su -
                   cd /etc/systemd/system
-                  ln -s /path/to/project/systemd/ms-bus.service .
+                  ln -s /path/to/config/systemd/ms-bus.service .
+                  systemctl daemon-reload
                   systemctl start ms-bus
-                  repeat as needed for other modules."""),
+                To add all to systemd:
+                  su -
+                  cd /etc/systemd/system
+                  for f in /path/to/config/systemd/ms-*; do ln -s "$f" .; done
+                  systemctl daemon-reload
+                  systemctl start ms-bus
+                  systemctl start ms-wwwserver
+                  ..."""),
             extra_args=[
                 ModuleArgument(
                     ('--overwrite',),
@@ -118,8 +126,29 @@ def create_module_registry():
                 ),
                 ModuleArgument(
                     ('--diff',),
-                    {'action': 'store_true', 'default': False,
-                     'help': 'compare default with existing'}
+                    {'action': 'store', 'nargs': '?', 'const': '',
+                     'default': None,
+                     'help': 'compare default with existing; filter module'}
+                ),
+                ModuleArgument(
+                    ('--prefix',),
+                    {'action': 'store', 'default': 'ms',
+                     'help': 'set the prefix for substitution (default: ms)'}
+                ),
+                ModuleArgument(
+                    ('--site',),
+                    {'action': 'store', 'default': '',
+                     'help': 'site name for systemd title (default: empty)'}
+                ),
+                ModuleArgument(
+                    ('--ip',),
+                    {'action': 'store', 'default': '127.0.0.1',
+                     'help': 'set the IP address for substitution (default: 127.0.0.1)'}
+                ),
+                ModuleArgument(
+                    ('--port',),
+                    {'action': 'store', 'type': int, 'default': 1324,
+                     'help': 'set the port for substitution (default: 1324)'}
                 ),
                 ModuleArgument(
                     ('--paths',),

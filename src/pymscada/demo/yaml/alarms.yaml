@@ -1,0 +1,5 @@
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+rta_tag: __alarms__
+db: __DIR__/log/alarms.sqlite
+table: alarms

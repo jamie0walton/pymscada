@@ -1,5 +1,0 @@
-bus_ip: 127.0.0.1
-bus_port: 1324
-rta_tag: __opnotes__
-db: __DIR__/log/opnotes.sqlite
-table: opnotes

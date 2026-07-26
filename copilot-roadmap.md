@@ -81,3 +81,8 @@ Relevant files:
 - src/pymscada/tag.py
 - src/pymscada/bus_client.py
 - tests/test_bus_server.py
+
+## Small Fixes
+
+- model.py:227: len(line) > 0 could be just line
+

@@ -1,5 +1,0 @@
-bus_ip: 127.0.0.1
-bus_port: 1324
-rta_tag: __alarms__
-db: __DIR__/log/alarms.sqlite
-table: alarms

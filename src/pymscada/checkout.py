@@ -3,7 +3,7 @@ import difflib
 import getpass
 from pathlib import Path
 import sys
-from pymscada.config import get_demo_files, get_pdf_files
+from pymscada.config import get_demo_files
 
 
 class Checkout:
@@ -11,57 +11,36 @@ class Checkout:
     
     def __init__(self, **kwargs):
         """Initialize paths and settings."""
+        exe = '/bin/python' if sys.platform != "win32" else '/python.exe'
         self.path = {
-            '__PYTHON__': Path(f'{sys.exec_prefix}/bin/python').absolute(),
+            '__PYTHON__': Path(f"{sys.exec_prefix}{exe}").absolute(),
             '__PYMSCADA__': Path(sys.argv[0]).absolute(),
             '__DIR__': Path('.').absolute(),
-            # '__HOME__': Path.home().absolute(),
-            '__USER__': getpass.getuser()
+            '__PREFIX__': kwargs.get('prefix', 'ms'),
+            '__SITE__': kwargs.get('site', ''),
+            '__USER__': getpass.getuser(),
+            '__ADDRESS__': kwargs.get('address', '127.0.0.1'),
+            '__PORT__': kwargs.get('port', '1324')
         }
-        if sys.platform == "win32":
-            self.path['__PYTHON__'] = Path(f'{sys.exec_prefix}/python.exe').absolute()
+        if self.path['__SITE__']:
+            self.path['__SITE__'] = f" - {self.path['__SITE__']}"
         self.overwrite = kwargs.get('overwrite', False)
-        self.diff = kwargs.get('diff', False)
+        self.diff = kwargs.get('diff', None)
         self.paths = kwargs.get('paths', False)
 
     def make_history(self):
         """Make the history folder if missing."""
         history_dir = self.path['__DIR__'].joinpath('history')
         if not history_dir.exists():
-            print("making 'history' folder")
+            print(f"make dir {history_dir}")
             history_dir.mkdir()
 
-    def make_pdf(self):
-        """Make the pdf folder if missing."""
-        pdf_dir = self.path['__DIR__'].joinpath('pdf')
-        if not pdf_dir.exists():
-            print('making pdf dir')
-            pdf_dir.mkdir()
-        for pdf_file in get_pdf_files():
-            target = pdf_dir.joinpath(pdf_file.name)
-            target.write_bytes(pdf_file.read_bytes())
-
-    def make_config(self):
-        """Make the config folder, if missing, and copy files in."""
-        config_dir = self.path['__DIR__'].joinpath('config')
-        if not config_dir.exists():
-            print('making config dir')
-            config_dir.mkdir()
-        for config_file in get_demo_files():
-            target = config_dir.joinpath(config_file.name)
-            rt = 'Creating '
-            if target.exists():
-                if self.overwrite:
-                    rt = 'Replacing '
-                    target.unlink()
-                else:
-                    continue
-            print(f'{rt} {target}')
-            rd_bytes = config_file.read_bytes()
-            if target.name.lower() != 'readme.md':
-                for k, v in self.path.items():
-                    rd_bytes = rd_bytes.replace(k.encode(), str(v).encode())
-            target.write_bytes(rd_bytes)
+    def make_log(self):
+        """Make the log folder if missing."""
+        log_dir = self.path['__DIR__'].joinpath('log')
+        if not log_dir.exists():
+            print(f"make dir {log_dir}")
+            log_dir.mkdir()
 
     def read_with_subst(self, file: Path):
         """Read the file and replace DIR markers."""
@@ -71,35 +50,66 @@ class Checkout:
         lines = rd.splitlines()
         return lines
 
+    def make_config(self):
+        """Make the config folder, if missing, and copy files in."""
+        config_dir = self.path['__DIR__']
+        for file in get_demo_files():
+            demo_idx = file.parts.index('demo')
+            dir_under_demo = Path(*file.parts[demo_idx + 1:-1])
+            target_dir = config_dir / dir_under_demo
+            target = target_dir / file.name
+            if not target_dir.exists():
+                print(f"make dir {target_dir}")
+                target_dir.mkdir()
+            delete = False
+            if target.exists():
+                if self.overwrite:
+                    delete = True
+                    target.unlink()
+                else:
+                    print(f"skip {target}")
+                    continue
+            new_lines = self.read_with_subst(file)
+            if delete:
+                print(f"replace {target}")
+            else:
+                print(f"new {target}")
+            with target.open('w', encoding='utf-8') as fh:
+                fh.write('\n'.join(new_lines))
+
     def compare_config(self):
         """Compare old and new config."""
-        config_dir = self.path['__DIR__'].joinpath('config')
-        if not config_dir.exists():
-            print('No config dir, are you in the right directory')
-            return
-        for config_file in get_demo_files():
-            target = config_dir.joinpath(config_file.name)
+        config_dir = self.path['__DIR__']
+        for file in get_demo_files():
+            if self.diff and self.diff not in str(file):
+                continue
+            demo_idx = file.parts.index('demo')
+            dir_under_demo = Path(*file.parts[demo_idx + 1:-1])
+            target_dir = config_dir / dir_under_demo
+            target = target_dir / file.name
             if target.exists():
-                new_lines = self.read_with_subst(config_file)
+                new_lines = self.read_with_subst(file)
                 old_lines = self.read_with_subst(target)
                 diff = list(difflib.unified_diff(old_lines, new_lines,
-                            fromfile=str(target), tofile=str(config_file)))
+                            fromfile=str(target), tofile=str(file)))
                 if len(diff):
-                    print('\n'.join(diff), '\n')
+                    print('\n', '\n'.join(diff))
             else:
-                print(f'\n--- MISSING FILE\n\n+++ {config_file}')
+                print(f"\n+++ MISSING FILE {target}")
 
     async def start(self):
         """Execute checkout process."""
         for name in ['__PYTHON__', '__PYMSCADA__', '__DIR__']:
             if not self.path[name].exists():
                 raise SystemExit(f'{self.path[name]} is missing')
-        
-        if self.diff:
+        config_marker = self.path['__DIR__'].joinpath('pymscada.md')
+        if not config_marker.exists():
+            raise SystemExit(f"No {config_marker} aborting")
+        if self.diff is not None:
             self.compare_config()
         elif self.paths:
             print('\n'.join([f'{k} = {v}' for k, v in self.path.items()]))
         else:
             self.make_history()
-            self.make_pdf()
+            self.make_log()
             self.make_config()

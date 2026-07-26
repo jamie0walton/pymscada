@@ -1,0 +1,141 @@
+__vars__:
+- &primary_color darkmagenta
+- &secondary_color green
+bus_ip: __ADDRESS__
+bus_port: __PORT__
+ip: 0.0.0.0
+port: 8324
+get_path:
+serve_path: __DIR__
+config:
+  primary_color: *primary_color
+  secondary_color: *secondary_color
+  mscada_link: http://127.0.0.1/
+  people:
+  - name: John Smith
+    email: john.smith@example.com
+    phone: '+64not_a_number'
+pages:
+- name: Notes
+  parent:
+  items:
+  - type: opnotes
+    site: [Site 1, Site 2]
+    by: [B1, B2]
+- name: Default Main
+  parent:
+  items:
+  - {desc: Default tags, type: h1}
+  - {tagname: IntSet, type: setpoint}
+  - {tagname: IntVal, type: value}
+  - {tagname: FloatSet, type: setpoint}
+  - {tagname: FloatVal, type: value}
+  - {tagname: MultiSet, type: setpoint}
+  - {tagname: MultiVal, type: value}
+  - {tagname: StringSet, type: setpoint}
+  - {tagname: StringVal, type: value}
+  - {tagname: TimeSet, type: setpoint}
+  - {tagname: TimeVal, type: value}
+  - {tagname: DateSet, type: setpoint}
+  - {tagname: DateVal, type: value}
+  - {tagname: DateTimeSet, type: setpoint}
+  - {tagname: DateTimeVal, type: value}
+  - type: selectdict
+    tagname: MultiSelect
+    opts:
+      type: multi
+      multi:
+      - Zero
+      - One
+      - Two
+      - Three
+      - Four
+      - Five
+  - {tagname: FloatSelect, type: selectdict, opts: {type: float, dp: 2}}
+- name: Files
+  parent:
+  items:
+  - type: files
+- name: Ping Values
+  parent:
+  items:
+  - {desc: Default tags, type: h1}
+  - {tagname: localhost_ping, type: value}
+  - {tagname: google_ping, type: value}
+- name: Ping Trend
+  parent:
+  items:
+  - type: uplot  # Do all times in seconds, which uplot uses.
+    ms:
+      desc: Ping Trend
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]  # 86400 172800 1209600
+    - scale: mS
+      range: [0.0, 100.0]
+      dp: 1
+    series:
+    - tagname: localhost_ping
+      label: localhost
+      scale: mS
+      color: black
+      dp: 1
+    - tagname: google_ping
+      label: google
+      scale: mS
+      color: red
+      dp: 1
+    bands:
+    - series: [localhost_ping, google_ping]
+      fill: [green, 0.3]
+      dir: 1
+- name: Weather
+  parent:
+  items:
+  - type: uplot
+    ms:
+      desc: Weather
+      age: 172800
+      legend_pos: left
+      time_pos: left
+      time_res: m
+    axes:
+    - scale: x
+      range: [-86400, 0]  # 24 hours of data
+    - scale: temp
+      range: [-10, 40]    # Temperature in Celsius
+      dp: 1
+    - scale: wind
+      range: [0, 100]     # Wind speed in km/h
+      dp: 1
+    - scale: dir
+      range: [0, 360]     # Wind direction in degrees
+      dp: 0
+    - scale: rain
+      range: [0, 50]      # Rain in mm
+      dp: 1
+    series:
+    - tagname: Murupara_Temp
+      label: Temperature
+      scale: temp
+      color: red
+      dp: 1
+    - tagname: Murupara_WindSpeed
+      label: Wind Speed
+      scale: wind
+      color: blue
+      dp: 1
+    - tagname: Murupara_WindDir
+      label: Wind Direction
+      scale: dir
+      color: green
+      dp: 0
+    - tagname: Murupara_Rain
+      label: Rainfall
+      scale: rain
+      color: lightblue
+      dp: 1

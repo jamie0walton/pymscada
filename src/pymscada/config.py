@@ -1,45 +1,24 @@
 """Read config, either from command line argument or from resources."""
 import importlib.resources
-from itertools import chain
 import logging
 import os
 import re
 from pathlib import Path
 from yaml import safe_load_all, YAMLError
-from pymscada import systemd, yaml
-
-
-def get_demo_file(filename: str):
-    """Provide file resources to package."""
-    bn = systemd if filename.endswith('.service') else yaml
-    fn = importlib.resources.files(bn).joinpath(filename)
-    if fn.is_file():
-        return fn
-    else:
-        raise FileNotFoundError(filename)
+from pymscada import demo
 
 
 def get_demo_files():
-    """Provide an iterable of the demo files."""
-    sd = importlib.resources.files(systemd).iterdir()
-    yd = importlib.resources.files(yaml).iterdir()
-    files = []
-    for f in chain(sd, yd):
-        if not f.is_file() or f.name == '__init__.py':
-            continue
-        files.append(f)
-    return files
+    """Provide an iterable of the config files."""
 
+    def walk(resource):
+        for child in resource.iterdir():
+            if child.is_dir() and child.name != '__pycache__':
+                yield from walk(child)
+            elif child.is_file() and child.name != '__init__.py':
+                yield child
 
-def get_pdf_files():
-    """Provide an iterable of the demo files."""
-    pdf_iter = importlib.resources.files(pdf).iterdir()
-    files = []
-    for f in pdf_iter:
-        if not f.is_file() or f.name == '__init__.py':
-            continue
-        files.append(f)
-    return files
+    yield from walk(importlib.resources.files(demo))
 
 
 def _expand_env_vars(value):
@@ -66,11 +45,7 @@ class Config(dict):
         if fp.exists():
             logging.info(f'using config file {fp}')
         else:
-            try:
-                fp = get_demo_file(filename)
-                logging.warning(f'using demo config file {fp}')
-            except FileNotFoundError:
-                raise SystemExit(f'config {filename} missing')
+            raise SystemExit(f'file not found: {fp}')
         with fp.open(encoding='utf-8') as fh:
             try:
                 for data in safe_load_all(fh):

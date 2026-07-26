@@ -56,9 +56,9 @@
             "name":"checkout",
             "type":"debugpy",
             "request":"launch",
-            "cwd":"${workspaceFolder}/..",
-            "program":"pymscada/src/pymscada/__main__.py",
-            "args": ["checkout", "--verbose", "--diff"],
+            "cwd": "/home/jamie/ms",
+            "program":"/home/jamie/pymscada/src/pymscada/__main__.py",
+            "args": ["checkout", "--verbose"],
             "console":"integratedTerminal",
             "justMyCode":true
         },

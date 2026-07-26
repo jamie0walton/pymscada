@@ -1,0 +1,16 @@
+[Unit]
+    Description=MobileSCADA Observer__SITE__
+    BindsTo=__PREFIX__-bus.service
+    After=__PREFIX__-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ observer --config __DIR__/yaml/observer.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+    KillSignal=SIGINT
+
+[Install]
+    WantedBy=multi-user.target

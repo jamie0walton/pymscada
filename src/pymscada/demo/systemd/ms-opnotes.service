@@ -1,0 +1,16 @@
+[Unit]
+    Description=MobileSCADA Operator Notes__SITE__
+    BindsTo=__PREFIX__-bus.service
+    After=__PREFIX__-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ opnotes --config __DIR__/yaml/opnotes.yaml
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+    KillSignal=SIGINT
+
+[Install]
+    WantedBy=multi-user.target

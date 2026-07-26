@@ -1,0 +1,15 @@
+[Unit]
+    Description=MobileSCADA Transpower Dispatch Service__SITE__
+    BindsTo=ms-bus.service
+    After=ms-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    ExecStart=__PYMSCADA__ tdsclient --config __DIR__/yaml/tdsclient.yaml --verbose
+    Restart=always
+    RestartSec=5
+    User=__USER__
+    Group=__USER__
+
+[Install]
+    WantedBy=multi-user.target
