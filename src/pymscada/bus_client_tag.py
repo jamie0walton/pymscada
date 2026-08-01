@@ -11,6 +11,15 @@ import struct
 import time
 import pymscada.protocol_constants as pc
 
+TYPES = {
+    'int': int,
+    'str': str,
+    'float': float,
+    'list': list,
+    'dict': dict,
+    'bytes': bytes
+}
+
 SLOTS = ('_id', 'name', '_value', '_min', '_max', '_deadband', '_multi',
          'time_us', '_age_us', 'times_us', 'values', 'desc', 'units', 'dp', 
          'from_bus', 'pub', 'in_pub', 'pub_id', 'in_pub_id', 'type')
@@ -595,3 +604,13 @@ class TagSetNone(TagTyped):
     def set_packed_value(self, value: bytes, time_us: int, bus: int):
         if not value:
             self.set_value(None, time_us, bus)
+
+
+CLASSES = {
+    'int': TagInt,
+    'float': TagFloat,
+    'str': TagStr,
+    'dict': TagDict,
+    'list': TagList,
+    'bytes': TagBytes,
+}

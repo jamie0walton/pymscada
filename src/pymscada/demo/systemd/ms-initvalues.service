@@ -1,0 +1,14 @@
+[Unit]
+    Description=MobileSCADA Init Tag Values__SITE__
+    BindsTo=__PREFIX__-bus.service
+    After=__PREFIX__-bus.service
+
+[Service]
+    WorkingDirectory=__DIR__
+    Type=oneshot
+    ExecStart=__PYMSCADA__ initvalues --config __DIR__/yaml/initvalues.yaml --tags __DIR__/yaml/tags.yaml
+    User=__USER__
+    Group=__USER__
+
+[Install]
+    WantedBy=multi-user.target

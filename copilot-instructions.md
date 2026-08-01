@@ -25,3 +25,9 @@ Track a roadmap for the project:
 - Confirm with me before changing the roadmap
 - Save details in copilot-roadmap.md
 - Update status of each item in the roadmap as it progresses
+
+Final gate before editing:
+- Re-read the request.
+- Re-check the planned change against the rules.
+- If the change is larger than requested, do not proceed.
+- If the change touches a file or area not explicitly requested, do not proceed.

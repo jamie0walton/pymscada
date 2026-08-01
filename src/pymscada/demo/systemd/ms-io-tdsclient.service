@@ -1,7 +1,7 @@
 [Unit]
     Description=MobileSCADA Transpower Dispatch Service__SITE__
-    BindsTo=ms-bus.service
-    After=ms-bus.service
+    BindsTo=__PREFIX__-bus.service
+    After=__PREFIX__-bus.service
 
 [Service]
     WorkingDirectory=__DIR__

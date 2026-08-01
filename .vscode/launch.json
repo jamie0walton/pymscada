@@ -47,7 +47,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["callout", "--verbose",
-                "--config", "../ani/config/callout.yaml",
+                "--config", "~/ms/yaml/callout.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -98,6 +98,18 @@
             "justMyCode":true
         },
         {
+            "name":"initvalues",
+            "type":"debugpy",
+            "request":"launch",
+            "cwd": "",
+            "program":"src/pymscada/__main__.py",
+            "args": ["initvalues", "--verbose",
+                "--config", "../ms/yaml/initvalues.yaml",
+                "--tags", "../ms/yaml/tags.yaml",],
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"logixclient",
             "type":"debugpy",
             "request":"launch",
@@ -128,8 +140,8 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["math", "--verbose",
-                "--config", "../ani/config/math.yaml",
-                "--tags", "../ani/config/tags.yaml",
+                "--config", "~/ms/yaml/math.yaml",
+                "--tags", "~/ms/yaml/tags.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -160,7 +172,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["modbusclient", "--verbose",
-                "--config", "../ani/config/modbusclient.yaml"],
+                "--config", "~/ms/yaml/modbusclient.yaml"],
             "console":"integratedTerminal",
             "justMyCode":true
         },
@@ -171,7 +183,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["mpcontrol", "--verbose",
-                "--config", "../ani/config/mpcontrol.yaml"
+                "--config", "~/ms/yaml/mpcontrol.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -195,7 +207,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["observer", "--verbose",
-                "--config", "../ani/config/observer.yaml",
+                "--config", "~/ms/yaml/observer.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -244,25 +256,13 @@
             "justMyCode":true
         },
         {
-            "name":"pi_api",
-            "type":"debugpy",
-            "request":"launch",
-            "cwd": "",
-            "program":"src/pymscada/__main__.py",
-            "args": ["piapi", "--verbose",
-                "--config", "../config/piapi.yaml"
-            ],
-            "console":"integratedTerminal",
-            "justMyCode":true
-        },
-        {
             "name":"pi_api_client",
             "type":"debugpy",
             "request":"launch",
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["piapiclient", "--verbose",
-                "--config", "../config/piapiclient.yaml"
+                "--config", "~/ms/yaml/piapiclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -284,7 +284,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["sms", "--verbose",
-                "--config", "../ani/config/sms.yaml",
+                "--config", "~/ms/yaml/sms.yaml",
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -306,7 +306,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["tdsclient", "--verbose",
-                "--config", "../ani/config/tdsclient.yaml"
+                "--config", "~/ms/yaml/tdsclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -318,7 +318,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["template", "--verbose",
-                "--config", "~/ani/config/template.yaml"
+                "--config", "~/ms/yaml/template.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true
@@ -330,7 +330,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["witsclient", "--verbose",
-                "--config", "../ani/config/witsclient.yaml"
+                "--config", "~/ms/yaml/witsclient.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true

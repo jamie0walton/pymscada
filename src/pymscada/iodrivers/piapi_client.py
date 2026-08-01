@@ -19,6 +19,7 @@ class PILink():
         self.web_id: str | None = None
         self.read_tag: TagFloat | None = None
         self.write_tag: TagFloat | None = None
+        self.write_time_us: int = 0
         mode = tagconf.get('mode', 'r')
         if 'r' in mode:
             self.read_tag = TagFloat(tagname)
@@ -33,7 +34,7 @@ class PILink():
         self.pi_value_received: bool = False
 
 
-class PIWebAPIClientMaps():
+class PIWebAPIMap():
     """Shared PI mapping."""
 
     def __init__(self, tag_config, write_handler: Callable[[str, float],
@@ -46,15 +47,20 @@ class PIWebAPIClientMaps():
             self.pi_links[tagname] = PILink(tagname, tagconf)
             pi_link = self.pi_links[tagname]
             self.pi_link_lookup[pi_link.pi_point] = pi_link
+
+    def start_callbacks(self):
+        """Wait for the Web IDS before starting callbacks."""
+        for pi_link in self.pi_links.values():
             if pi_link.write_tag is not None:
                 pi_link.write_tag.add_callback(self.write_callback)
 
     def write_callback(self, tag: TagFloat):
         """Handle tag write callback."""
         pi_link = self.pi_links[tag.name]
-        if not pi_link.pi_value_received or pi_link.web_id is None:
-            logging.warning(f'{pi_link.pi_point} PI write not permitted')
+        if tag.time_us < pi_link.write_time_us:
+            logging.warning(f"{tag.name} old value, not written to PI")
             return
+        pi_link.write_time_us = tag.time_us
         self.write_handler(pi_link.pi_point, tag.value)
 
     def add_pi_link_attributes(self, data: dict, webid_name: str):
@@ -123,21 +129,29 @@ class PIWebAPIClientMaps():
             pi_link.pi_value_received = True
 
 
-class PIWebAPIClientConnector:
+class PIWebAPIConnector:
     """Poll PI WebAPI for tag values, write on change."""
 
-    def __init__(self, api: dict, mapping: PIWebAPIClientMaps):
+    def __init__(self, api: dict, mapping: PIWebAPIMap):
         """Set up polling client."""
         self.url = api['url']
+        self.username = api.get('username', None)
+        self.password = api.get('password', None)
+        self.auth: aiohttp.BasicAuth | None = None
+        if self.username is not None and self.password is not None:
+            self.auth = aiohttp.BasicAuth(self.username, self.password)
+        elif self.username is not None or self.password is not None:
+            logging.warning('PI WebAPI username/password must both be set')
         self.webids = {webid['name']: webid for webid in api['webids']}
         self.mapping = mapping
         self.periodic = Periodic(self.poll, 1.0)
         connector = aiohttp.TCPConnector(ssl=False)
-        self.session = aiohttp.ClientSession(connector=connector)
+        self.session = aiohttp.ClientSession(connector=connector,
+            auth=self.auth, trust_env=False)
         self.first = {webid['name']: True for webid in api['webids']}
 
     async def api_request(self, method: str, endpoint: str,
-                          webid_name: str = '', payload: dict | None = None,
+                          webid_name: str, payload: dict | None = None,
                           headers: dict | None = None):
         """Make API request and return parsed JSON data."""
         url = f"{self.url}{endpoint}"
@@ -180,6 +194,15 @@ class PIWebAPIClientConnector:
             data = await self.api_request('GET', endpoint, webid_name)
             if data:
                 self.mapping.add_pi_link_attributes(data, webid_name)
+        all_have_ids = []
+        for pip, pil in self.mapping.pi_link_lookup.items():
+            logging.info(f"{pip} {pil.webid_name} {pil.web_id}")
+            if pil.web_id is None:
+                all_have_ids.append(pip)
+        if all_have_ids:
+            for pip in all_have_ids:
+                logging.error(f"Missing web ID for {pip}")
+            raise RuntimeError(f"Missing web IDs")
 
     async def write_pi_value(self, pi_point: str, value: float):
         """Write PI value to WebAPI."""
@@ -242,6 +265,7 @@ class PIWebAPIClientConnector:
 
     async def start(self):
         """Start polling."""
+        self.mapping.start_callbacks()
         await self.periodic.start()
 
 
@@ -267,7 +291,7 @@ class PIWebAPIClient:
             if self.busclient.writer is not None:
                 break
             await asyncio.sleep(0.5)
-        self.mapping = PIWebAPIClientMaps(self.tag_config, self._write_handler)
-        self.connector = PIWebAPIClientConnector(self.api, self.mapping)
+        self.mapping = PIWebAPIMap(self.tag_config, self._write_handler)
+        self.connector = PIWebAPIConnector(self.api, self.mapping)
         await self.connector.get_attributes()
         await self.connector.start()

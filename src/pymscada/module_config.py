@@ -37,6 +37,12 @@ def create_module_registry():
             tags=False
         ),
         ModuleDefinition(
+            name='initvalues',
+            help='apply initial values to tags',
+            module_class='pymscada.init_values:InitValuesBus',
+            await_future=False,
+        ),
+        ModuleDefinition(
             name='wwwserver',
             help='serve web pages',
             module_class='pymscada.www_server:WwwServer'

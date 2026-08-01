@@ -1,7 +1,7 @@
 [Unit]
     Description=MobileSCADA SMS Client__SITE__
-    BindsTo=pymscada-bus.service
-    After=pymscada-bus.service
+    BindsTo=__PREFIX__-bus.service
+    After=__PREFIX__-bus.service
 
 [Service]
     Environment="MSCADA_SMS_IP=an_ip_address"

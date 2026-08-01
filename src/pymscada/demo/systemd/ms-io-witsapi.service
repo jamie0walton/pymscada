@@ -5,7 +5,7 @@
 
 [Service]
     WorkingDirectory=__DIR__
-    ExecStart=__PYMSCADA__ witsapiclient --config __DIR__/yaml/witsapi.yaml
+    ExecStart=__PYMSCADA__ witsapi --config __DIR__/yaml/witsapi.yaml
     Restart=always
     RestartSec=5
     User=__USER__
