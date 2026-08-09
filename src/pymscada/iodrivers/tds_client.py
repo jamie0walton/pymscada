@@ -159,8 +159,8 @@ class TDSConnector():
                         if dt != i['type']:
                             logging.warning(f"Ignoring {dt} {dv:.2f} {dtime}")
                             continue
-                        if seq_no <= i['sequenceNumber']:
-                            logging.warning(f"Ignore sequence {seq_no}")
+                        if seq_no == i['sequenceNumber']:
+                            logging.warning(f"Already seen sequence {seq_no}")
                             continue
                         if time_s - ds > 300:
                             logging.warning(f"> 5m old {dt} {dv:.2f} {dtime}")
