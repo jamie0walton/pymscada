@@ -2,6 +2,7 @@
     Description=MobileSCADA SMS Client__SITE__
     BindsTo=__PREFIX__-bus.service
     After=__PREFIX__-bus.service
+    After=__PREFIX__-initvalues.service
 
 [Service]
     Environment="MSCADA_SMS_IP=an_ip_address"

@@ -2,6 +2,7 @@
     Description=MobileSCADA WWW Server__SITE__
     BindsTo=__PREFIX__-bus.service
     After=__PREFIX__-bus.service
+    After=__PREFIX__-initvalues.service
 
 [Service]
     WorkingDirectory=__DIR__

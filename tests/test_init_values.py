@@ -3,11 +3,11 @@
 import logging
 import pytest
 from pymscada.bus_client import BusClient
-from pymscada.init_values import InitValuesBus, Tags
+from pymscada.init_values import InitValuesBus, InitValuesLogic, Tags
 
 
 @pytest.fixture
-def typed_busclient():
+def busclient():
     """Create a bus client in pytest mode so TagTyped can be instantiated."""
     client = BusClient(ip=None, port=None, module='test_initvalues')
     yield client
@@ -16,56 +16,52 @@ def typed_busclient():
     TagTyped.del_bus_callback()
 
 
-def test_tags_apply_init_to_none(typed_busclient, caplog):
+def test_tags_apply_init_to_none(busclient, caplog):
     tag_info = {
         'iv_none_1': {'type': 'str', 'init': 'hello'},
     }
     tags = Tags(tag_info)
+    logic = InitValuesLogic(tags)
     with caplog.at_level(logging.INFO):
-        initialised, corrected = tags.apply_initial_values()
-    assert initialised == 1
-    assert corrected == 0
-    assert tags.init_specs['iv_none_1']['tag'].value == 'hello'
-    assert 'initialised iv_none_1' in caplog.text
+        logic.apply_init_values()
+    assert tags.tags['iv_none_1'].value == 'hello'
+    assert 'iv_none_1 initialised' in caplog.text
 
 
-def test_tags_preserve_valid_non_none(typed_busclient, caplog):
+def test_tags_preserve_valid_non_none(busclient, caplog):
     tag_info = {
         'iv_keep_1': {'type': 'str', 'init': 'fallback'},
     }
     tags = Tags(tag_info)
-    tags.init_specs['iv_keep_1']['tag'].set_value('bus-value', 1, 0)
+    tags.tags['iv_keep_1'].set_value('bus-value', 1, 0)
+    logic = InitValuesLogic(tags)
     with caplog.at_level(logging.INFO):
-        initialised, corrected = tags.apply_initial_values()
-    assert initialised == 0
-    assert corrected == 0
-    assert tags.init_specs['iv_keep_1']['tag'].value == 'bus-value'
-    assert 'iv_keep_1' not in caplog.text
+        logic.apply_init_values()
+    assert tags.tags['iv_keep_1'].value == 'bus-value'
+    assert 'already bus-value' in caplog.text
 
 
-def test_tags_correct_type_mismatch(typed_busclient, caplog):
+def test_tags_skip_init_type_mismatch(busclient, caplog):
     tag_info = {
-        'iv_fix_1': {'type': 'float', 'init': 1.25},
+        'iv_fix_1': {'type': 'float', 'init': 'what'},
     }
-    tags = Tags(tag_info)
-    # TagFloat accepts int in set_value path, making this a mismatch candidate.
-    tags.init_specs['iv_fix_1']['tag'].set_value(1, 1, 0)
     with caplog.at_level(logging.INFO):
-        initialised, corrected = tags.apply_initial_values()
-    assert initialised == 0
-    assert corrected == 1
-    assert tags.init_specs['iv_fix_1']['tag'].value == 1.25
-    assert 'type mismatch' in caplog.text
-    assert 'initialised iv_fix_1' in caplog.text
+        tags = Tags(tag_info)
+    assert 'iv_fix_1' not in tags.tags
+    assert 'iv_fix_1' not in tags.init
+    assert 'iv_fix_1 init value type is' in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_initvalues_start_runs_init_after_wait(typed_busclient):
-    module = InitValues(
+async def test_initvalues_start_runs_init(busclient, monkeypatch):
+    async def no_sleep(_):
+        return None
+
+    monkeypatch.setattr('pymscada.init_values.asyncio.sleep', no_sleep)
+    module = InitValuesBus(
         bus_ip=None,
         bus_port=1324,
-        wait_s=0.0,
         tag_info={'iv_start_1': {'type': 'int', 'init': 5}},
     )
     await module.start()
-    assert module.tags.init_specs['iv_start_1']['tag'].value == 5
+    assert module.tags.tags.tags['iv_start_1'].value == 5
