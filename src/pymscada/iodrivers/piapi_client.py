@@ -2,7 +2,7 @@
 import aiohttp
 import asyncio
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import time
 from pymscada.bus_client import BusClient
@@ -37,8 +37,8 @@ class PILink():
 class PIWebAPIMap():
     """Shared PI mapping."""
 
-    def __init__(self, tag_config, write_handler: Callable[[str, float],
-                 None]):
+    def __init__(self, tag_config, write_handler: Callable[
+                 [str, float, int], None]):
         """Create tag mappings from config."""
         self.pi_links: dict[str, PILink] = {}
         self.pi_link_lookup: dict[str, PILink] = {}
@@ -57,11 +57,11 @@ class PIWebAPIMap():
     def write_callback(self, tag: TagFloat):
         """Handle tag write callback."""
         pi_link = self.pi_links[tag.name]
-        if tag.time_us < pi_link.write_time_us:
+        if tag.time_us <= pi_link.write_time_us:
             logging.warning(f"{tag.name} old value, not written to PI")
             return
         pi_link.write_time_us = tag.time_us
-        self.write_handler(pi_link.pi_point, tag.value)
+        self.write_handler(pi_link.pi_point, tag.value, tag.time_us)
 
     def add_pi_link_attributes(self, data: dict, webid_name: str):
         """Update PI link attributes from API response."""
@@ -204,13 +204,15 @@ class PIWebAPIConnector:
                 logging.error(f"Missing web ID for {pip}")
             raise RuntimeError(f"Missing web IDs")
 
-    async def write_pi_value(self, pi_point: str, value: float):
+    async def write_pi_value(self, pi_point: str, value: float, time_us: int):
         """Write PI value to WebAPI."""
         if pi_point not in self.mapping.pi_link_lookup:
             return None
         pi_link = self.mapping.pi_link_lookup[pi_point]
         endpoint = f"piwebapi/streams/{pi_link.web_id}/value"
-        payload = {'Timestamp': '*', 'Value': value}
+        dt = datetime.fromtimestamp(time_us / 1e6, tz=timezone.utc)
+        timestamp = dt.isoformat().replace('+00:00', 'Z')
+        payload = {'Timestamp': timestamp, 'Value': value}
         logging.warning(f"writing PI point {pi_point} {payload}")
         return await self.api_request('POST', endpoint, pi_point, payload)
 
@@ -219,8 +221,10 @@ class PIWebAPIConnector:
         webid_config = self.webids[webid_name]
         avg = webid_config['averaging']
         web_id = webid_config['webid']
-        start_time = datetime.fromtimestamp(time_s - avg * 12).isoformat()
-        end_time = datetime.fromtimestamp(time_s).isoformat()
+        start_dt = datetime.fromtimestamp(time_s - avg * 12, tz=timezone.utc)
+        end_dt = datetime.fromtimestamp(time_s, tz=timezone.utc)
+        start_time = start_dt.isoformat().replace('+00:00', 'Z')
+        end_time = end_dt.isoformat().replace('+00:00', 'Z')
         endpoint = f"piwebapi/streamsets/{web_id}/summary?" \
             f"startTime={start_time}&endTime={end_time}" \
             "&summaryType=Average&calculationBasis=TimeWeighted" \
@@ -272,17 +276,18 @@ class PIWebAPIConnector:
 class PIWebAPIClient:
     """Connect to bus. Map to PI."""
 
-    def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int | None = 1324,
-                 proxy: str | None = None, api: dict = {}, tags: dict = {}) -> None:
+    def __init__(self, bus_ip: str | None = '127.0.0.1', bus_port: int = 1324,
+                 proxy: str | None = None, api: dict = {}, tags: dict = {}):
         """Set up PI client."""
         self.busclient = BusClient(bus_ip, bus_port, module='PIWebAPIClient')
         self.proxy = proxy
         self.api = api
         self.tag_config = tags
 
-    def _write_handler(self, pi_point: str, value: float):
+    def write_handler(self, pi_point: str, value: float, time_us: int):
         """Handle tag write by creating async task."""
-        asyncio.create_task(self.connector.write_pi_value(pi_point, value))
+        asyncio.create_task(self.connector.write_pi_value(pi_point, value,
+                                                          time_us))
 
     async def start(self):
         """Start polling."""
@@ -291,7 +296,7 @@ class PIWebAPIClient:
             if self.busclient.writer is not None:
                 break
             await asyncio.sleep(0.5)
-        self.mapping = PIWebAPIMap(self.tag_config, self._write_handler)
+        self.mapping = PIWebAPIMap(self.tag_config, self.write_handler)
         self.connector = PIWebAPIConnector(self.api, self.mapping)
         await self.connector.get_attributes()
         await self.connector.start()

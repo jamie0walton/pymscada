@@ -4,10 +4,13 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "cursorpyright.analysis.typeCheckingMode": "basic",
+    "jamie-prod.workbench.colorCustomizations": {
+        "titleBar.activeBackground": "#225b6c",
+        "titleBar.inactiveBackground":"#225b6c"
+    },
     "workbench.colorCustomizations": {
-        "titleBar.activeBackground": "#31849b",
-        "titleBar.inactiveBackground":"#31849b"
+        "titleBar.activeBackground": "#5D005D",
+        "titleBar.inactiveBackground":"#5D005D"
     },
     "remote.autoForwardPorts": false,
     "github.copilot.enable": {
