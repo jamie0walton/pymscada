@@ -173,8 +173,11 @@ class Callout:
     def alarms_cb(self, alm_tag):
         """Handle alarm messages from alarms.py."""
         if alm_tag.value['__rta_id__'] != 0:
+            value_str = str(alm_tag.value)
+            if len(value_str) > 200:
+                value_str = value_str[:200] + ' ...'
             logging.info(f"alarms_cb ignoring RTA!=0 for {alm_tag.name} "
-                         f"{alm_tag.value}")
+                         f"{value_str}")
             return
         logging.info(f'alarms_cb {alm_tag.value}')
         if alm_tag.value['kind'] != ALM:
@@ -218,7 +221,7 @@ class Callout:
         others = [callee for callee in self.callees
                     if callee.name in update_callee]
         for callee in others:
-            if callee == ack_name and not 'unacked' in ack_str:
+            if callee.name == ack_name and not 'unacked' in ack_str:
                 continue
             self.sms_send_tag.value = {
                 'number': callee.sms,
