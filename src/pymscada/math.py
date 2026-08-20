@@ -48,9 +48,9 @@ class MathSum(MathElement):
 
 class MathMean(MathElement):
     def __init__(self, dsttagname: str, srctagname: str,
-                 age: int, interval: int):
+                 age: int, interval: int, deadband: float):
         self.dst_tag = TagFloat(dsttagname)
-        self.dst_tag.deadband = 0.1
+        self.dst_tag.deadband = deadband
         self.src_tag = TagFloat(srctagname)
         self.src_tag.age_us = age * 1000000
         self.age = age
@@ -64,7 +64,7 @@ class MathMean(MathElement):
             values.append(self.src_tag.get(int(t * 1e6)))
         mean = sum(values) / len(values)
         self.dst_tag.value = mean
-        logging.warning(f"Mean {self.dst_tag.name} {mean}")
+        # logging.warning(f"Mean {self.dst_tag.name} {mean}")
 
 
 class MathAccumulate(MathElement):
@@ -108,7 +108,7 @@ class MathRunner:
                 self.actions[k] = MathSum(k, v['tagnames'])
             elif v['action'] == 'mean':
                 self.actions[k] = MathMean(k, v['tagname'], v['age'],
-                                           v['interval'])
+                                           v['interval'], v['deadband'])
             elif v['action'] == 'accumulate':
                 self.actions[k] = MathAccumulate(k, v['tagname'],
                     v['hour'], v['interval'])
