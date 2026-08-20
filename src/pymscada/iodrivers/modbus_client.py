@@ -492,9 +492,9 @@ class ModbusClientConnector:
     async def start(self):
         """Start polling."""
         await self.periodic.start()
-        while self.connected != READ_AND_WRITE:
-            logging.info('waiting for connection')
-            await asyncio.sleep(1.0)
+        # while self.connected != READ_AND_WRITE:
+        #     logging.info('waiting for connection')
+        #     await asyncio.sleep(1.0)
 
 
 class ModbusClient:

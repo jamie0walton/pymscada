@@ -2,12 +2,22 @@
 import asyncio
 import logging
 import time
+from datetime import datetime
 from pymscada.bus_client import BusClient
 from pymscada.bus_client_tag import TagFloat, TagInt, TagBytes
 from pymscada.periodic import Periodic
 
 
-class MathSum:
+class MathElement:
+
+    def calculate(self, time_s: int, dt: datetime):
+        pass
+
+    async def start(self):
+        pass
+
+
+class MathSum(MathElement):
     """Math element performs calculations on inputs."""
 
     def __init__(self, dsttagname: str, tagnames: list[str]):
@@ -31,15 +41,12 @@ class MathSum:
         else:
             self.dst_tag.value = value
 
-    def calculate(self, time_us: int):
-        pass
-
     async def start(self):
         for tag in self.sum_tags:
             tag.add_callback(self.tag_callback)
 
 
-class MathMean:
+class MathMean(MathElement):
     def __init__(self, dsttagname: str, srctagname: str,
                  age: int, interval: int):
         self.dst_tag = TagFloat(dsttagname)
@@ -49,41 +56,75 @@ class MathMean:
         self.age = age
         self.interval = interval
  
-    def calculate(self, time_us: int):
-        time_s = int(time_us / 1e6)
+    def calculate(self, time_s: int, dt: datetime):
         if time_s % self.interval != 0:
             return
         values = []
         for t in range(time_s, time_s - self.age, -self.interval):
             values.append(self.src_tag.get(int(t * 1e6)))
-        self.dst_tag.value = sum(values) / len(values)
+        mean = sum(values) / len(values)
+        self.dst_tag.value = mean
+        logging.warning(f"Mean {self.dst_tag.name} {mean}")
 
-    async def start(self):
-        pass
+
+class MathAccumulate(MathElement):
+    def __init__(self, dsttagname: str, srctagname: str,
+                 hour: int, interval: int):
+        self.dst_tag = TagFloat(dsttagname)
+        self.src_tag = TagFloat(srctagname)
+        self.hour = hour
+        self.interval = interval
+        self.time_s = 0
+        self.acc = 0
+ 
+    def calculate(self, time_s: int, dt: datetime):
+        # needs to accumulate, reseting according to time
+        if self.time_s == 0:
+            if self.dst_tag.is_none:
+                self.dst_tag.value = 0
+                return
+            self.time_s = time_s
+            self.acc = self.dst_tag.value
+        if dt.hour == self.hour and dt.minute == 0 and dt.second == 0:
+            logging.warning(f"Acc zero {self.dst_tag.name}")
+            self.acc = 0
+            self.dst_tag.value = 0
+            return
+        step_s = time_s - self.time_s
+        if step_s < self.interval:
+            return
+        self.acc += self.src_tag.value * step_s / 3600
+        self.time_s = time_s
+        self.dst_tag.value = self.acc
 
 
 class MathRunner:
     """Math module for performing calculations on tag inputs."""
 
     def __init__(self, config: dict = {}):
-        self.actions: dict[str, MathSum | MathMean] = {}
+        self.actions: dict[str, MathElement] = {}
         for k, v in config.items():
             if v['action'] == 'sum':
                 self.actions[k] = MathSum(k, v['tagnames'])
             elif v['action'] == 'mean':
                 self.actions[k] = MathMean(k, v['tagname'], v['age'],
                                            v['interval'])
+            elif v['action'] == 'accumulate':
+                self.actions[k] = MathAccumulate(k, v['tagname'],
+                    v['hour'], v['interval'])
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
     async def periodic_cb(self):
-        time_us = int(time.time() * 1e6)
+        time_s = int(time.time())
+        dt = datetime.fromtimestamp(time_s)
         for e in self.actions.values():
-            e.calculate(time_us)
+            e.calculate(time_s, dt)
 
     async def start(self):
         """Start the math module."""
         for e in self.actions.values():
             await e.start()
+        await asyncio.sleep(2)
         await self.periodic.start()
 
 

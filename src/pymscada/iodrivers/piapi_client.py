@@ -135,6 +135,7 @@ class PIWebAPIConnector:
     def __init__(self, api: dict, mapping: PIWebAPIMap):
         """Set up polling client."""
         self.url = api['url']
+        logging.warning(f"PIWebAPI to url {self.url}")
         self.username = api.get('username', None)
         self.password = api.get('password', None)
         self.auth: aiohttp.BasicAuth | None = None

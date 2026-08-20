@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.2.8b6"
+version = "0.2.8b7"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
@@ -12,6 +12,7 @@ dependencies = [
     "PyJWT==1.7.1",
     "cryptography>=43.0.3",
     "requests==2.25.1",
+    "pycomm3==1.2.16",        # deprecate as no longer maintained
 ]
 requires-python = ">=3.9"
 readme = "README.md"

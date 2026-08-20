@@ -4,11 +4,11 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "jamie-prod.workbench.colorCustomizations": {
+    "workbench.colorCustomizations": {
         "titleBar.activeBackground": "#225b6c",
         "titleBar.inactiveBackground":"#225b6c"
     },
-    "workbench.colorCustomizations": {
+    "jamie-prod.workbench.colorCustomizations": {
         "titleBar.activeBackground": "#5D005D",
         "titleBar.inactiveBackground":"#5D005D"
     },
