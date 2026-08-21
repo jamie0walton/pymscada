@@ -64,7 +64,7 @@ class MathMean(MathElement):
             values.append(self.src_tag.get(int(t * 1e6)))
         mean = sum(values) / len(values)
         self.dst_tag.value = mean
-        # logging.warning(f"Mean {self.dst_tag.name} {mean}")
+        logging.warning(f"Mean {self.dst_tag.name} {mean}")
 
 
 class MathAccumulate(MathElement):
@@ -137,5 +137,7 @@ class Math:
 
     async def start(self):
         await self.busclient.start()
+        logging.warning('Getting history')
         await self.busclient.get_history()
+        logging.warning('Got history')
         await self.runner.start()
