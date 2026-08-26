@@ -107,8 +107,7 @@ class Storage(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
     def __init__(self, p: 'Observer', name: str, element_type: str,
-                 level: float = 0.0, volume: float = 0.0, LV=None,
-                 level_read_tag: str = ''):
+                 level: float = 0.0, volume: float = 0.0, LV=None):
         super().__init__(p, name, element_type)
         self.level = level
         self.volume = volume
