@@ -5,7 +5,7 @@
 groups = ["default", "pdm", "test"]
 strategy = []
 lock_version = "4.5.1"
-content_hash = "sha256:c61911496689494247edf44ecca20d670bf6732bbd0d53208b13de0bcc0102f7"
+content_hash = "sha256:8a1648c99cff3550a5cda45e2828b0ed9e7f60eec1de219692288116bb2ba953"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
@@ -1114,12 +1114,12 @@ files = [
 
 [[package]]
 name = "pymscada-html"
-version = "0.2.6"
+version = "0.2.7b8"
 requires_python = ">=3.9"
 summary = "Angular single page application html files served by pymscada."
 files = [
-    {file = "pymscada_html-0.2.6-py3-none-any.whl", hash = "sha256:307fca34e0d0b42f71501f81b6ba3787fe4a25048e0e56080fb83673acc23f46"},
-    {file = "pymscada_html-0.2.6.tar.gz", hash = "sha256:5c1e883fe60ff57233325baeed3371679ac525ad8840309708723dbf4766b5d4"},
+    {file = "pymscada_html-0.2.7b8-py3-none-any.whl", hash = "sha256:a0a2fc6e63d82e9f5094d2e694a7b246b12cf43a3624f7ad6c6d6c63d44e7db2"},
+    {file = "pymscada_html-0.2.7b8.tar.gz", hash = "sha256:18edd40662437d7a006c0e3518f644f051a0d07317a29990505a5444018f0f68"},
 ]
 
 [[package]]

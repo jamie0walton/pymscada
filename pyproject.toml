@@ -8,7 +8,7 @@ authors = [
 dependencies = [
     "PyYAML>=6.0.1",          # all
     "aiohttp>=3.8.5",         # www_server
-    "pymscada-html>=0.2.6",   # www_server
+    "pymscada-html>=0.2.7b8",   # www_server
     "PyJWT==1.7.1",
     "cryptography>=43.0.3",
     "requests==2.25.1",
