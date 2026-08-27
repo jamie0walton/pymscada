@@ -107,7 +107,8 @@ class Storage(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
     def __init__(self, p: 'Observer', name: str, element_type: str,
-                 level: float = 0.0, volume: float = 0.0, LV=None):
+                 level: float = 0.0, volume: float = 0.0, LV=None,
+                 level_read_tag: str = ''):
         super().__init__(p, name, element_type)
         self.level = level
         self.volume = volume
@@ -115,6 +116,11 @@ class Storage(Node):
         self.LV = LV if LV is not None else []
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
+        self.level_read_tag = None
+        if level_read_tag != '':
+            self.level_read_tag = TagFloat(level_read_tag)
+            self.level_read_tag.add_callback(self.tag_callback)
+            self.p.input_tags[level_read_tag] = self.level_read_tag
 
     def recalc_level(self):
         self.level = interp(self.volume, self.LV_ys, self.LV_xs)
@@ -144,6 +150,11 @@ class Storage(Node):
 
     def follow_step(self):
         self.recalc_volume()
+        
+    def tag_callback(self, tag):
+        if tag is self.level_read_tag:
+            self.level = tag.value
+            self.recalc_volume()
 
     def simulate_step(self):
         self.volume += self.netflow  # 1 sec
