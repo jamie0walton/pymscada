@@ -75,15 +75,19 @@ class Summing(Node):
     def recalc_riverdst(self):
         riverdst = None
         inflow = 0.0
+        lstr = f"Summing {self.name}"
         for src in self.inflows:
             if hasattr(self.p.model[src], 'flow'):
                 inflow += self.p.model[src].flow
+                lstr += f" {src} {self.p.model[src].flow:.3f}"
             else:  # must be riverlike
                 inflow += self.p.model[src].outflow
+                lstr += f" {src} {self.p.model[src].outflow:.3f}"
         outflow = 0.0
         for dst in self.outflows:
             if hasattr(self.p.model[dst], 'flow'):
                 outflow += self.p.model[dst].flow
+                lstr += f" {dst} {self.p.model[dst].flow:.3f}"
             else:  # must be the river
                 if riverdst is not None:
                     raise ValueError(f"{self.name} only one river permitted")
@@ -92,6 +96,8 @@ class Summing(Node):
             raise ValueError(f"{self.name} one river required")
         else:
             self.p.model[riverdst].inflow = inflow - outflow
+            lstr += f" {riverdst} {inflow - outflow:.3f}"
+        logging.info(lstr)
 
     def initialise(self):
         self.recalc_riverdst()
@@ -640,6 +646,43 @@ class Observer:
             raise SystemExit(f"{name} does not have a valid type")
         self.model[name] = by_type[element_type](p=self, name=name, **e)
 
+    def summing_river_order(self) -> list[str]:
+        """
+        Order Summing/River elements so each is processed after anything
+        it reads and before anything that reads it.
+
+        A flat "all Summing then all River" pass breaks a chain such as
+        River -> Summing -> River, since the second River depends on the
+        Summing that in turn depends on the first River. Sort by the real
+        inflow/outflow dependency graph instead.
+        """
+        names = [name for name, e in self.model.items()
+                  if inclass(e, Summing, River)]
+        deps = {name: set() for name in names}
+        for name in names:
+            e = self.model[name]
+            if not inclass(e, Summing):
+                continue
+            for arc_name in e.inflows:
+                if inclass(self.model[arc_name], River):
+                    deps[name].add(arc_name)
+            for arc_name in e.outflows:
+                if inclass(self.model[arc_name], River):
+                    deps[arc_name].add(name)
+        ordered = []
+        remaining = {k: set(v) for k, v in deps.items()}
+        while remaining:
+            ready = [n for n, unmet in remaining.items() if not unmet]
+            if not ready:
+                raise ValueError(
+                    'Summing/River elements have a dependency cycle')
+            ordered.extend(ready)
+            for n in ready:
+                del remaining[n]
+            for unmet in remaining.values():
+                unmet.difference_update(ready)
+        return ordered
+
     def initialise(self):
         """
         Init each element in the correct order.
@@ -655,12 +698,8 @@ class Observer:
         for e in self.model.values():
             if inclass(e, Valve, Canal, Generator, RadialGate, FlapGate):
                 e.initialise()
-        for e in self.model.values():
-            if inclass(e, Summing):
-                e.initialise()
-        for e in self.model.values():
-            if inclass(e, River):
-                e.initialise()
+        for name in self.summing_river_order():
+            self.model[name].initialise()
 
     def follow_step(self):
         """Follow the running system, observing unknowns."""
@@ -670,12 +709,8 @@ class Observer:
         for e in self.model.values():
             if inclass(e, Valve, Canal, Generator, RadialGate, FlapGate):
                 e.follow_step()
-        for e in self.model.values():
-            if inclass(e, Summing):
-                e.follow_step()
-        for e in self.model.values():
-            if inclass(e, River):
-                e.follow_step()
+        for name in self.summing_river_order():
+            self.model[name].follow_step()
 
     def simulate_step(self):
         """Simulate the system, setting unknowns."""
@@ -685,12 +720,8 @@ class Observer:
         for e in self.model.values():
             if inclass(e, Valve, Canal, Generator, RadialGate, FlapGate):
                 e.simulate_step()
-        for e in self.model.values():
-            if inclass(e, Summing):
-                e.simulate_step()
-        for e in self.model.values():
-            if inclass(e, River):
-                e.simulate_step()
+        for name in self.summing_river_order():
+            self.model[name].simulate_step()
 
     async def periodic_cb(self):
         self.follow_step()
