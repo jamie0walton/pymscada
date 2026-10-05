@@ -8,7 +8,7 @@ import time
 from pymscada.bus_client import BusClient
 from pymscada.bus_client_tag import TagInt, TagFloat
 from pymscada.kalman_filter import KalmanFilter
-from pymscada.misc import interp, ramp
+from pymscada.misc import interp, interp_check_ok, ramp
 from pymscada.periodic import Periodic
 
 
@@ -122,6 +122,9 @@ class Storage(Node):
         self.LV = LV if LV is not None else []
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
+        if not interp_check_ok(self.LV_xs, self.LV_ys):
+            raise ValueError(f'{self.name} invalid LV (Xs not strictly '
+                             'increasing)')
         self.level_read_tag = None
         if level_read_tag != '':
             self.level_read_tag = TagFloat(level_read_tag)
@@ -207,6 +210,9 @@ class StorageRainEst(Node):
         self.LV = LV
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
+        if not interp_check_ok(self.LV_xs, self.LV_ys):
+            raise ValueError(f'{self.name} invalid LV (Xs not strictly '
+                             'increasing)')
         self.level_read_tag = None
         if level_read_tag != '':
             self.level_read_tag = TagFloat(level_read_tag)

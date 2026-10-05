@@ -1,5 +1,5 @@
 """Test misc functions."""
-from pymscada.misc import find_nodes, ramp
+from pymscada.misc import find_nodes, ramp, interp, interp_check_ok
 
 
 def test_find_nodes():
@@ -34,3 +34,25 @@ def test_ramp():
     assert ramp(1, 2, 0.75) == 1.75
     assert ramp(1.75, 2, 0.75) == 2
     assert ramp(2.25, 2, 0.75) == 2
+
+
+def test_interp():
+    """Check interpolation"""
+    LV = [[0, 137277],
+          [-1, 91518],
+          [-2, 54911],
+          [-3, 25625]]
+    LV_xs = [x[0] for x in LV]
+    LV_ys = [x[1] for x in LV]
+    assert interp_check_ok(LV_xs, LV_ys) == False
+    LV = [[-3, 25625],
+          [-2, 54911],
+          [-1, 91518],
+          [0, 137277]]
+    LV_xs = [x[0] for x in LV]
+    LV_ys = [x[1] for x in LV]
+    assert interp_check_ok(LV_xs, LV_ys)
+    assert interp(0, LV_xs, LV_ys) == 137277
+    assert interp(0.001, LV_xs, LV_ys) == 137322.759
+    assert interp(-0.001, LV_xs, LV_ys) == 137231.241
+

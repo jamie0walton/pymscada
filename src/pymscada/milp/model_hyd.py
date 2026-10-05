@@ -6,7 +6,8 @@ from pathlib import Path
 import shutil
 from yaml import dump
 from pymscada.milp.model import LpModel
-from pymscada.milp.misc import interp, interp_step, tod_to_xs_ys, bid_period, day_seconds
+from pymscada.misc import (interp, interp_check_ok, interp_step, tod_to_xs_ys,
+                           bid_period, day_seconds)
 
 
 OFF = 0
@@ -548,6 +549,9 @@ class Storage(Constraint):
             raise ValueError(f'{self.name} must have a level time_series.')
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
+        if not interp_check_ok(self.LV_xs, self.LV_ys):
+            raise ValueError(f'{self.name} invalid LV (Xs not strictly '
+                             'increasing)')
         if self.costs is not None:
             self.costs[0] = [self.volume(wl) for wl in self.costs[0]]
         if self.min is not None:
@@ -629,6 +633,9 @@ class StorageProfile(Constraint):
         super().__init__(**kwargs)
         self.LV_xs = [x[0] for x in self.LV]
         self.LV_ys = [x[1] for x in self.LV]
+        if not interp_check_ok(self.LV_xs, self.LV_ys):
+            raise ValueError(f'{self.name} invalid LV (Xs not strictly '
+                             'increasing)')
         # convert levels to volumes
         for e in self.timeofday:
             e[1] = interp(e[1], self.LV_xs, self.LV_ys)
