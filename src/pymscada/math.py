@@ -20,9 +20,9 @@ class MathElement:
 class MathSum(MathElement):
     """Math element performs calculations on inputs."""
 
-    def __init__(self, dsttagname: str, tagnames: list[str]):
+    def __init__(self, dsttagname: str, tagnames: list[str], deadband: float):
         self.dst_tag = TagFloat(dsttagname)
-        self.dst_tag.deadband = 0.1
+        self.dst_tag.deadband = deadband
         self.sum_tags: list[TagFloat] = []
         self.sum_values = {}
         self.value = None
@@ -38,12 +38,14 @@ class MathSum(MathElement):
         value = sum(self.sum_values.values())
         if self.value is None:
             self.value = value
-        else:
-            self.dst_tag.value = value
+            logging.warning(f'sum setting {self.dst_tag.name} {value}')
+        self.dst_tag.value = value
 
     async def start(self):
         for tag in self.sum_tags:
             tag.add_callback(self.tag_callback)
+            if not tag.is_none:
+                self.tag_callback(tag)
 
 
 class MathMean(MathElement):
@@ -69,7 +71,7 @@ class MathMean(MathElement):
 
 class MathAccumulate(MathElement):
     def __init__(self, dsttagname: str, srctagname: str,
-                 hour: int, interval: int):
+                 hour: int, interval: int, deadband: float):
         self.dst_tag = TagFloat(dsttagname)
         self.src_tag = TagFloat(srctagname)
         self.hour = hour
@@ -105,13 +107,13 @@ class MathRunner:
         self.actions: dict[str, MathElement] = {}
         for k, v in config.items():
             if v['action'] == 'sum':
-                self.actions[k] = MathSum(k, v['tagnames'])
+                self.actions[k] = MathSum(k, v['tagnames'], v['deadband'])
             elif v['action'] == 'mean':
                 self.actions[k] = MathMean(k, v['tagname'], v['age'],
                                            v['interval'], v['deadband'])
             elif v['action'] == 'accumulate':
                 self.actions[k] = MathAccumulate(k, v['tagname'],
-                    v['hour'], v['interval'])
+                    v['hour'], v['interval'], v['deadband'])
         self.periodic = Periodic(self.periodic_cb, 1.0)
 
     async def periodic_cb(self):

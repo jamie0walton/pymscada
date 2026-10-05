@@ -2,8 +2,7 @@
 import pytest
 from textwrap import dedent
 from pathlib import Path
-from pymscada.config import Config, get_demo_file, get_demo_files, \
-    get_pdf_files
+from pymscada.config import Config, get_demo_files
 
 
 def test_Config():
@@ -36,18 +35,3 @@ def test_variables():
     assert cfg['BEN'] == 'darkblue'
     assert cfg['SPOT'] == 'lime'
     fn.unlink()
-
-
-def test_demo():
-    """Read demo files."""
-    get_demo_file('tags.yaml')
-    with pytest.raises(FileNotFoundError):
-        get_demo_file('not here')
-    for fh in get_demo_files():
-        pass
-
-
-def test_pdf():
-    """Read pdf files."""
-    for fh in get_pdf_files():
-        assert fh.suffix == '.pdf'

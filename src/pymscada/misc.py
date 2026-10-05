@@ -25,6 +25,16 @@ def ramp(now: float, target: float | None, step: float) -> float:
     return max(now - step, target)
 
 
+def interp_check_ok(xs: list, ys: list) -> bool:
+    """
+    xs strictly increasing
+    """
+    for i in range(len(xs) - 1):
+        if xs[i + 1] < xs[i]:
+            return False
+    return True
+
+
 def interp(xvalue: float, xs: list, ys: list) -> float:
     """
     Interpolate inside and outside the range.
@@ -61,7 +71,6 @@ def bid_period(time_s: int) -> int:
     return int(period)
 
 
-# TODO check if any of the remainder of these make sense to keep.
 def bid_time(time_s: int, p: int) -> int:
     """Convert a bid period 1-46,48,50 depending on DST to UTC seconds."""
     tp = time.localtime(time_s)  # get struct
@@ -89,22 +98,6 @@ def day_seconds(time_s: int):
         tp.tm_wday, tp.tm_yday, -1
     )))
     return time_s - daystart
-
-
-def interp(xvalue: float, xs: list, ys: list) -> float:
-    """
-    Interpolate inside and outside the range.
-
-    given an X value, xs strictly increasing, ys OK
-    interpolate and extrapolate past x[0] and x[len - 1]
-    """
-    i = 1
-    if xvalue > xs[0]:
-        for (i, v) in enumerate(xs):  # noqa: B007
-            if xvalue < v:
-                break
-    return (xvalue - xs[i - 1]) / (xs[i] - xs[i - 1]) * \
-        (ys[i] - ys[i - 1]) + ys[i - 1]
 
 
 def interp_step(xvalue: float, xs: list, ys: list) -> float:
