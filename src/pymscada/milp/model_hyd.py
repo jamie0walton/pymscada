@@ -87,6 +87,7 @@ class HydraulicModel():
      - river        adds a flow delay line
      - summing      sums flows at a node, must flow into one river
      - storage      reservoirs
+     - weir         spill flow with respect to level
      - generator    either as free or to follow fixed output
      - cost         simple cost
      - bid_offer    fixed for a period then free
@@ -182,6 +183,8 @@ class HydraulicModel():
             self.model[name] = Storage(name=name, **e)
         elif e['type'] == 'river':
             self.model[name] = River(name=name, **e)
+        elif e['type'] == 'weir':
+            self.model[name] = Weir(name=name, **e)
         elif e['type'] == 'generator':
             self.model[name] = Generator(name=name, **e)
         elif e['type'] == 'cost':
@@ -300,8 +303,8 @@ class Constraint():
         self.name: str = ''
         self.type: str = ''
         self.time_series: TimeSeries | None = None
-        self.srcnode: str | None = None
-        self.dstnode: str | None = None
+        self.source: str | None = None
+        self.destination: str | None = None
         self.inflows = []
         self.outflows = []
         self.elements = []
@@ -323,10 +326,10 @@ class Constraint():
 
     def link(self, m: HydraulicModel):
         """Make source / destination connections between nodes."""
-        if self.srcnode is not None:
-            m.model[self.srcnode].outflows.append(self.name)
-        if self.dstnode is not None:
-            m.model[self.dstnode].inflows.append(self.name)
+        if self.source is not None:
+            m.model[self.source].outflows.append(self.name)
+        if self.destination is not None:
+            m.model[self.destination].inflows.append(self.name)
 
     def create_lp(self, m: HydraulicModel):
         logging.error('Must have custom LP building routine')
@@ -768,6 +771,39 @@ class Valve(Constraint):
                 logging.error(f"{self.name} invalid state: {self.state}")
 
 
+class Weir(Constraint):
+    """Ties flow to reservoir level."""
+
+    def __init__(self, **kwargs):
+        """Inherits from Constraint."""
+        self.name = ''
+        self.cost = 1.0
+        self.HQ = []
+        super().__init__(**kwargs)
+        if self.time_series is None:
+            raise ValueError(f'{self.name} must have a flow time_series.')
+        self.HQ_xs = [x[0] for x in self.HQ]
+        self.HQ_ys = [x[1] for x in self.HQ]
+
+    def default_name(self, time):
+        return super().flow_name(time)
+
+    def create_lp(self, m: HydraulicModel):
+        if self.time_series is None:
+            raise ValueError(f'{self.name} must have a flow time_series.')
+        for t in m.times:
+            flow = self.time_series.get(t)
+            self.add_ranges(m, t)
+            if t < m.set_time:
+                m.lp.add_row(self.flow_name(t), 'E', flow)
+            elif self.state == OFF:
+                m.lp.add_row(self.power_name(t), 'E', 0)
+            elif self.state == FIXED:
+                m.lp.add_row(self.power_name(t), 'E', power)
+            # Always calculate flow from power
+            m.lp.add_sos2(self.power_name(t), [x[0] for x in self.PQ],
+                          self.flow_name(t), [x[1] for x in self.PQ])
+
 class Generator(Constraint):
     """Ties flow to generation. Generation is slack."""
 
@@ -783,7 +819,6 @@ class Generator(Constraint):
         super().__init__(**kwargs)
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a power time_series.')
-        # CPU cost of doing this per call in debug is HIGH
         self.PQ_xs = [x[0] for x in self.PQ]
         self.PQ_ys = [x[1] for x in self.PQ]
 
@@ -907,7 +942,7 @@ class Consent(Constraint):
             for e in self.elements:
                 if m.model[e].type == 'river':
                     elements.append(m.model[e].outflow_name(t))
-                elif m.model[e].type in ['generator', 'valve']:
+                elif m.model[e].type in ['weir', 'generator', 'valve']:
                     elements.append(m.model[e].flow_name(t))
             if self.cost is None:
                 m.lp.add_row(elements, 'G', min_flow)

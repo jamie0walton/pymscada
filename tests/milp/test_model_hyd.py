@@ -150,7 +150,7 @@ def test_model_times(tmp_path):
             'River': {
                 'type': 'river',
                 'time_series': inflow,
-                'srcnode': 'Valve',
+                'source': 'Valve',
                 'delay': 600
             }
         }
@@ -211,7 +211,7 @@ def test_tank_fixed(tmp_path):
             'Inflow': {
                 'type': 'valve',
                 'time_series': inflow,
-                'dstnode': 'Tank',
+                'destination': 'Tank',
                 'state': FIXED
             },
             'Tank': {
@@ -237,7 +237,7 @@ def test_tank_fixed(tmp_path):
             'Outflow': {
                 'type': 'valve',
                 'time_series': outflow,
-                'srcnode': 'Tank',
+                'source': 'Tank',
                 'state': FIXED
             }
         }
@@ -272,7 +272,7 @@ def test_tank_fixed_river(tmp_path):
             'Inflow': {
                 'type': 'valve',
                 'time_series': inflow,
-                'dstnode': 'Upstream',
+                'destination': 'Upstream',
                 'state': FIXED
             },
             'Upstream': {
@@ -281,8 +281,8 @@ def test_tank_fixed_river(tmp_path):
             'River': {
                 'type': 'river',
                 'time_series': inflow,
-                'srcnode': 'Upstream',
-                'dstnode': 'Tank',
+                'source': 'Upstream',
+                'destination': 'Tank',
                 'delay': 1200
             },
             'Tank': {
@@ -305,7 +305,7 @@ def test_tank_fixed_river(tmp_path):
             'Outflow': {
                 'type': 'valve',
                 'time_series': outflow,
-                'srcnode': 'Tank',
+                'source': 'Tank',
                 'state': FIXED
             }
         }
@@ -349,7 +349,7 @@ def test_tank_variable_empty(tmp_path):
             'Inflow': {
                 'type': 'valve',
                 'time_series': inflow,
-                'dstnode': 'Tank',
+                'destination': 'Tank',
                 'state': FIXED
             },
             'Tank': {
@@ -366,7 +366,7 @@ def test_tank_variable_empty(tmp_path):
                 'type': 'valve',
                 'time_series': outflow,
                 'state': FREE,
-                'srcnode': 'Tank',
+                'source': 'Tank',
                 'ranges': [
                     [0.0, 1000.0]
                 ],
@@ -409,7 +409,7 @@ def test_tank_variable_empty_profile_limits(tmp_path):
             'Inflow': {
                 'type': 'valve',
                 'time_series': inflow,
-                'dstnode': 'Tank',
+                'destination': 'Tank',
                 'state': FIXED,
             },
             'Tank': {
@@ -428,7 +428,7 @@ def test_tank_variable_empty_profile_limits(tmp_path):
                 'type': 'valve',
                 'time_series': outflow,
                 'state': FREE,
-                'srcnode': 'Tank',
+                'source': 'Tank',
                 'ranges': [
                     [0.0, 1000.0]
                 ]
@@ -947,7 +947,7 @@ def test_valveriverlake(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -957,8 +957,8 @@ def test_valveriverlake(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua'
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
                 'type': 'storage',
@@ -1011,7 +1011,7 @@ def test_lake_endstate(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -1021,8 +1021,8 @@ def test_lake_endstate(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua'
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
                 'type': 'storage',
@@ -1037,7 +1037,7 @@ def test_lake_endstate(tmp_path):
                 'type': 'generator',
                 'time_series': power1,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -1047,7 +1047,7 @@ def test_lake_endstate(tmp_path):
                 'type': 'generator',
                 'time_series': power2,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
                     [0.0],
@@ -1146,7 +1146,7 @@ def test_lake_bidoffer(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -1156,8 +1156,8 @@ def test_lake_bidoffer(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua'
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
                 'type': 'storage',
@@ -1172,7 +1172,7 @@ def test_lake_bidoffer(tmp_path):
                 'type': 'generator',
                 'time_series': power1,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -1182,7 +1182,7 @@ def test_lake_bidoffer(tmp_path):
                 'type': 'generator',
                 'time_series': power2,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
                     [0.0],
@@ -1321,7 +1321,7 @@ def test_lake_bidoffer_maxroc(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -1331,8 +1331,8 @@ def test_lake_bidoffer_maxroc(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua'
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
                 'type': 'storage',
@@ -1347,7 +1347,7 @@ def test_lake_bidoffer_maxroc(tmp_path):
                 'type': 'generator',
                 'time_series': power1,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -1357,7 +1357,7 @@ def test_lake_bidoffer_maxroc(tmp_path):
                 'type': 'generator',
                 'time_series': power2,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
                     [0.0],
@@ -1497,7 +1497,7 @@ def test_lake_minflow(tmp_path):
                 'type': 'valve',
                 'time_series': rainflow,
                 'state': FIXED,
-                'dstnode': 'Lake_Aniwhenua'
+                'destination': 'Lake_Aniwhenua'
             },
             'Lake_Aniwhenua': {
                 'type': 'storage',
@@ -1512,8 +1512,8 @@ def test_lake_minflow(tmp_path):
                 'type': 'valve',
                 'time_series': barrage,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
-                'dstnode': 'Barrage_Tail'
+                'source': 'Lake_Aniwhenua',
+                'destination': 'Barrage_Tail'
             },
             'Barrage_Tail': {
                 'type': 'summing'
@@ -1522,8 +1522,8 @@ def test_lake_minflow(tmp_path):
                 'type': 'river',
                 'time_series': lower,
                 'delay': 1800,
-                'srcnode': 'Barrage_Tail',
-                'dstnode': 'station_Tail',
+                'source': 'Barrage_Tail',
+                'destination': 'station_Tail',
                 'limitcost': 1.0
             },
             'station_Tail': {
@@ -1533,7 +1533,7 @@ def test_lake_minflow(tmp_path):
                 'type': 'river',
                 'time_series': sysoutflow,
                 'delay': 600,
-                'srcnode': 'station_Tail',
+                'source': 'station_Tail',
                 'setpoint': 30,
                 'lowcost': 1000000
             },
@@ -1606,7 +1606,7 @@ def test_lake_bid_minflow(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -1616,8 +1616,8 @@ def test_lake_bid_minflow(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua',
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua',
                 'history': upper
             },
             'Lake_Aniwhenua': {
@@ -1636,7 +1636,7 @@ def test_lake_bid_minflow(tmp_path):
                 'type': 'generator',
                 'time_series': power1,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -1646,7 +1646,7 @@ def test_lake_bid_minflow(tmp_path):
                 'type': 'generator',
                 'time_series': power2,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
                     [0.0],
@@ -1658,8 +1658,8 @@ def test_lake_bid_minflow(tmp_path):
                 'type': 'valve',
                 'time_series': barrage,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
-                'dstnode': 'Barrage_Tail'
+                'source': 'Lake_Aniwhenua',
+                'destination': 'Barrage_Tail'
             },
             'Barrage_Flow_Cost': {
                 'type': 'cost',
@@ -1679,7 +1679,7 @@ def test_lake_bid_minflow(tmp_path):
                 'type': 'river',
                 'time_series': tail,
                 'delay': 1800,
-                'srcnode': 'Barrage_Tail'
+                'source': 'Barrage_Tail'
             },
             'System_Outflow_Consent': {
                 'type': 'consent',
@@ -1822,7 +1822,7 @@ def test_lake_bid_minflow_match(tmp_path):
             'System_Inflow': {
                 'type': 'valve',
                 'time_series': sysinflow,
-                'dstnode': 'Galatea_Site',
+                'destination': 'Galatea_Site',
                 'state': FIXED
             },
             'Galatea_Site': {
@@ -1832,8 +1832,8 @@ def test_lake_bid_minflow_match(tmp_path):
                 'type': 'river',
                 'time_series': upper,
                 'delay': 1800,
-                'srcnode': 'Galatea_Site',
-                'dstnode': 'Lake_Aniwhenua',
+                'source': 'Galatea_Site',
+                'destination': 'Lake_Aniwhenua',
                 'history': upper
             },
             'Lake_Aniwhenua': {
@@ -1852,7 +1852,7 @@ def test_lake_bid_minflow_match(tmp_path):
                 'type': 'generator',
                 'time_series': power1,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'ranges': [
                     [6.8, 12.8]
                 ],
@@ -1862,7 +1862,7 @@ def test_lake_bid_minflow_match(tmp_path):
                 'type': 'generator',
                 'time_series': power2,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
+                'source': 'Lake_Aniwhenua',
                 'startlimit': [1, 1200, 1000.0],
                 'ranges': [
                     [0.0],
@@ -1874,8 +1874,8 @@ def test_lake_bid_minflow_match(tmp_path):
                 'type': 'valve',
                 'time_series': barrage,
                 'state': FREE,
-                'srcnode': 'Lake_Aniwhenua',
-                'dstnode': 'Barrage_Tail'
+                'source': 'Lake_Aniwhenua',
+                'destination': 'Barrage_Tail'
             },
             'Barrage_Flow_Cost': {
                 'type': 'cost',
@@ -1895,7 +1895,7 @@ def test_lake_bid_minflow_match(tmp_path):
                 'type': 'river',
                 'time_series': tail,
                 'delay': 1800,
-                'srcnode': 'Barrage_Tail'
+                'source': 'Barrage_Tail'
             },
             'System_Outflow_Consent': {
                 'type': 'consent',

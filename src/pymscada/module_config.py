@@ -84,7 +84,6 @@ def create_module_registry():
             name='mpcontrol',
             help='model predictive control (milp)',
             module_class='pymscada.mp_control:MPControl',
-            tags=False,
         ),
         ModuleDefinition(
             name='mpanalyser',

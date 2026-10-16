@@ -27,19 +27,19 @@ model:
     type: valve
     state: FIXED
     time_series_tag: I_Galatea_flow
-    dstnode: Galatea_River_site
+    destination: Galatea_River_site
   Galatea_River_site:
     type: summing
   Upper:
     type: river
     time_series_tag: I_Galatea_flow
-    srcnode: Galatea_River_site
-    dstnode: Lake_Aniwhenua
+    source: Galatea_River_site
+    destination: Lake_Aniwhenua
     delay: 13800
   Rainflow:
     type: valve
     state: FIXED
-    dstnode: Lake_Aniwhenua
+    destination: Lake_Aniwhenua
     time_series_tag: SO_Lake_Aniwhenua_Rainflow
   Lake_Aniwhenua:
     type: storage
@@ -72,7 +72,7 @@ model:
   G1:
     type: generator
     state: FIXED
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PQ:
       - [0.0,  0.0]
       - [0.1,  0.0]
@@ -95,7 +95,7 @@ model:
   G2:
     type: generator
     state: FIXED
-    srcnode: Lake_Aniwhenua
+    source: Lake_Aniwhenua
     PQ: # power vs. flow
       - [0.0,  0.0]
       - [0.1,  0.0]
@@ -118,8 +118,8 @@ model:
   Barrage:
     type: valve
     state: FIXED
-    srcnode: Lake_Aniwhenua
-    dstnode: Barrage_Tail
+    source: Lake_Aniwhenua
+    destination: Barrage_Tail
     time_series_tag: SO_Barrage_flow
     result: flow
   Barrage_Tail:
@@ -127,7 +127,7 @@ model:
   Lower:
     type: river
     time_series_tag: SO_Barrage_flow
-    srcnode: Barrage_Tail
+    source: Barrage_Tail
     delay: 1800
   System_Outflow:
     type: consent

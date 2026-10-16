@@ -14,6 +14,7 @@ from pymscada.bus_client_tag import TagInt, TagFloat, TagStr, TagDict, TagBytes
 from pymscada.periodic import Periodic
 from pymscada.misc import bid_period
 from pymscada.bus_misc import BusTask
+from pymscada.www_server import standardise_tag_info
 
 
 OFF = 0
@@ -150,7 +151,8 @@ class MPCRunner:
                  history_tag: str, solve_time_tag: str, last_solve_tag: str,
                  setpoint_tag: str, result_tag: str, status_tag: str,
                  duration_tag: str, capture_tag: str, solver_timeout: int,
-                 time_step: int, duration: int, tags: dict, model: dict):
+                 time_step: int, duration: int, age_s: int,
+                 tag_info: dict[str, dict], model: dict):
         self.log_dir = log_dir
         self.control_tag = TagInt(control_tag)
         self.control_tag.add_callback(self.control_tag_callback)
@@ -170,8 +172,7 @@ class MPCRunner:
         self.duration = duration
         self.duration_tag.value = int(duration / 3600)
         self.tags: dict[str, MPCTag] = {}
-        for tagname, cfg in tags.items():
-            self.tags[tagname] = MPCTag(tagname, **cfg)
+        self.find_model_tags(model, tag_info, age_s)
         self.model_config = model
         self.model = {}
         self.hydraulic_model = None
@@ -182,6 +183,22 @@ class MPCRunner:
         self.solver_running = False
         self.status_tag.value = YET_TO_RUN
 
+    def find_model_tags(self, model, tag_info, age_s):
+        """Parse the model yaml for tags."""
+        for node in model.values():
+            for l, w in node.items():
+                if '_tag' not in l:
+                    continue
+                if w not in tag_info:
+                    raise ValueError(f"Tag {w} not found in tags yaml")
+                standardise_tag_info(w, tag_info[w])
+                if l == 'time_series_tag':
+                    if tag_info[w]['type'] != 'float':
+                        raise ValueError(f"Time series tag {w} must be float")
+                    self.tags[w] = MPCTag(w, type='float', age_s=age_s)
+                elif '_tag' in l:
+                    self.tags[w] = MPCTag(w, type=tag_info[w]['type'])
+
     def capture_callback(self, tag: TagInt):
         """Callback for the capture tag."""
         if tag.value == CAPTURE:
@@ -191,46 +208,6 @@ class MPCRunner:
     def duration_callback(self, tag: TagInt):
         """Callback for the duration tag."""
         self.duration = tag.value * 3600
-
-    # def set_k_v(self, m: dict, node: str, k: str, v):
-    #     """Set a key value in the model."""
-    #     def merge(dst, src):
-    #         if isinstance(src, dict):
-    #             if not isinstance(dst, dict):
-    #                 raise ValueError(f"Invalid merge shape for key: {k}")
-    #             for mk, mv in src.items():
-    #                 if mk not in dst:
-    #                     raise ValueError(f"Invalid merge key: {k}.{mk}")
-    #                 if mv is None:
-    #                     continue
-    #                 if isinstance(mv, dict | list):
-    #                     merge(dst[mk], mv)
-    #                 else:
-    #                     dst[mk] = mv
-    #             return
-    #         if isinstance(src, list):
-    #             if not isinstance(dst, list):
-    #                 raise ValueError(f"Invalid merge shape for key: {k}")
-    #             if len(src) > len(dst):
-    #                 raise ValueError(f"Invalid merge length for key: {k}")
-    #             for i, mv in enumerate(src):
-    #                 if mv is None:
-    #                     continue
-    #                 if isinstance(mv, dict | list):
-    #                     merge(dst[i], mv)
-    #                 else:
-    #                     dst[i] = mv
-    #             return
-    #         raise ValueError(f"Invalid merge value for key: {k}")
-
-    #     if v is None:
-    #         return
-    #     if isinstance(v, dict | list):
-    #         if k not in m[node]:
-    #             raise ValueError(f"Invalid merge key: {k}")
-    #         merge(m[node][k], v)
-    #         return
-    #     m[node][k] = v
 
     def make_model(self, actual_time: int | None=None):
         """
@@ -362,12 +339,12 @@ class MPCRunner:
         """Fill the history tags."""
         while TagTyped.check_none_ids():
             await asyncio.sleep(0.1)
-        fill_done = asyncio.Event()
-        fill_tags = set()
+        waiting_to_fill = set()
 
         def fill_history_cb(tag: TagBytes):
             # packed with self.rta.value = pack('>HHH', rta_id, tagid,
             # packtype) + data
+            nonlocal waiting_to_fill
             if len(tag.value) == 6:
                 return
             _, tagid, packtype = unpack('>HHH', tag.value[:6])
@@ -395,10 +372,7 @@ class MPCRunner:
                 dtag.times_us.append(time_us)
                 dtag.values.append(value)
                 logging.info(f"adding {dtag.name} {time_us} {value:.2f}")
-            fill_tags.remove(dtag.name)
-            if len(fill_tags):
-                return
-            fill_done.set()
+            waiting_to_fill.remove(dtag.name)
 
         self.history_tag.add_callback(fill_history_cb)
         now = int(time.time() * 1000000)
@@ -412,8 +386,14 @@ class MPCRunner:
                     'start_us': start_us,
                     'end_us': now
                 })
-                fill_tags.add(tag.name)
-        await fill_done.wait()
+                waiting_to_fill.add(tag.name)
+        for _ in range(10):
+            await asyncio.sleep(0.5)
+            if len(waiting_to_fill):
+                continue
+            break
+        if len(waiting_to_fill):
+            raise TimeoutError(f"MPC history waiting for: {waiting_to_fill}")
         self.history_tag.del_callback(fill_history_cb)
         # TODO should unsubscribe from the history tag
 
