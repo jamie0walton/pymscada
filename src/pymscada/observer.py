@@ -15,10 +15,10 @@ from pymscada.periodic import Periodic
 class Element():
     """Base model element."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str):
+    def __init__(self, p: 'Observer', name: str, type: str):
         """Base element with common required attributes."""
         self.name = name
-        self.element_type = element_type
+        self.type = type
         self.p = p
 
     def initialise(self):
@@ -40,9 +40,9 @@ class Element():
 class Node(Element):
     """Nodes collect inflows and outflows."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str):
+    def __init__(self, p: 'Observer', name: str, type: str):
         """Nodes collect inflows and outflows with arcs."""
-        super().__init__(p, name, element_type)
+        super().__init__(p, name, type)
         self.inflow = 0.0
         self.inflows = []
         self.outflow = 0.0
@@ -52,10 +52,10 @@ class Node(Element):
 class Arc(Element):
     """Arc element has source and destination nodes."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = ''):
         """Arcs connect between Elements."""
-        super().__init__(p, name, element_type)
+        super().__init__(p, name, type)
         self.source = source
         self.destination = destination
 
@@ -69,8 +69,8 @@ class Arc(Element):
 class Summing(Node):
     """Sum flows. A single river outflow is required."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str):
-        super().__init__(p, name, element_type)
+    def __init__(self, p: 'Observer', name: str, type: str):
+        super().__init__(p, name, type)
 
     def recalc_riverdst(self):
         riverdst = None
@@ -112,10 +112,10 @@ class Summing(Node):
 class Storage(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  level: float = 0.0, volume: float = 0.0, LV=None,
                  level_read_tag: str = ''):
-        super().__init__(p, name, element_type)
+        super().__init__(p, name, type)
         self.level = level
         self.volume = volume
         self.netflow = 0
@@ -174,12 +174,12 @@ class Storage(Node):
 class StorageRainEst(Node):
     """Collect inflows and outflows in storage, represent as level."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  level=0, volume=0, alpha: float = 1.0,
                  Q: list[list[float]]=[[]], R:list[list[float]]=[[]],
                  F=None, H=None, P=None, LV=[],
                  level_read_tag: str = '', rainflow_write_tag: str = ''):
-        super().__init__(p, name, element_type)
+        super().__init__(p, name, type)
         self.level = level
         self.volume = volume
         self.netflow = 0
@@ -293,11 +293,11 @@ class StorageRainEst(Node):
 class Valve(Arc):
     """Ramps to a flow setpoint."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  flow_read_tag: str = '',
                  setFlow: float = 0.0, rate: float = 10.0):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.flow = flow
         self.setFlow = setFlow
         self.flow_read_tag = None
@@ -323,9 +323,9 @@ class Valve(Arc):
 class Canal(Arc):
     """Links flow driven by head difference."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '', flow: float = 0.0):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.flow = flow
         self.HQ = []
         self.lag = 0.99
@@ -342,12 +342,12 @@ class Canal(Arc):
 class River(Arc):
     """Create a delay."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '',
                  inflow: float = 0.0, outflow: float = 0.0, delay: int = 0,
                  inflow_read_tag: str = '', outflow_write_tag: str = '',
                  negate_outflow: bool = False):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.inflow = inflow
         self.outflow = outflow
         self.delay = delay
@@ -402,7 +402,7 @@ class River(Arc):
 class Generator(Arc):
     """Ramp MW, calculates flow."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  MW: float = 0.0, setMW: float = 0.0, rate: float = 0.1,
                  min: float|None = None, max: float|None = None,
@@ -410,7 +410,7 @@ class Generator(Arc):
                  K: float = 1.0, bestMW: float = 0.0, maxMW: float = 0.0,
                  SNLflow: float = 0.1, PQ: list = [],
                  MW_read_tag: str = '', flow_write_tag: str = ''):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.flow = flow
         if min is None:
             self.min = PQ[0][0]
@@ -470,7 +470,7 @@ class Generator(Arc):
 class RadialGate(Arc):
     """Opens under water."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  position: float = 0.0, setposition: float = 10.0,
                  rate: float = 0.5,
@@ -478,7 +478,7 @@ class RadialGate(Arc):
                  crest: float = 0.0, width: float = 10.0, PO: list = [],
                  position_read_tag: str = '', level_read_tag: str = '',
                  flow_write_tag: str = ''):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.flow = flow
         self.position = position
         self.setposition = setposition
@@ -538,7 +538,7 @@ class RadialGate(Arc):
 class FlapGate(Arc):
     """Opens by lowering the weir crest."""
 
-    def __init__(self, p: 'Observer', name: str, element_type: str,
+    def __init__(self, p: 'Observer', name: str, type: str,
                  source: str = '', destination: str = '', flow: float = 0.0,
                  position: float = 0.0, setposition: float = 10.0,
                  rate: float = 0.5,
@@ -546,7 +546,7 @@ class FlapGate(Arc):
                  PC: list = [], HQ: list = [],
                  position_read_tag: str = '', level_read_tag: str = '',
                  flow_write_tag: str = ''):
-        super().__init__(p, name, element_type, source, destination)
+        super().__init__(p, name, type, source, destination)
         self.flow = flow
         self.position = position
         self.setposition = setposition
@@ -647,10 +647,10 @@ class Observer:
             'radial_gate': RadialGate,
             'flap_gate': FlapGate
         }
-        element_type = e.get('element_type')
-        if element_type not in by_type:
+        type = e.get('type')
+        if type not in by_type:
             raise SystemExit(f"{name} does not have a valid type")
-        self.model[name] = by_type[element_type](p=self, name=name, **e)
+        self.model[name] = by_type[type](p=self, name=name, **e)
 
     def summing_river_order(self) -> list[str]:
         """

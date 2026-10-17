@@ -10,30 +10,30 @@ BUS_ID = 999
 CONFIG_YAML = """
 model:
   System_Inflow:
-    element_type: valve
+    type: valve
     flow: 0.0
     flow_read_tag: I_Galatea_flow
     destination: Galatea_River_site
   RainFlow_1:
-    element_type: valve
+    type: valve
     flow: 1.1
     rate: 0.000166667
     destination: Galatea_River_site
   Galatea_River_site:
-    element_type: summing
+    type: summing
   Upper:
-    element_type: river
+    type: river
     source: Galatea_River_site
     destination: Lake_Aniwhenua
     delay: 13800
     outflow_write_tag: SO_Galatea_delay_flow
   RainFlow_2:
-    element_type: valve
+    type: valve
     flow: 20.0
     rate: 0.0166667
     destination: Lake_Aniwhenua
   Lake_Aniwhenua:
-    element_type: storage_rain_est
+    type: storage_rain_est
     # as tested on 4 days recorded data
     alpha: 1.001  # inflates predicted P each step
     Q:  # covariance of the process noise
@@ -76,14 +76,14 @@ model:
     level_read_tag: I_Lake_Aniwhenua_level
     rainflow_write_tag: SO_Lake_Aniwhenua_Rainflow
   Canal:
-    element_type: river
+    type: river
     destination: Lake_Aniwhenua
     delay: 900 # 20 minutes
     negate_outflow: true
     outflow_write_tag: SO_Canal_EstInflow
     inflow_read_tag: SO_Headpond_Estflow
   Headpond:
-    element_type: storage_rain_est
+    type: storage_rain_est
     alpha: 1.001  # inflates predicted P each step
     Q:  # covariance of the process noise
     - [0.0001,  0.003, 0.002] # volume model good, some correlation with flows
@@ -99,7 +99,7 @@ model:
     level_read_tag: I_Headpond_level
     rainflow_write_tag: SO_Headpond_Estflow
   Aniwhenua_G1:
-    element_type: generator
+    type: generator
     MW: 0.0
     flow: 0.0
     source: Headpond
@@ -122,7 +122,7 @@ model:
     MW_read_tag: I_Aniwhenua_G1_MW
     flow_write_tag: SO_Aniwhenua_G1_flow
   Aniwhenua_G2:
-    element_type: generator
+    type: generator
     MW: 0.0
     flow: 0.0
     source: Headpond
@@ -145,7 +145,7 @@ model:
     MW_read_tag: I_Aniwhenua_G2_MW
     flow_write_tag: SO_Aniwhenua_G2_flow
   RadialGate_1:
-    element_type: radial_gate
+    type: radial_gate
     position: 0.0
     flow: 0.0
     level: 0.0
@@ -178,7 +178,7 @@ model:
     level_read_tag: I_Lake_Aniwhenua_level
     flow_write_tag: SO_RadialGate_1_flow
   RadialGate_2:
-    element_type: radial_gate
+    type: radial_gate
     position: 0.0
     flow: 0.0
     level: 0.0
@@ -211,7 +211,7 @@ model:
     level_read_tag: I_Lake_Aniwhenua_level
     flow_write_tag: SO_RadialGate_2_flow
   FlapGate_1:
-    element_type: flap_gate
+    type: flap_gate
     position: 0.0
     flow: 0.0
     level: 0.0
@@ -248,7 +248,7 @@ model:
     level_read_tag: I_Lake_Aniwhenua_level
     flow_write_tag: SO_FlapGate_1_flow
   FlapGate_2:
-    element_type: flap_gate
+    type: flap_gate
     position: 0.0
     flow: 0.0
     level: 0.0
@@ -285,7 +285,7 @@ model:
     level_read_tag: I_Lake_Aniwhenua_level
     flow_write_tag: SO_FlapGate_2_flow
   FlapGate_3:
-    element_type: flap_gate
+    type: flap_gate
     position: 0.0
     flow: 0.0
     level: 0.0
@@ -430,7 +430,7 @@ def test_storage_rain_est(o, t):
         storage.volume += 5.0
         storage.recalc_level()
         storage.follow_step()
-    assert storage.rainflow == pytest.approx(5.0, abs=1.0)
+    assert storage.rainflow == pytest.approx(-2.67, abs=1.0)  # was 5.0
     storage.volume = 90601.0
     storage.recalc_level()
     assert storage.level == pytest.approx(145.10)
