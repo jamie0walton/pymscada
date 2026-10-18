@@ -259,6 +259,7 @@ class HydraulicModel():
             timeout=self.timeout
         )
         for e in self.model:
+            self.model[e].validation_check(self)
             self.model[e].create_lp(self)
         logging.info("MILP add costs")
         if len(self.costs) == 0:
@@ -330,6 +331,9 @@ class Constraint():
             m.model[self.source].outflows.append(self.name)
         if self.destination is not None:
             m.model[self.destination].inflows.append(self.name)
+
+    def validation_check(self, m: HydraulicModel):
+        return
 
     def create_lp(self, m: HydraulicModel):
         logging.error('Must have custom LP building routine')
@@ -573,6 +577,13 @@ class Storage(Constraint):
     def volume(self, level):
         return interp(level, self.LV_xs, self.LV_ys)
 
+    def validation_check(self, m: HydraulicModel):
+        if self.costs is not None:
+            if self.costs[0][0] != self.LV_ys[0] or \
+                    self.costs[0][-1] != self.LV_ys[-1]:
+                raise ValueError(
+                    f'{self.name} costs must cover the full LV range.')
+
     def create_lp(self, m: HydraulicModel):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a level time_series.')
@@ -648,6 +659,13 @@ class StorageProfile(Constraint):
 
     def default_name(self, time):
         return super().volume_name(time)
+
+    def validation_check(self, m: HydraulicModel):
+        if self.costs is not None:
+            if self.costs[0][0] != self.LV_xs[0] or \
+                    self.costs[0][-1] != self.LV_xs[-1]:
+                raise ValueError(
+                    f'{self.name} costs must cover the full LV range.')
 
     def create_lp(self, m: HydraulicModel):
         for t in m.times:
@@ -772,7 +790,7 @@ class Valve(Constraint):
 
 
 class Weir(Constraint):
-    """Ties flow to reservoir level."""
+    """Ties flow to reservoir level via a head/flow (HQ) curve."""
 
     def __init__(self, **kwargs):
         """Inherits from Constraint."""
@@ -788,21 +806,36 @@ class Weir(Constraint):
     def default_name(self, time):
         return super().flow_name(time)
 
+    def validation_check(self, m: HydraulicModel):
+        if self.source is None:
+            raise ValueError(f'{self.name} must have a source.')
+        source = m.model[self.source]
+        if not isinstance(source, (Storage, StorageProfile)):
+            raise ValueError(
+                f'{self.name} source must be a Storage or StorageProfile.')
+        if self.HQ_xs[0] != source.LV_xs[0] or \
+                self.HQ_xs[-1] != source.LV_xs[-1]:
+            raise ValueError(
+                f'{self.name} HQ range must match the source LV range.')
+
     def create_lp(self, m: HydraulicModel):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
+        if self.source is None:
+            raise ValueError(f'{self.name} must have a source.')
+        source = m.model[self.source]
+        if not isinstance(source, Storage):
+            raise ValueError(f'{self.name} source must be a Storage instance.')
+        # convert heads to the source's volume units for the SOS2 tie
+        volumes = [source.volume(head) for head in self.HQ_xs]
         for t in m.times:
             flow = self.time_series.get(t)
-            self.add_ranges(m, t)
             if t < m.set_time:
                 m.lp.add_row(self.flow_name(t), 'E', flow)
-            elif self.state == OFF:
-                m.lp.add_row(self.power_name(t), 'E', 0)
-            elif self.state == FIXED:
-                m.lp.add_row(self.power_name(t), 'E', power)
-            # Always calculate flow from power
-            m.lp.add_sos2(self.power_name(t), [x[0] for x in self.PQ],
-                          self.flow_name(t), [x[1] for x in self.PQ])
+                continue
+            m.lp.add_sos2(source.volume_name(t), volumes,
+                          self.flow_name(t), self.HQ_ys)
+
 
 class Generator(Constraint):
     """Ties flow to generation. Generation is slack."""

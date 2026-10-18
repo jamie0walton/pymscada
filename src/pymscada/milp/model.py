@@ -1,6 +1,7 @@
 """Create and solve a MILP."""
 import logging
 import re
+import tempfile
 from datetime import datetime
 from os import remove
 from pathlib import Path
@@ -40,13 +41,17 @@ class LpModel():
     add_sos2    piecewise linear interpolation
     """
 
-    def __init__(self, name=None, filename="tmp/mpc_solver", timeout=30):
+    def __init__(self, name=None, filename=None, timeout=30):
         """Create MILP object to build and solve."""
         if name is None:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.name = f"MobileSCADA Model {now}"
         else:
             self.name = name
+        self._tmpdir = None
+        if filename is None:
+            self._tmpdir = tempfile.TemporaryDirectory()
+            filename = str(Path(self._tmpdir.name) / 'mpc_solver')
         self.rowno = 0
         self.colno = 0
         self.uniqueNo = 0

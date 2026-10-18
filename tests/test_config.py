@@ -1,15 +1,15 @@
 """Test the config reading."""
 import pytest
+import tempfile
 from textwrap import dedent
-from pathlib import Path
 from pymscada.config import Config, get_demo_files
 
 
 def test_Config():
     """Read config back as dictionary."""
-    cfg = Config('bus.yaml')  # fails over to demo
-    assert cfg['ip'] == '127.0.0.1'
-    assert cfg['port'] == 1324
+    cfg = Config('src/pymscada/demo/yaml/bus.yaml')
+    assert cfg['ip'] == '__ADDRESS__'  # demo file values
+    assert cfg['port'] == '__PORT__'
     with pytest.raises(SystemExit):
         Config('no such config')
 
@@ -25,13 +25,12 @@ def test_variables():
         BEN: *BEN2201_color
         SPOT: *SPOT_color
     """)
-    fn = Path('tests/test_assets/config_temp.yaml')
-    with open(fn, 'w') as fh:
+    with tempfile.NamedTemporaryFile('w', suffix='.yaml') as fh:
         fh.write(s)
-    cfg = Config(fn)
+        fh.flush()
+        cfg = Config(fh.name)
     assert '__vars__' not in cfg
     assert cfg['ip'] == '192.168.1.100'
     assert cfg['port'] == 8080
     assert cfg['BEN'] == 'darkblue'
     assert cfg['SPOT'] == 'lime'
-    fn.unlink()
