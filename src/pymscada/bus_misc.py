@@ -1,5 +1,6 @@
 """Async helpers shared by bus-facing modules."""
 import asyncio
+import traceback
 
 
 class BusTask:
@@ -19,4 +20,5 @@ class BusTask:
         exc = task.exception()
         if exc is not None:
             if self._fatal:
-                raise SystemExit(exc)
+                traceback.print_exception(exc)
+                raise SystemExit(exc) from exc

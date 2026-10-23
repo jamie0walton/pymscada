@@ -761,9 +761,9 @@ class Valve(Constraint):
         """Inherits from Constraint."""
         self.name = ''
         self.state = OFF
-        # self.flow: TimeSeries = None
+        self.flow = None
         super().__init__(**kwargs)
-        if self.time_series is None:
+        if self.flow is None and self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
 
     def default_name(self, time):
@@ -771,9 +771,12 @@ class Valve(Constraint):
 
     def create_lp(self, m: HydraulicModel):
         for t in m.times:
-            if self.time_series is None:
-                raise ValueError(f'{self.name} must have a flow time_series.')
-            flow = self.time_series.get(t)
+            if self.flow is not None:
+                flow = self.flow
+            elif self.time_series is not None:
+                flow = self.time_series.get(t)
+            else:
+                raise ValueError(f'{self.name} must have a flow time_series')
             if flow < 0.1:
                 flow = 0
             if t <= m.actual_time:
@@ -798,8 +801,6 @@ class Weir(Constraint):
         self.cost = 1.0
         self.HQ = []
         super().__init__(**kwargs)
-        if self.time_series is None:
-            raise ValueError(f'{self.name} must have a flow time_series.')
         self.HQ_xs = [x[0] for x in self.HQ]
         self.HQ_ys = [x[1] for x in self.HQ]
 
@@ -819,8 +820,6 @@ class Weir(Constraint):
                 f'{self.name} HQ range must match the source LV range.')
 
     def create_lp(self, m: HydraulicModel):
-        if self.time_series is None:
-            raise ValueError(f'{self.name} must have a flow time_series.')
         if self.source is None:
             raise ValueError(f'{self.name} must have a source.')
         source = m.model[self.source]
@@ -828,9 +827,13 @@ class Weir(Constraint):
             raise ValueError(f'{self.name} source must be a Storage instance.')
         # convert heads to the source's volume units for the SOS2 tie
         volumes = [source.volume(head) for head in self.HQ_xs]
+        if source.time_series is None:
+            raise ValueError(f'{source.name} must have a level time_series.')
         for t in m.times:
-            flow = self.time_series.get(t)
             if t < m.set_time:
+                level = source.time_series.get(t)
+                flow = max(self.HQ_ys[0],
+                           interp(level, self.HQ_xs, self.HQ_ys))
                 m.lp.add_row(self.flow_name(t), 'E', flow)
                 continue
             m.lp.add_sos2(source.volume_name(t), volumes,
