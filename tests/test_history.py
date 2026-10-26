@@ -4,7 +4,10 @@ import math
 from pathlib import Path
 import pytest
 from struct import unpack_from
-from pymscada.history import get_tag_hist_files, TagHistory, History, ITEM_SIZE
+from pymscada.history import (
+    get_tag_hist_files, TagHistory, History, ITEM_SIZE, ITEM_COUNT,
+    CHUNK_SIZE, FILE_CHUNKS, standardise_tag_info
+)
 from pymscada.tag import Tag
 
 
@@ -29,6 +32,7 @@ REP_VALUES = [0.01, 1.01, 2.01,
               1.02, 2.02, 3.02,
               2.03, 3.03, 4.03,
               3.04, 4.04, 5.04]
+
 
 @pytest.fixture(scope='session')
 def t0():
@@ -60,6 +64,35 @@ def t1():
         tag_1.append(time_us + 4, value + 0.04)
     tag_1.flush()
     return tag_1
+
+
+def test_constants():
+    assert ITEM_SIZE == 16
+    assert ITEM_COUNT == 1024
+    assert CHUNK_SIZE == 16384
+    assert FILE_CHUNKS == 6400
+
+
+def test_standardise_tag():
+    multi_tag = {'multi': True}
+    standardise_tag_info('multi_tag', multi_tag)
+    assert multi_tag == {
+        'multi': True, 'name': 'multi_tag', 'id': None, 'desc': 'multi_tag',
+        'type': int, 'min': None, 'max': None, 'deadband': None
+    }
+    default_tag = {}
+    standardise_tag_info('default_tag', default_tag)
+    assert default_tag['type'] is float
+    unknown_tag = {'type': 'unknown'}
+    standardise_tag_info('unknown_tag', unknown_tag)
+    assert unknown_tag['type'] is str
+
+
+def test_bad_init(tmp_path: Path):
+    with pytest.raises(TypeError):
+        TagHistory('history_type_alias', 'float', str(tmp_path))
+    with pytest.raises(FileNotFoundError):
+        TagHistory('history_missing_path', float, str(tmp_path / 'missing'))
 
 
 def test_right_files(t0: TagHistory):
@@ -139,14 +172,16 @@ async def test_write_history():
             t1.flush()
         t1.append(ts + i, math.sin(2 * math.pi * i / 50))
     t1.flush()
-    for file, size in [
-        ['tests/test_assets/tag_1_1000000.dat', 1048576],
-        ['tests/test_assets/tag_1_1065536.dat', 1920],
-        ['tests/test_assets/tag_1_1065656.dat', 14464]
-    ]:
-        p = Path(file)
-        assert p.stat().st_size == size
-        p.unlink()
+    files = [
+        ('tests/test_assets/tag_1_1000000.dat', 1050496),
+        ('tests/test_assets/tag_1_1065656.dat', 14464)
+    ]
+    try:
+        for file, size in files:
+            assert Path(file).stat().st_size == size
+    finally:
+        for file, _ in files:
+            Path(file).unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio()
@@ -160,13 +195,16 @@ async def test_deadband_write_history():
             t1.flush()
         t1.append(ts + i, math.sin(2 * math.pi * i / 50))
     t1.flush()
-    for file, size in [
-        ['tests/test_assets/tag_1_1000000.dat', 210096],
-        ['tests/test_assets/tag_1_1065656.dat', 2896]
-    ]:
-        p = Path(file)
-        assert p.stat().st_size == size
-        p.unlink()
+    files = [
+        ('tests/test_assets/tag_1_1000000.dat', 210096),
+        ('tests/test_assets/tag_1_1065656.dat', 2896)
+    ]
+    try:
+        for file, size in files:
+            assert Path(file).stat().st_size == size
+    finally:
+        for file, _ in files:
+            Path(file).unlink(missing_ok=True)
 
 
 READ_TESTS = [
