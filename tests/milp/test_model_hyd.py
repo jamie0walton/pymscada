@@ -4,6 +4,7 @@ import tempfile
 import yaml
 from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, interp, Constraint
 from pymscada.milp.misc import bid_time
+# from pathlib import PosixPath
 
 
 OFF = 0
@@ -55,7 +56,7 @@ def test_timeseries_on_half_hour():
     assert ts.get(t0 + 1799) == 1.0
     assert ts.get(t0 + 1800) == 2.0
     assert ts.get(t0 + 1801) == 2.0
-
+    
 
 # Power MW, Flow cumecs
 PQ = [
@@ -281,6 +282,54 @@ def test_tank_weir(tmp_path):
     assert weir.values() == pytest.approx([0, 0, 0, 0.003, 1.659, 0.56, 1.293,
                                            0.805, 1.13, 0.913], abs=0.001)
     assert m.lp.solutioncost == pytest.approx(12.727, abs=0.001)
+    m.remove_result()
+
+
+def test_tank_weir_weighted(tmp_path):
+    """Simple fill / empty tank with a weighted weir to check the math."""
+    # tmp_path = PosixPath('/home/mscada/pymscada/tmp')
+    inflow = TimeSeries(1.0)
+    weir = TimeSeries(0.0)
+    tank = TimeSeries(0.0)
+    model = {
+        'name': 'test',
+        'actual_time': 1522494001,
+        'time_step': 600,
+        'duration': 3600,
+        'logdir': str(tmp_path),
+        'model': {
+            'Inflow': {
+                'type': 'valve',
+                'time_series': inflow,
+                'destination': 'Tank',
+                'state': FIXED
+            },
+            'Tank': {
+                'type': 'storage',
+                'time_series': tank,
+                'LV': [[-1, 0],
+                       [0, 3600],
+                       [1, 7200]],
+                'costs': [[-1, 1.0],
+                          [[2, 1]]]
+            },
+            'Weir': {
+                'type': 'weir',
+                'time_series': weir,
+                'source': 'Tank',
+                'HQ': [[-1, 0], [0, 0], [1, 10]],
+                'weight': 0.7
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    assert tank.values() == pytest.approx([0, 0, 0.0003, 0.166, 0.139, 0.061,
+                                           0.087, 0.122, 0.103], abs=0.001)
+    assert weir.values() == pytest.approx([0, 0, 0, 0.003, 1.162, 1.47,
+                                           0.841, 0.792, 1.114, 1.085],
+                                           abs=0.001)
+    assert m.lp.solutioncost == pytest.approx(10.161, abs=0.001)
     m.remove_result()
 
 

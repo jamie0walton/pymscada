@@ -94,6 +94,7 @@ class HydraulicModel():
      - revenue      value of generation WRT time of day
      - profile      lake target WRT time of day
      - outage       mode changes for generators
+     - accumulator   integrates a source over time
      - end_state    final state of the model
     """
 
@@ -215,6 +216,8 @@ class HydraulicModel():
             self.model[name] = TimeProfile(name=name, **e)
         elif e['type'] == 'add':
             self.model[name] = Add(name=name, **e)
+        elif e['type'] == 'accumulator':
+            self.model[name] = Accumulator(name=name, **e)
         elif e['type'] == 'end_state':
             self.model[name] = EndState(name=name, **e)
         else:
@@ -725,6 +728,11 @@ class River(Constraint):
     def default_name(self, time):
         return super().inflow_name(time)
 
+    def validation_check(self, m: HydraulicModel):
+        if self.delay % m.time_step != 0:
+            raise ValueError(
+                f'{self.name} delay must be a multiple of time_step.')
+
     def create_lp(self, m: HydraulicModel):
         # work from the outflow time
         for t in m.times:
@@ -762,6 +770,8 @@ class Valve(Constraint):
         self.name = ''
         self.state = OFF
         self.flow = None
+        self.ramp_up = None  # m3/s per hour
+        self.ramp_down = None  # m3/s per hour
         super().__init__(**kwargs)
         if self.flow is None and self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
@@ -769,16 +779,26 @@ class Valve(Constraint):
     def default_name(self, time):
         return super().flow_name(time)
 
+    def add_ramps(self, m: HydraulicModel, t: int, t_prior: int):
+        dt = (t - t_prior) / 3600
+        if self.ramp_up is not None:
+            m.lp.add_row(self.flow_name(t), -1.0, self.flow_name(t_prior),
+                         'L', self.ramp_up * dt)
+        if self.ramp_down is not None:
+            m.lp.add_row(self.flow_name(t_prior), -1.0, self.flow_name(t),
+                         'L', self.ramp_down * dt)
+
     def create_lp(self, m: HydraulicModel):
-        for t in m.times:
+        for ti, t in enumerate(m.times):
             if self.flow is not None:
                 flow = self.flow
             elif self.time_series is not None:
                 flow = self.time_series.get(t)
             else:
                 raise ValueError(f'{self.name} must have a flow time_series')
-            if flow < 0.1:
-                flow = 0
+        # TODO work out how to handle negatives.
+            if flow < 0.001:
+                flow = 0.0
             if t <= m.actual_time:
                 m.lp.add_row(self.flow_name(t), 'E', flow)
             elif self.state == OFF:
@@ -788,24 +808,42 @@ class Valve(Constraint):
             elif self.state == FREE:
                 self.add_ranges(m, t)
                 self.add_limit_costs(m, t)
+                # first step is from start_time, not the 1 s earlier actual
+                t_prior = m.start_time if t == m.set_time else m.times[ti - 1]
+                self.add_ramps(m, t, t_prior)
             else:
                 logging.error(f"{self.name} invalid state: {self.state}")
 
 
 class Weir(Constraint):
-    """Ties flow to reservoir level via a head/flow (HQ) curve."""
+    """
+    Ties flow to reservoir level via a head/flow (HQ) curve.
+
+    ``weight`` blends this period's volume with the prior period's volume
+    (weight * current + (1 - weight) * prior) before the HQ lookup. This
+    damps the flow response so long time_step solves with small volumes
+    stay numerically stable. weight=1 (default) uses current volume only,
+    matching the unweighted behaviour.
+    """
 
     def __init__(self, **kwargs):
         """Inherits from Constraint."""
         self.name = ''
         self.cost = 1.0
         self.HQ = []
+        self.weight = 1.0
         super().__init__(**kwargs)
+        if not 0.5 <= self.weight <= 1.0:
+            # doing a sweep in tests showed unstable if < 0.5 so it's invalid
+            raise ValueError(f'{self.name} weight must be between 0.5 and 1.')
         self.HQ_xs = [x[0] for x in self.HQ]
         self.HQ_ys = [x[1] for x in self.HQ]
 
     def default_name(self, time):
         return super().flow_name(time)
+
+    def weighted_volume_name(self, time):
+        return f"{self.name}__WeightedVolume__{time}"
 
     def validation_check(self, m: HydraulicModel):
         if self.source is None:
@@ -829,6 +867,7 @@ class Weir(Constraint):
         volumes = [source.volume(head) for head in self.HQ_xs]
         if source.time_series is None:
             raise ValueError(f'{source.name} must have a level time_series.')
+        t_prior = None
         for t in m.times:
             if t < m.set_time:
                 level = source.time_series.get(t)
@@ -836,8 +875,18 @@ class Weir(Constraint):
                            interp(level, self.HQ_xs, self.HQ_ys))
                 m.lp.add_row(self.flow_name(t), 'E', flow)
                 continue
-            m.lp.add_sos2(source.volume_name(t), volumes,
+            if self.weight >= 1.0 or t_prior is None:
+                volume_name = source.volume_name(t)
+            else:
+                volume_name = self.weighted_volume_name(t)
+                m.lp.add_row(
+                    self.weight, source.volume_name(t),
+                    1.0 - self.weight, source.volume_name(t_prior),
+                    -1, volume_name,
+                    'E', 0.0)
+            m.lp.add_sos2(volume_name, volumes,
                           self.flow_name(t), self.HQ_ys)
+            t_prior = t
 
 
 class Generator(Constraint):
@@ -1427,6 +1476,45 @@ class Add(Constraint):
             ]
             m.lp.add_row(elements, -1.0, self.default_name(t), 'E', 0)
             self.add_limit_costs(m, t)
+
+
+class Accumulator(Constraint):
+    """
+    Cost to miss an accumulated target, summed in a single row.
+
+    Sums element default_name * dt / 3600 from start_time to end_time, so
+    a MW element gives MWh. setpoint is the accumulated value for 1 hour
+    and is scaled by the hours from start_time to end_time. Shortfall and
+    surplus against it are both charged at cost.
+    """
+
+    def __init__(self, **kwargs):
+        """Inherits from Constraint."""
+        self.name = ''
+        self.cost = 1.0
+        self.element: str = ''
+        self.setpoint = 0.0
+        super().__init__(**kwargs)
+        if not self.element:
+            raise ValueError(f'{self.name} must have an element.')
+        if not self.setpoint:
+            raise ValueError(f'{self.name} must have a non-zero setpoint.')
+
+    def default_name(self, time):
+        return f"{self.name}__Acc__{time}"
+
+    def create_lp(self, m: HydraulicModel):
+        element = m.model[self.element]
+        total = []
+        for t_prior, t in zip(m.times, m.times[1:]):
+            total.append((t - t_prior) / 3600)
+            total.append(element.default_name(t_prior))
+        hours = (m.end_time - m.start_time) / 3600
+        c1 = self.default_name(m.times[-1])
+        c2 = f'{c1}__Neg'
+        m.lp.add_row(total, c1, -1.0, c2, 'E', self.setpoint * hours)
+        m.add_cost((self.cost, c1))
+        m.add_cost((self.cost, c2))
 
 
 class EndState(Constraint):
