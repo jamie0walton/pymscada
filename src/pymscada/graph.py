@@ -2,7 +2,34 @@
 from math import ceil
 from pathlib import Path
 from string import ascii_lowercase
+import struct
+import zlib
 import pymscada.graph_constants as gc
+
+
+def write_png_chunk(file, chunk_type, data):
+    file.write(struct.pack(">I", len(data)))
+    file.write(chunk_type)
+    file.write(data)
+    file.write(struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF))
+
+
+def save_png(path, width, height, pixels):
+    rows = bytearray()
+    for y in range(height):
+        rows.append(0)
+        for red, green, blue in pixels[y * width:(y + 1) * width]:
+            rows.extend((red, green, blue))
+
+    with Path(path).open("wb") as file:
+        file.write(b"\x89PNG\r\n\x1a\n")
+        write_png_chunk(
+            file,
+            b"IHDR",
+            struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0),
+        )
+        write_png_chunk(file, b"IDAT", zlib.compress(rows))
+        write_png_chunk(file, b"IEND", b"")
 
 def parse_interval(text):
     """Turn "30min", "30 min" or "30 minutes" into a timedelta."""
@@ -70,9 +97,9 @@ class Box:
         self.right = right
         self.bottom = bottom
         self.background = background
-        self.left_line = None
-        self.right_line = None
-        self.bottom_line = None
+        self.left_line: tuple[int, int, int] | None = None
+        self.right_line: tuple[int, int, int] | None = None
+        self.bottom_line: tuple[int, int, int] | None = None
 
     @property
     def width(self):
@@ -81,6 +108,12 @@ class Box:
     @property
     def height(self):
         return self.bottom - self.top
+
+
+class LegendBox(Box):
+    def __init__(self, background=gc.WHITE):
+        super().__init__(background=background)
+        self.entries = []
 
 
 class GraphCanvas:
@@ -107,9 +140,14 @@ class GraphCanvas:
         self.y_fractions = even_fractions(gc.GRID_DIVISIONS)
         self.grid_colour = gc.GRID_COLOUR
         self.graph_box = Box(background=box_background)
+        self.legend_boxes = []
+        self.legend_entries = []
         self.layout()
 
-    def layout(self, title_height=0, x_height=0, lhs_widths=(), rhs_widths=()):
+    def layout(
+        self, title_height=0, x_height=0, lhs_widths=(), rhs_widths=(),
+        legend_rows=(),
+    ):
         """Recalculate every box edge from the requested sizes."""
         m = self.margin
         bg = self.box_background
@@ -118,12 +156,19 @@ class GraphCanvas:
         self.title_box = Box(
             inner_left, m, inner_right, m + title_height, bg
         )
+        self.legend_boxes = []
+        legend_bottom = self.height - m
+        for entries, _ in reversed(legend_rows):
+            legend = LegendBox(bg)
+            legend.left, legend.right = inner_left, inner_right
+            legend.bottom = legend_bottom
+            legend.top = legend.bottom - gc.TEXT_HEIGHT
+            legend.entries = entries
+            self.legend_boxes.insert(0, legend)
+            legend_bottom = legend.top - m
+        x_bottom = legend_bottom
         self.x_box = Box(
-            inner_left,
-            self.height - m - x_height,
-            inner_right,
-            self.height - m,
-            bg,
+            inner_left, x_bottom - x_height, inner_right, x_bottom, bg
         )
         top = self.title_box.bottom + m
         bottom = self.x_box.top - m
@@ -160,6 +205,7 @@ class GraphCanvas:
             *self.lhs_y_boxes,
             *self.rhs_y_boxes,
             self.x_box,
+            *self.legend_boxes,
             self.graph_box,
         ]
 
@@ -270,6 +316,23 @@ class GraphCanvas:
                                     )
                 cursor_x += gc.GLYPH_ADVANCE * scale
 
+    def draw_vertical_text(self, x, y, text, colour=gc.BLACK):
+        width = self.text_width(text)
+        cursor_x = 0
+        for character in text:
+            if character == " ":
+                cursor_x += gc.SPACE_ADVANCE
+                continue
+            glyph = gc.FONT.get(character, gc.FONT["?"]).split("/")
+            for row, pattern in enumerate(glyph):
+                for column, pixel in enumerate(pattern):
+                    if pixel == "1":
+                        self.set_pixel(
+                            x + row, y + width - 1 - cursor_x - column,
+                            colour,
+                        )
+            cursor_x += gc.GLYPH_ADVANCE
+
     def draw_line(self, x0, y0, x1, y1, colour, clip=None):
         """Draw a line; with `clip` (a Box) only pixels inside it are set."""
         dx = abs(x1 - x0)
@@ -293,13 +356,7 @@ class GraphCanvas:
                 y0 += sy
 
     def save(self, path):
-        with Path(path).open("w", encoding="ascii", newline="\n") as file:
-            file.write(f"P3\n{self.width} {self.height}\n255\n")
-            for y in range(self.height):
-                start = y * self.width
-                row = self.pixels[start:start + self.width]
-                file.write(" ".join(f"{r} {g} {b}" for r, g, b in row))
-                file.write("\n")
+        save_png(path, self.width, self.height, self.pixels)
 
 
 class Axis:
@@ -353,7 +410,7 @@ class Axis:
 
 class Graph:
     def __init__(
-        self, width=gc.DEFAULT_SIZE, height=gc.DEFAULT_SIZE,
+        self, width=gc.WIDTH, height=gc.HEIGHT,
         margin=gc.MARGIN, title="", box_background=gc.WHITE,
     ):
         self.title = title
@@ -412,7 +469,7 @@ class Graph:
         if name in self.axes:
             raise ValueError(f"Duplicate axis name: {name}")
         low, high = value_range
-        axis = Axis(name, low, high, colour or self.axis_colour, dp)
+        axis = Axis(name, low, high, colour, dp)
         (self.lhs_axes if side == "lhs" else self.rhs_axes).append(axis)
         # The axis nearest the graph box sets that edge's darker line.
         graph_box = self.canvas.graph_box
@@ -426,7 +483,7 @@ class Graph:
     def axes(self):
         return {a.name: a for a in self.lhs_axes + self.rhs_axes}
 
-    def add_trace(self, series, axis, colour=None):
+    def add_trace(self, series, axis, name=None, colour=None):
         """Queue a time series, drawn against the y axis called `axis`.
 
         Without a colour, the next entry of COLORS is used.
@@ -436,9 +493,31 @@ class Graph:
             raise ValueError("Cannot plot an empty series")
         if axis not in self.axes:
             raise ValueError(f"Unknown axis: {axis}")
+        if isinstance(name, tuple) and colour is None:
+            colour, name = name, None
         if colour is None:
             colour = gc.COLORS[len(self.traces) % len(gc.COLORS)]
-        self.traces.append((series, colour, self.axes[axis]))
+        axis_object = self.axes[axis]
+        if axis_object.colour is None:
+            axis_object.colour = colour
+            graph_box = self.canvas.graph_box
+            if (
+                graph_box.left_line is None
+                and next(
+                    (a for a in self.lhs_axes if a.colour is not None), None
+                ) is axis_object
+            ):
+                graph_box.left_line = colour
+            elif (
+                graph_box.right_line is None
+                and next(
+                    (a for a in self.rhs_axes if a.colour is not None), None
+                ) is axis_object
+            ):
+                graph_box.right_line = colour
+        self.traces.append((series, colour, axis_object))
+        if name is not None:
+            self.canvas.legend_entries.append((name, colour))
 
     def plot(self):
         """Lay out the canvas, then draw everything that has been prepared."""
@@ -447,11 +526,13 @@ class Graph:
         canvas = self.canvas
         time_range = self.time_range()
         self.resolve_divisions(time_range)
+        legend_rows = self.legend_rows()
         canvas.layout(
             title_height=gc.TEXT_HEIGHT if self.title else 0,
             x_height=gc.TEXT_HEIGHT,
-            lhs_widths=[a.width for a in self.lhs_axes],
-            rhs_widths=[a.width for a in self.rhs_axes],
+            lhs_widths=[a.width for a in self.lhs_axes if a.colour is not None],
+            rhs_widths=[a.width for a in self.rhs_axes if a.colour is not None],
+            legend_rows=legend_rows,
         )
         canvas.fill_boxes()
         canvas.draw_grid()
@@ -461,6 +542,46 @@ class Graph:
         for series, colour, axis in self.traces:
             self.draw_trace(series, colour, axis, time_range)
         self.draw_title()
+        self.draw_legend(legend_rows)
+
+    def legend_rows(self):
+        line_width = gc.GLYPH_ADVANCE * 2
+        available_width = self.canvas.width - 2 * self.canvas.margin
+        rows = []
+        entries = []
+        row_width = 0
+        for name, colour in self.canvas.legend_entries:
+            entry_width = (
+                line_width + gc.SPACE_ADVANCE
+                + GraphCanvas.text_width(name)
+            )
+            if entries and row_width + self.canvas.margin + entry_width > available_width:
+                rows.append((entries, row_width))
+                entries = []
+                row_width = 0
+            if entries:
+                row_width += self.canvas.margin
+            entries.append((name, colour))
+            row_width += entry_width
+        if entries:
+            rows.append((entries, row_width))
+        return rows
+
+    def draw_legend(self, rows):
+        canvas = self.canvas
+        line_width = gc.GLYPH_ADVANCE * 2
+        for box, (entries, row_width) in zip(canvas.legend_boxes, rows):
+            x = box.left + (box.width - row_width) // 2
+            y = box.top
+            for name, colour in entries:
+                canvas.draw_line(
+                    x, y + gc.LABEL_HALF_HEIGHT,
+                    x + line_width - 1, y + gc.LABEL_HALF_HEIGHT,
+                    colour,
+                )
+                x += line_width + gc.SPACE_ADVANCE
+                canvas.draw_text(x, y, name, colour)
+                x += GraphCanvas.text_width(name) + canvas.margin
 
     def time_range(self):
         starts = [series[0][0] for series, _, _ in self.traces]
@@ -490,16 +611,34 @@ class Graph:
             )
 
     def draw_y_labels(self):
-        for axis, box in zip(self.lhs_axes, self.canvas.lhs_y_boxes):
+        lhs_axes = [axis for axis in self.lhs_axes if axis.colour is not None]
+        rhs_axes = [axis for axis in self.rhs_axes if axis.colour is not None]
+        for axis, box in zip(lhs_axes, self.canvas.lhs_y_boxes):
             self.draw_y_axis_labels(axis, box.right - 1, "e")
-        for axis, box in zip(self.rhs_axes, self.canvas.rhs_y_boxes):
+            self.draw_y_axis_name(axis, box, "lhs")
+        for axis, box in zip(rhs_axes, self.canvas.rhs_y_boxes):
             self.draw_y_axis_labels(axis, box.left, "w")
+            self.draw_y_axis_name(axis, box, "rhs")
 
     def draw_y_axis_labels(self, axis, x, anchor):
         """Draw each label inside the axis box, centred on its gridline."""
         for fraction, label in zip(axis.fractions, axis.labels):
             y = self.canvas.grid_y_at(fraction)
             self.canvas.draw_text(x, y, label, axis.colour, anchor=anchor)
+
+    def draw_y_axis_name(self, axis, box, side):
+        fractions = [0, *axis.fractions, 1]
+        bottom, top = max(
+            zip(fractions, fractions[1:]),
+            key=lambda gap: gap[1] - gap[0],
+        )
+        center = self.canvas.grid_y_at((bottom + top) / 2)
+        y = center - GraphCanvas.text_width(axis.name) // 2
+        x = (
+            box.right - gc.TEXT_HEIGHT + 1
+            if side == "lhs" else box.left
+        )
+        self.canvas.draw_vertical_text(x, y, axis.name, axis.colour)
 
     def draw_trace(self, series, colour, axis, time_range):
         canvas = self.canvas

@@ -24,9 +24,8 @@ def shifted(series, minutes):
     return [(t + timedelta(minutes=minutes), v) for t, v in series]
 
 
-def make_sinusoid(
-    count=73, step_minutes=10, period=36, phase=0, offset=0, amplitude=40
-):
+def make_sinusoid(count=73, step_minutes=10., period=36., phase=0.,
+                  offset=0., amplitude=40.):
     times = make_times(count, step_minutes)
     return [
         (t, offset + amplitude * sin(2 * pi * (i + phase) / period))
@@ -74,14 +73,28 @@ def test_draw_text_rejects_unknown_anchor():
         GraphCanvas(10, 10).draw_text(0, 0, "A", anchor="zz")
 
 
-def test_save_writes_plain_ppm(tmp_path):
+def test_vertical_text_rotates_counter_clockwise():
+    image = GraphCanvas(8, 8)
+    image.draw_vertical_text(0, 0, "L", RED)
+    points = {
+        (i % image.width, i // image.width)
+        for i, pixel in enumerate(image.pixels) if pixel == RED
+    }
+    assert points == (
+        {(row, 4) for row in range(6)}
+        | {(6, column) for column in range(5)}
+    )
+
+
+def test_save_writes_png(tmp_path):
     image = GraphCanvas(2, 1)
     image.set_pixel(0, 0, RED)
-    path = tmp_path / "out.ppm"
+    path = tmp_path / "out.png"
     image.save(path)
-    assert path.read_text().split("\n")[:4] == [
-        "P3", "2 1", "255", "255 0 0 255 255 255"
-    ]
+    data = path.read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    assert int.from_bytes(data[16:20], "big") == 2
+    assert int.from_bytes(data[20:24], "big") == 1
 
 
 # Graph
@@ -207,9 +220,93 @@ def test_plot_sizes_y_boxes_from_axis_labels():
     graph.add_y_axis("wide", (0, 100))
     graph.add_y_axis("narrow", (0, 10), side="rhs")
     graph.add_trace(make_sawtooth(3), "wide")
+    graph.add_trace(make_sawtooth(3), "narrow")
     graph.plot()
     (lhs,), (rhs,) = graph.canvas.lhs_y_boxes, graph.canvas.rhs_y_boxes
-    assert lhs.width == graph.lhs_axes[0].width > rhs.width
+    assert lhs.width == graph.lhs_axes[0].width
+    assert rhs.width == graph.rhs_axes[0].width
+    assert lhs.width > rhs.width
+
+
+def test_unnamed_traces_do_not_reserve_legend_space():
+    graph = plotted(make_sawtooth(3))
+    graph.plot()
+    assert graph.canvas.legend_entries == []
+    assert graph.canvas.legend_boxes == []
+    assert graph.canvas.x_box.bottom == graph.canvas.height - graph.canvas.margin
+
+
+def test_named_traces_wrap_and_center_legend_entries():
+    graph = Graph(100, 160)
+    graph.add_y_axis("level", (0, 1))
+    graph.add_trace(make_sawtooth(2), "level", colour=RED, name="Level")
+    graph.add_trace(make_sawtooth(2), "level", colour=BLUE, name="Ratio")
+    graph.plot()
+    canvas = graph.canvas
+    boxes = canvas.legend_boxes
+    assert [box.entries for box in boxes] == [[("Level", RED)], [
+        ("Ratio", BLUE)
+    ]]
+    assert [box.height for box in boxes] == [gc.TEXT_HEIGHT] * 2
+    assert canvas.x_box.bottom == boxes[0].top - canvas.margin
+    assert boxes[0].bottom == boxes[1].top - canvas.margin
+    assert boxes[1].bottom == canvas.height - canvas.margin
+    rows = graph.legend_rows()
+    assert len(rows) == 2
+    line_width = gc.GLYPH_ADVANCE * 2
+    for box, (entries, row_width) in zip(boxes, rows):
+        (name, colour), = entries
+        x = box.left + (box.width - row_width) // 2
+        y = box.top
+        assert canvas.pixels[(y + gc.LABEL_HALF_HEIGHT) * canvas.width + x] == colour
+        text_x = x + line_width + gc.SPACE_ADVANCE
+        assert canvas.pixels[y * canvas.width + text_x] == colour
+
+
+def test_y_axis_name_is_centered_in_largest_bottom_first_gap():
+    graph = Graph(300, 220)
+    graph.add_y_axis("level", (0, 100), colour=BLUE)
+    graph.set_y_divisions([0, 10, 20, 90, 100])
+    graph.add_trace(make_sawtooth(3), "level", colour=RED)
+    graph.plot()
+    box = graph.canvas.lhs_y_boxes[0]
+    gap_top = graph.canvas.grid_y_at(0.9)
+    gap_bottom = graph.canvas.grid_y_at(0.2)
+    name_pixels = [
+        (i % graph.canvas.width, i // graph.canvas.width)
+        for i, pixel in enumerate(graph.canvas.pixels)
+        if pixel == BLUE and box.left <= i % graph.canvas.width < box.right
+        and gap_top + gc.LABEL_HALF_HEIGHT < i // graph.canvas.width
+        < gap_bottom - gc.LABEL_HALF_HEIGHT
+    ]
+    name_xs = [x for x, _ in name_pixels]
+    name_ys = [y for _, y in name_pixels]
+    center = graph.canvas.grid_y_at(0.55)
+    assert name_pixels
+    assert min(name_xs) >= box.left
+    assert max(name_xs) < box.right
+    assert max(name_xs) == box.right - 1
+    assert abs((min(name_ys) + max(name_ys)) / 2 - center) <= 1
+
+
+def test_rhs_y_axis_name_is_aligned_to_graph_box():
+    graph = Graph(300, 220)
+    graph.add_y_axis("level", (0, 100), side="rhs", colour=BLUE)
+    graph.set_y_divisions([0, 10, 20, 90, 100])
+    graph.add_trace(make_sawtooth(3), "level", colour=RED)
+    graph.plot()
+    box = graph.canvas.rhs_y_boxes[0]
+    gap_top = graph.canvas.grid_y_at(0.9)
+    gap_bottom = graph.canvas.grid_y_at(0.2)
+    name_xs = [
+        i % graph.canvas.width
+        for i, pixel in enumerate(graph.canvas.pixels)
+        if pixel == BLUE and box.left <= i % graph.canvas.width < box.right
+        and gap_top + gc.LABEL_HALF_HEIGHT < i // graph.canvas.width
+        < gap_bottom - gc.LABEL_HALF_HEIGHT
+    ]
+    assert name_xs
+    assert min(name_xs) == box.left
 
 
 def test_axis_sets_graph_box_edge_line_when_added():
@@ -221,9 +318,30 @@ def test_axis_sets_graph_box_edge_line_when_added():
     assert (box.left_line, box.right_line) == (BLUE, RED)
 
 
+def test_trace_sets_unset_axis_colour():
+    graph = Graph()
+    graph.add_y_axis("hidden", (0, 1))
+    axis = graph.add_y_axis("level", (0, 1))
+    assert axis.colour is None
+    graph.add_trace(make_sawtooth(2), "level", colour=RED)
+    assert axis.colour == RED
+    assert graph.canvas.graph_box.left_line == RED
+
+
+def test_axis_without_colour_is_not_plotted():
+    graph = Graph()
+    graph.add_y_axis("hidden", (0, 1))
+    graph.add_y_axis("visible", (0, 1), side="rhs")
+    graph.add_trace(make_sawtooth(2), "visible", colour=RED)
+    graph.plot()
+    assert graph.canvas.lhs_y_boxes == []
+    assert len(graph.canvas.rhs_y_boxes) == 1
+    assert graph.canvas.graph_box.left_line is None
+
+
 def test_traces_never_leave_the_graph_box():
     graph = Graph(200, 200, box_background=YELLOW)
-    graph.add_y_axis("level", (0, 10))
+    graph.add_y_axis("level", (0, 10), colour=BLUE)
     graph.add_trace(make_sawtooth(20), "level", colour=RED)  # peaks at 100
     graph.plot()
     canvas, box = graph.canvas, graph.canvas.graph_box
@@ -294,32 +412,32 @@ def test_traces_default_to_successive_palette_colours():
     assert [colour for _, colour, _ in graph.traces] == gc.COLORS[:3]
 
 
-def test_create_image_ppm():
-    """Builds the sample graph (one triangle, three sinusoids) to image.ppm."""
+def test_create_image_png():
+    """Builds the sample graph (one triangle, three sinusoids) to PNG."""
     graph = Graph(title="Triangle and Sinusoids")
     graph.add_y_axis("triangle", (0, 100))
-    graph.add_y_axis("sinusoid", (0, 100), colour=BLUE, side="rhs")
-    graph.add_y_axis("fast", (0, 200), colour=gc.COLORS[2])
-    graph.add_y_axis("slow", (-0.3, 0.2), colour=gc.COLORS[3], side="rhs")
+    graph.add_y_axis("sinusoid", (0, 100), side="rhs")
+    graph.add_y_axis("fast", (0, 200))
+    graph.add_y_axis("slow", (-0.3, 0.2), side="rhs")
     graph.set_x_divisions("103 minutes")
     graph.set_y_divisions([0, 10, 50, 90, 100])
-    graph.add_trace(shifted(make_sawtooth(), 12), "triangle")
-    graph.add_trace(shifted(make_sinusoid(), 12), "sinusoid", colour=BLUE)
-    graph.add_trace(
-        shifted(make_sinusoid(period=24, phase=6, offset=100), 12),
-        "fast",
-        gc.COLORS[2],
-    )
-    graph.add_trace(
-        shifted(make_sinusoid(period=72, phase=-9, offset=-0.05, amplitude=0.25), 12),
-        "slow",
-        gc.COLORS[3],
-    )
+    graph.add_trace(shifted(make_sawtooth(), 12), "triangle",
+                    "One long name for a colour with the intent to force wrap")
+    graph.add_trace(shifted(make_sinusoid(), 12), "sinusoid",
+                    "Two also long so it doesn't look weird")
+    graph.add_trace(shifted(make_sinusoid(period=24, phase=6, offset=100), 12),
+                    "fast", "Three")
+    graph.add_trace(shifted(make_sinusoid(period=72, phase=-9, offset=-0.05,
+                                          amplitude=0.25), 12),
+                    "slow", "Four")
     graph.plot()
-    path = Path(__file__).with_name("image.ppm")
+    path = Path(__file__).parent / "test_assets" / "image.png"
     graph.save(path)
 
-    assert path.read_text().startswith("P3\n800 800\n255\n")
+    image = path.read_bytes()
+    assert image[:8] == b"\x89PNG\r\n\x1a\n"
+    assert int.from_bytes(image[16:20], "big") == gc.WIDTH
+    assert int.from_bytes(image[20:24], "big") == gc.HEIGHT
 
 
 
