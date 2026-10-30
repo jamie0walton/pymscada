@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 import time
+import matplotlib.pyplot as plt
 from array import array
 from collections.abc import Callable
 from copy import deepcopy
@@ -419,6 +420,53 @@ class MPAnalyser:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+    def set_path(self, model: dict, path: str, value):
+        """Set the value at '<node> <key>[i]...' in the model."""
+        node, ref = path.split(' ', 1)
+        key, _, rest = ref.partition('[')
+        keys = [key] + [int(i) for i in rest.rstrip(']').split('][') if i]
+        obj = model['model'][node]
+        for k in keys[:-1]:
+            obj = obj[k]
+        if isinstance(obj, dict) and keys[-1] not in obj:
+            raise KeyError(path)
+        obj[keys[-1]] = value
+
+    def plot(self, results: dict, value, index: int, config: dict,
+             live: Path):
+        """Plot the config timeseries from the results to a png."""
+        limits = config['axes']
+        fig, ax = plt.subplots()
+        y_axes = {limits[0][0]: ax}
+        for n, (name, _, _) in enumerate(limits[1:], 1):
+            y_axes[name] = ax.twinx()
+            y_axes[name].spines['right'].set_position(
+                ('outward', 60 * (n - 1)))
+        for name, low, high in limits:
+            y_axes[name].set_ylim(low, high)
+            y_axes[name].set_ylabel(name)
+        times = []
+        for i, entry in enumerate(config['timeseries']):
+            node, result = entry.split(' ')
+            series = sorted(results[node][result].items())
+            times.extend(t for t, _ in series)
+            y_axes[result].plot([t for t, _ in series],
+                                [v for _, v in series], label=entry,
+                                color=f'C{i}')
+        ticks = range(min(times) - min(times) % 3600 + 3600,
+                      max(times), 3600)
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(
+            [time.strftime('%H:%M', time.localtime(t)) for t in ticks])
+        ax.set_title(f"{self.kwargs['sweep']['path']} = {value}")
+        fig.legend(loc='lower center', ncol=3)
+        fig.subplots_adjust(bottom=0.2,
+                            right=0.9 - 0.13 * max(0, len(limits) - 2))
+        name = config['output_file'].format(sweep_value=value,
+                                            sweep_index=index)
+        fig.savefig(live / name)
+        plt.close(fig)
+
     async def start(self):
         """Run the model analyser and exit."""
         model_path = self.kwargs.get('load', None)
@@ -438,8 +486,22 @@ class MPAnalyser:
         with p.open('w', encoding='utf-8') as f:
             dump(model, f, sort_keys=False)
         # create and solve
-        m = HydraulicModel(model, timeout)
-        m.solve_lp()
+        sweep = self.kwargs.get('sweep', None)
+        if sweep is None:
+            m = HydraulicModel(model, timeout)
+            m.solve_lp()
+            return
+        config = self.kwargs['print']
+        for index, value in enumerate(sweep['values'], 1):
+            swept = deepcopy(model)
+            self.set_path(swept, sweep['path'], value)
+            m = HydraulicModel(swept, timeout)
+            m.solve_lp()
+            if not m.lp.found:
+                raise ValueError(f"no solution for {sweep['path']} {value}")
+            self.plot(m.lp.resultsdict, value, index, config, live)
+            if not config['standard_log_files']:
+                m.remove_result()
 
 
 class MPControl:

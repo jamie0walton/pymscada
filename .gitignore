@@ -1,5 +1,6 @@
 # Custom Jamie
 history/
+tmp/
 nohup.out
 *.sqlite
 
