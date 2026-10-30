@@ -2,7 +2,6 @@ import asyncio
 import logging
 import shutil
 import time
-import matplotlib.pyplot as plt
 from array import array
 from collections.abc import Callable
 from copy import deepcopy
@@ -10,6 +9,7 @@ from pathlib import Path
 from struct import unpack
 from yaml import UnsafeLoader, dump, load
 from pymscada import BusClient, TagTyped
+from pymscada.graph import Graph
 from pymscada.milp.model_hyd import HydraulicModel, TimeSeries, Constraint
 from pymscada.bus_client_tag import TagInt, TagFloat, TagStr, TagDict, TagBytes
 from pymscada.periodic import Periodic
@@ -436,36 +436,39 @@ class MPAnalyser:
              live: Path):
         """Plot the config timeseries from the results to a png."""
         limits = config['axes']
-        fig, ax = plt.subplots()
-        y_axes = {limits[0][0]: ax}
-        for n, (name, _, _) in enumerate(limits[1:], 1):
-            y_axes[name] = ax.twinx()
-            y_axes[name].spines['right'].set_position(
-                ('outward', 60 * (n - 1)))
-        for name, low, high in limits:
-            y_axes[name].set_ylim(low, high)
-            y_axes[name].set_ylabel(name)
-        times = []
-        for i, entry in enumerate(config['timeseries']):
+        image = self.kwargs.get('image', {})
+        graph_options = {
+            key: image[key] for key in ('width', 'height') if key in image
+        }
+        graph = Graph(
+            title=f"{self.kwargs['sweep']['path']} = {value}",
+            **graph_options,
+        )
+        for i, axis in enumerate(limits):
+            name, *value_range = axis
+            if len(value_range) == 1:
+                value_range = value_range[0]
+            if i == 0 and len(value_range) > 2:
+                graph.set_y_divisions(value_range)
+                value_range = (min(value_range), max(value_range))
+            graph.add_y_axis(
+                name, value_range, side='lhs' if i == 0 else 'rhs'
+            )
+        graph.set_x_divisions('2 hour')
+        for entry in config['timeseries']:
             node, result = entry.split(' ')
             series = sorted(results[node][result].items())
-            times.extend(t for t, _ in series)
-            y_axes[result].plot([t for t, _ in series],
-                                [v for _, v in series], label=entry,
-                                color=f'C{i}')
-        ticks = range(min(times) - min(times) % 3600 + 3600,
-                      max(times), 3600)
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(
-            [time.strftime('%H:%M', time.localtime(t)) for t in ticks])
-        ax.set_title(f"{self.kwargs['sweep']['path']} = {value}")
-        fig.legend(loc='lower center', ncol=3)
-        fig.subplots_adjust(bottom=0.2,
-                            right=0.9 - 0.13 * max(0, len(limits) - 2))
+            if not series:
+                continue
+            graph.add_trace(
+                series,
+                result,
+                node,
+            )
         name = config['output_file'].format(sweep_value=value,
                                             sweep_index=index)
-        fig.savefig(live / name)
-        plt.close(fig)
+        graph.plot()
+        graph.save(live / name)
 
     async def start(self):
         """Run the model analyser and exit."""

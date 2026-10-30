@@ -289,6 +289,27 @@ def test_y_axis_name_is_centered_in_largest_bottom_first_gap():
     assert abs((min(name_ys) + max(name_ys)) / 2 - center) <= 1
 
 
+def test_y_axis_name_ties_choose_bottommost_gap():
+    graph = Graph(300, 220)
+    graph.add_y_axis("Power", (0, 20), colour=BLUE)
+    graph.set_y_divisions([0, 4, 8, 12, 16, 20])
+    graph.add_trace(make_sawtooth(3), "Power", colour=RED)
+    graph.plot()
+    box = graph.canvas.lhs_y_boxes[0]
+    gap_top = graph.canvas.grid_y_at(0.2)
+    gap_bottom = graph.canvas.grid_y_at(0)
+    name_ys = [
+        i // graph.canvas.width
+        for i, pixel in enumerate(graph.canvas.pixels)
+        if pixel == BLUE and box.left <= i % graph.canvas.width < box.right
+        and gap_top + gc.LABEL_HALF_HEIGHT < i // graph.canvas.width
+        < gap_bottom - gc.LABEL_HALF_HEIGHT
+    ]
+    center = graph.canvas.grid_y_at(0.1)
+    assert name_ys
+    assert abs((min(name_ys) + max(name_ys)) / 2 - center) <= 1
+
+
 def test_rhs_y_axis_name_is_aligned_to_graph_box():
     graph = Graph(300, 220)
     graph.add_y_axis("level", (0, 100), side="rhs", colour=BLUE)

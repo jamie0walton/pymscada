@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+﻿from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
 from string import ascii_lowercase
@@ -388,7 +388,7 @@ class Axis:
         values = self.values
         for dp in range(gc.MAX_DP + 1):
             if all(
-                abs(round(b, dp) - round(a, dp) - (b - a)) <= 0.5 * abs(b - a)
+                abs(round(b, dp) - round(a, dp) - (b - a)) <= 0.01 * abs(b - a)
                 for a, b in zip(values, values[1:])
             ):
                 return dp
@@ -489,6 +489,8 @@ class Graph:
         Without a colour, the next entry of COLORS is used.
         """
         series = list(series)
+        if series and isinstance(series[0][0], (int, float)):
+            series = [(datetime.fromtimestamp(t), v) for t, v in series]
         if not series:
             raise ValueError("Cannot plot an empty series")
         if axis not in self.axes:
@@ -628,9 +630,12 @@ class Graph:
 
     def draw_y_axis_name(self, axis, box, side):
         fractions = [0, *axis.fractions, 1]
-        bottom, top = max(
-            zip(fractions, fractions[1:]),
-            key=lambda gap: gap[1] - gap[0],
+        gaps = list(zip(fractions, fractions[1:]))
+        largest_gap = max(top - bottom for bottom, top in gaps)
+        tolerance = largest_gap * 1e-12
+        bottom, top = next(
+            gap for gap in gaps
+            if largest_gap - (gap[1] - gap[0]) <= tolerance
         )
         center = self.canvas.grid_y_at((bottom + top) / 2)
         y = center - GraphCanvas.text_width(axis.name) // 2
