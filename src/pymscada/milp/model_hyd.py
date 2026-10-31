@@ -108,7 +108,7 @@ class HydraulicModel():
         root = Path(config['logdir'])
         if not root.exists():
             raise NotADirectoryError(root.absolute())
-        live = root / 'live'
+        live = root / config.get('result_dir', 'live')
         live.mkdir(parents=True, exist_ok=True)
         self.path = live / 'mpc_solver'
         self.logpath = root

@@ -439,8 +439,8 @@ class MPAnalyser:
             raise ValueError(f"sweep path {path} does not resolve to a scalar")
         obj[keys[-1]] = value
 
-    def plot(self, results: dict, value, index: int, config: dict,
-             live: Path):
+    def plot(self, results: dict, title: str, value, index: int,
+             config: dict, live: Path):
         """Plot the config timeseries from the results to a png."""
         limits = config['axes']
         image = self.kwargs.get('image', {})
@@ -448,7 +448,7 @@ class MPAnalyser:
             key: image[key] for key in ('width', 'height') if key in image
         }
         graph = Graph(
-            title=f"{self.kwargs['sweep']['path']} = {value}",
+            title=title,
             **graph_options,
         )
         for i, axis in enumerate(limits):
@@ -480,6 +480,7 @@ class MPAnalyser:
     async def start(self):
         """Run the model analyser and exit."""
         model_path = self.kwargs.get('load', None)
+        swept_path = self.kwargs.get('swept', 'swept')
         if model_path is None:
             raise ValueError("load is required")
         log_path = self.kwargs.get('log_path', None)
@@ -490,7 +491,7 @@ class MPAnalyser:
             model = load(f, Loader=UnsafeLoader)
         model['logdir'] = log_path
         # save so can compare
-        live = Path(log_path) / 'live'
+        live = Path(log_path) / swept_path
         live.mkdir(parents=True, exist_ok=True)
         p = live / 'mpc_model.yaml'
         with p.open('w', encoding='utf-8') as f:
@@ -502,14 +503,29 @@ class MPAnalyser:
             m.solve_lp()
             return
         config = self.kwargs['print']
-        for index, value in enumerate(sweep['values'], 1):
+        for item in sweep:
+            if not isinstance(item['values'], list):
+                item['values'] = [item['values']]
+        longest = max(sweep, key=lambda item: len(item['values']))
+        count = len(longest['values'])
+        for index in range(1, count + 1):
             swept = deepcopy(model)
-            self.set_path(swept, sweep['path'], value)
+            swept['result_dir'] = 'swept'
+            title = "Unset"
+            first_value = None
+            for item in sweep:
+                values = item['values']
+                value = values[min(index, len(values)) - 1]
+                self.set_path(swept, item['path'], value)
+                if item is longest:
+                    title = f"{item['path']} = {value}"
+                    first_value = value
             m = HydraulicModel(swept, timeout)
             m.solve_lp()
             if not m.lp.found:
-                raise ValueError(f"no solution for {sweep['path']} {value}")
-            self.plot(m.lp.resultsdict, value, index, config, live)
+                raise ValueError(f"no solution for {title}")
+            self.plot(m.lp.resultsdict, title, first_value, index, config,
+                      live)
             if not config['standard_log_files']:
                 m.remove_result()
 
