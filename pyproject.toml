@@ -37,7 +37,7 @@ test = [
     "flake8-docstrings>=1.7.0",
     "pytest-asyncio>=0.21.1",
     "pytest-cov>=4.1.0",
-    "pdm==2.28.2",
+#    "pdm==2.28.2",
 ]
 
 [tool.coverage.run]
