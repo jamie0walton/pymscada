@@ -425,11 +425,18 @@ class MPAnalyser:
         node, ref = path.split(' ', 1)
         key, _, rest = ref.partition('[')
         keys = [key] + [int(i) for i in rest.rstrip(']').split('][') if i]
-        obj = model['model'][node]
-        for k in keys[:-1]:
-            obj = obj[k]
-        if isinstance(obj, dict) and keys[-1] not in obj:
-            raise KeyError(path)
+        obj = model['model']
+        try:
+            obj = obj[node]
+            for k in keys[:-1]:
+                obj = obj[k]
+            target = obj[keys[-1]]
+        except (IndexError, KeyError, TypeError):
+            print(obj)
+            raise
+        if not isinstance(target, (int, float)):
+            print(target)
+            raise ValueError(f"sweep path {path} does not resolve to a scalar")
         obj[keys[-1]] = value
 
     def plot(self, results: dict, value, index: int, config: dict,

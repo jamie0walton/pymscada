@@ -1,6 +1,6 @@
 [project]
 name = "pymscada"
-version = "0.2.9b2"
+version = "0.2.9b3"
 description = "Shared tag value SCADA with python backup and Angular UI"
 authors = [
     {name = "Jamie Walton", email = "jamie@walton.net.nz"},
@@ -14,7 +14,7 @@ dependencies = [
 #    "requests==2.25.1",
     "pycomm3==1.2.16",        # deprecate as no longer maintained
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
 classifiers = [
