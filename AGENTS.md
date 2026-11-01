@@ -50,7 +50,11 @@ MUST output single‑line shell commands unless multi‑line is explicitly reque
 - Code should use type hints minimally
 - Respect an 80 character line limit
 - Never claim something is working
+
+### Running python
 - Use the bash alias command `activate` to set the `python` venv
+- use `activate && pytest tests/[file]`
+- add `--cov=pymscada.[module] --cov-report=term-missing -q` for coverage
 
 ## Documentation File Rules (markdown, txt)
 

@@ -73,6 +73,21 @@ def test_draw_text_rejects_unknown_anchor():
         GraphCanvas(10, 10).draw_text(0, 0, "A", anchor="zz")
 
 
+def test_descenders_are_drawn_below_the_glyph_rows():
+    image = GraphCanvas(10, 12)
+    image.draw_text(0, 0, "y", RED)
+    rows = {i // image.width for i, p in enumerate(image.pixels) if p == RED}
+    assert max(rows) == 8
+    assert 7 in rows
+
+
+def test_glyphs_without_descenders_stay_within_seven_rows():
+    image = GraphCanvas(10, 12)
+    image.draw_text(0, 0, "A", RED)
+    rows = {i // image.width for i, p in enumerate(image.pixels) if p == RED}
+    assert max(rows) == 6
+
+
 def test_vertical_text_rotates_counter_clockwise():
     image = GraphCanvas(8, 8)
     image.draw_vertical_text(0, 0, "L", RED)
@@ -180,7 +195,7 @@ def test_y_divisions_outside_the_axis_range_are_rejected():
         graph.plot()
 
 
-def test_layout_stacks_boxes_one_margin_apart():
+def test_layout_stacks_y_boxes_against_graph_box():
     canvas = GraphCanvas(200, 100, margin=10)
     canvas.layout(title_height=8, x_height=12, lhs_widths=[20, 30], rhs_widths=[15])
     title, x, graph = canvas.title_box, canvas.x_box, canvas.graph_box
@@ -189,11 +204,11 @@ def test_layout_stacks_boxes_one_margin_apart():
 
     assert (title.top, title.bottom) == (10, 18)
     assert (x.top, x.bottom) == (100 - 10 - 12, 100 - 10)
-    assert (lhs1.left, lhs1.right) == (10, 30)
-    assert lhs2.left == lhs1.right + 10
-    assert (rhs.left, rhs.right) == (200 - 10 - 15, 200 - 10)
-    assert graph.left == lhs2.right + 10
-    assert graph.right == rhs.left - 10
+    assert (lhs1.left, lhs1.right) == (0, 20)
+    assert lhs2.left == lhs1.right
+    assert (rhs.left, rhs.right) == (200 - 15, 200)
+    assert graph.left == lhs2.right
+    assert graph.right == rhs.left
     assert graph.top == title.bottom + 10
     assert graph.bottom == x.top - 10
 
@@ -223,8 +238,9 @@ def test_plot_sizes_y_boxes_from_axis_labels():
     graph.add_trace(make_sawtooth(3), "narrow")
     graph.plot()
     (lhs,), (rhs,) = graph.canvas.lhs_y_boxes, graph.canvas.rhs_y_boxes
-    assert lhs.width == graph.lhs_axes[0].width
-    assert rhs.width == graph.rhs_axes[0].width
+    pad = 2 * graph.canvas.margin + 1
+    assert lhs.width == graph.lhs_axes[0].width + pad
+    assert rhs.width == graph.rhs_axes[0].width + pad
     assert lhs.width > rhs.width
 
 
@@ -330,13 +346,26 @@ def test_rhs_y_axis_name_is_aligned_to_graph_box():
     assert min(name_xs) == box.left
 
 
-def test_axis_sets_graph_box_edge_line_when_added():
+def test_each_y_box_has_a_line_on_its_graph_side():
     graph = Graph()
-    box = graph.canvas.graph_box
-    assert (box.left_line, box.right_line) == (None, None)
-    graph.add_y_axis("left", (0, 1), colour=BLUE)
-    graph.add_y_axis("right", (0, 1), colour=RED, side="rhs")
-    assert (box.left_line, box.right_line) == (BLUE, RED)
+    graph.add_y_axis("a", (0, 1))
+    graph.add_y_axis("b", (0, 1))
+    graph.add_y_axis("c", (0, 1), side="rhs")
+    for name, colour in zip("abc", (BLUE, RED, BLUE)):
+        graph.add_trace(make_sawtooth(2), name, colour=colour)
+    graph.plot()
+    canvas = graph.canvas
+    a, b = canvas.lhs_y_boxes
+    (c,) = canvas.rhs_y_boxes
+    assert (a.right_line, b.right_line, c.left_line) == ([BLUE], [RED], [BLUE])
+    assert (a.left_line, b.left_line, c.right_line) == (None, None, None)
+    assert (canvas.graph_box.left_line, canvas.graph_box.right_line) == (
+        None, None
+    )
+    mid = canvas.graph_box.top + 5
+    assert canvas.pixels[mid * canvas.width + a.right - 1] == BLUE
+    assert canvas.pixels[mid * canvas.width + b.right - 1] == RED
+    assert canvas.pixels[mid * canvas.width + c.left] == BLUE
 
 
 def test_trace_sets_unset_axis_colour():
@@ -346,7 +375,40 @@ def test_trace_sets_unset_axis_colour():
     assert axis.colour is None
     graph.add_trace(make_sawtooth(2), "level", colour=RED)
     assert axis.colour == RED
-    assert graph.canvas.graph_box.left_line == RED
+
+
+def test_explicit_axis_colour_is_not_extended_by_traces():
+    graph = Graph()
+    axis = graph.add_y_axis("level", (0, 1), colour=BLUE)
+    graph.add_trace(make_sawtooth(2), "level", colour=RED)
+    assert axis.colours == [BLUE]
+
+
+def test_axis_collects_each_trace_colour_once():
+    graph = Graph()
+    axis = graph.add_y_axis("level", (0, 1))
+    for colour in (RED, BLUE, RED):
+        graph.add_trace(make_sawtooth(2), "level", colour=colour)
+    assert axis.colours == [RED, BLUE]
+    assert axis.colour == RED
+
+
+def test_y_box_line_is_split_into_equal_colour_portions():
+    graph = Graph(200, 100)
+    graph.add_y_axis("level", (0, 1))
+    graph.add_trace(make_sawtooth(2), "level", colour=RED)
+    graph.add_trace(make_sawtooth(2), "level", colour=BLUE)
+    graph.plot()
+    canvas = graph.canvas
+    (box,) = canvas.lhs_y_boxes
+    x = box.right - 1
+    column = [
+        canvas.pixels[y * canvas.width + x]
+        for y in range(box.top, box.bottom)
+    ]
+    half = len(column) // 2
+    assert column[:half] == [RED] * half
+    assert column[half:] == [BLUE] * (len(column) - half)
 
 
 def test_axis_without_colour_is_not_plotted():
@@ -357,7 +419,6 @@ def test_axis_without_colour_is_not_plotted():
     graph.plot()
     assert graph.canvas.lhs_y_boxes == []
     assert len(graph.canvas.rhs_y_boxes) == 1
-    assert graph.canvas.graph_box.left_line is None
 
 
 def test_traces_never_leave_the_graph_box():

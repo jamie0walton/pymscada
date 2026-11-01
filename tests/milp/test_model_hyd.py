@@ -771,6 +771,44 @@ def test_gentimestep(tmp_path):
     m.remove_result()
 
 
+def test_gen_revenue(tmp_path):
+    """Generator revenue."""
+    t0 = 1522494000
+    act_time = t0 + 1223
+    price = TimeSeries({
+        t0 - 1500: 1.0, t0 - 1200: 20.0, t0 - 900: 1.0, t0 - 600: 20.0,
+        t0 - 300: 1.0, t0: 20.0, t0 + 300: 1.0, t0 + 600: 20.0,
+        t0 + 900: 1.0, t0 + 1200: 20.0,
+        t0 + 1800: 10.0, t0 + 3600: 10.0, t0 + 5400: 10.0})
+    power = TimeSeries({t0: 10.0})
+    model = {
+        'name': 'test',
+        'actual_time': act_time,
+        'time_step': 1800,
+        'duration': 3600,
+        'logdir': str(tmp_path),
+        'model': {
+            'G1': {
+                'type': 'generator',
+                'time_series': power,
+                'state': FIXED,
+                'ranges': [[6.8, 12.8]],
+                'PQ': PQ
+            },
+            'Revenue': {
+                'type': 'revenue_profile',
+                'time_series': price,
+                'generation': 'G1',
+                'cost': 1.0
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    assert m.lp.solutioncost == pytest.approx(-152.5)
+    m.remove_result()
+
+
 def test_twogensemi(tmp_path):
     """MW output semi-continuous."""
     power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})

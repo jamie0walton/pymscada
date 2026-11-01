@@ -1370,6 +1370,9 @@ class RevenueProfile(Constraint):
                 continue
             # local_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
             spot_price = self.time_series.get(t)
+            if t == m.set_time:
+                spot_price = sum(
+                    self.time_series.get(t - 300 * i) for i in range(6)) / 6
             if spot_price < self.min_price:
                 spot_price = 0.0
             # logging.warning(f"{local_time} {spot_price}")

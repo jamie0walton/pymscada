@@ -31,6 +31,15 @@ def save_png(path, width, height, pixels):
         write_png_chunk(file, b"IDAT", zlib.compress(rows))
         write_png_chunk(file, b"IEND", b"")
 
+
+def glyph_rows(character):
+    """Pixel row patterns of a character, descender rows last."""
+    rows = gc.FONT.get(character, gc.FONT["?"]).split("/")
+    if character in gc.FONT_DESCEND:
+        rows += gc.FONT_DESCEND[character].split("/")
+    return rows
+
+
 def parse_interval(text):
     """Turn "30min", "30 min" or "30 minutes" into a timedelta."""
     text = str(text).strip().lower()
@@ -85,8 +94,9 @@ def time_ticks(start, end, divisions):
 class Box:
     """Rectangle in pixel coordinates; right and bottom are exclusive.
 
-    left_line, right_line and bottom_line are optional colours for a darker
-    line drawn along that edge inside the box.
+    bottom_line is an optional colour for a darker line along that edge
+    inside the box. left_line and right_line are optional lists of colours
+    that share the edge in equal portions from top to bottom.
     """
 
     def __init__(
@@ -97,8 +107,8 @@ class Box:
         self.right = right
         self.bottom = bottom
         self.background = background
-        self.left_line: tuple[int, int, int] | None = None
-        self.right_line: tuple[int, int, int] | None = None
+        self.left_line: list[tuple[int, int, int]] | None = None
+        self.right_line: list[tuple[int, int, int]] | None = None
         self.bottom_line: tuple[int, int, int] | None = None
 
     @property
@@ -121,10 +131,11 @@ class GraphCanvas:
 
     Boxes keep their edges until `layout()` is called again:
       title_box    margin below the top
-      lhs_y_boxes  margin from the left, then from the prior lhs box
-      rhs_y_boxes  margin from the right, then from the prior rhs box
+      lhs_y_boxes  from the left edge, then abutting the prior lhs box
+      rhs_y_boxes  from the right edge, then abutting the prior rhs box
       x_box        margin above the bottom
-      graph_box    margin in from the title, y and x boxes
+      graph_box    abuts the y boxes, else a margin from the sides; margin
+                   from the title and x boxes
     """
 
     def __init__(
@@ -179,20 +190,20 @@ class GraphCanvas:
         box_bottom = bottom + gc.LABEL_HALF_HEIGHT
 
         self.lhs_y_boxes = []
-        left = m
+        left = 0 if lhs_widths else m
         for width in lhs_widths:
             self.lhs_y_boxes.append(
                 Box(left, box_top, left + width, box_bottom, bg)
             )
-            left += width + m
+            left += width
 
         self.rhs_y_boxes = []
-        right = self.width - m
+        right = self.width if rhs_widths else self.width - m
         for width in rhs_widths:
             self.rhs_y_boxes.append(
                 Box(right - width, box_top, right, box_bottom, bg)
             )
-            right -= width + m
+            right -= width
 
         # The graph box persists so its edge lines survive a new layout.
         box = self.graph_box
@@ -244,16 +255,26 @@ class GraphCanvas:
         )
 
     def draw_box_lines(self):
-        """Draw the graph box's darker edge lines, where set."""
-        box = self.graph_box
-        top, bottom = box.top, box.bottom - 1
-        left, right = box.left, box.right - 1
-        if box.left_line:
-            self.draw_line(left, top, left, bottom, box.left_line)
-        if box.right_line:
-            self.draw_line(right, top, right, bottom, box.right_line)
-        if box.bottom_line:
-            self.draw_line(left, bottom, right, bottom, box.bottom_line)
+        """Draw every box's darker edge lines, where set."""
+        for box in self.boxes:
+            top, bottom = box.top, box.bottom - 1
+            left, right = box.left, box.right - 1
+            if box.left_line:
+                self.draw_portions(left, top, bottom, box.left_line)
+            if box.right_line:
+                self.draw_portions(right, top, bottom, box.right_line)
+            if box.bottom_line:
+                self.draw_line(left, bottom, right, bottom, box.bottom_line)
+
+    def draw_portions(self, x, top, bottom, colours):
+        """Draw a vertical line split into equal portions of each colour."""
+        rows = bottom - top + 1
+        count = len(colours)
+        for i, colour in enumerate(colours):
+            self.draw_line(
+                x, top + rows * i // count,
+                x, top + rows * (i + 1) // count - 1, colour,
+            )
 
     def draw_grid(self):
         """Draw the single set of vertical and horizontal gridlines."""
@@ -271,6 +292,20 @@ class GraphCanvas:
     def set_pixel(self, x, y, colour):
         if 0 <= x < self.width and 0 <= y < self.height:
             self.pixels[y * self.width + x] = colour
+
+    def blend_pixel(self, x, y, colour, alpha, clip=None):
+        if clip is not None and not (
+            clip.left <= x < clip.right and clip.top <= y < clip.bottom
+        ):
+            return
+        if alpha >= 1:
+            self.set_pixel(x, y, colour)
+        elif alpha > 0 and 0 <= x < self.width and 0 <= y < self.height:
+            i = y * self.width + x
+            self.pixels[i] = tuple(
+                round(b + (c - b) * alpha)
+                for b, c in zip(self.pixels[i], colour)
+            )
 
     @staticmethod
     def text_width(text, scale=1):
@@ -303,7 +338,7 @@ class GraphCanvas:
                 if character == " ":
                     cursor_x += gc.SPACE_ADVANCE * scale
                     continue
-                glyph = gc.FONT.get(character, gc.FONT["?"]).split("/")
+                glyph = glyph_rows(character)
                 for row, pattern in enumerate(glyph):
                     for column, pixel in enumerate(pattern):
                         if pixel == "1":
@@ -323,7 +358,7 @@ class GraphCanvas:
             if character == " ":
                 cursor_x += gc.SPACE_ADVANCE
                 continue
-            glyph = gc.FONT.get(character, gc.FONT["?"]).split("/")
+            glyph = glyph_rows(character)
             for row, pattern in enumerate(glyph):
                 for column, pixel in enumerate(pattern):
                     if pixel == "1":
@@ -333,15 +368,30 @@ class GraphCanvas:
                         )
             cursor_x += gc.GLYPH_ADVANCE
 
-    def draw_line(self, x0, y0, x1, y1, colour, clip=None):
-        """Draw a line; with `clip` (a Box) only pixels inside it are set."""
+    def draw_line(self, x0, y0, x1, y1, colour, clip=None, smooth=False):
+        """Draw a line; with `clip` (a Box) only pixels inside it are set.
+
+        `smooth` splits each pixel's colour with its neighbour across the
+        line (Wu), so the two weights always sum to 1.
+        """
         dx = abs(x1 - x0)
         dy = -abs(y1 - y0)
         sx = 1 if x0 < x1 else -1
         sy = 1 if y0 < y1 else -1
         error = dx + dy
+        major = max(dx, -dy) or 1
         while True:
-            if clip is None or (
+            if smooth:
+                # error - dx - dy is the pixel's offset from the line * major
+                offset = error - dx - dy
+                edge = abs(offset) / major
+                side = 1 if offset > 0 else -1
+                if dx < -dy:
+                    self.blend_pixel(x0 + sx * side, y0, colour, edge, clip)
+                else:
+                    self.blend_pixel(x0, y0 - sy * side, colour, edge, clip)
+                self.blend_pixel(x0, y0, colour, 1 - edge, clip)
+            elif clip is None or (
                 clip.left <= x0 < clip.right and clip.top <= y0 < clip.bottom
             ):
                 self.set_pixel(x0, y0, colour)
@@ -370,9 +420,15 @@ class Axis:
         self.name = name
         self.low = low
         self.high = high
-        self.colour = colour
+        self.colours = [] if colour is None else [colour]
+        self.explicit = colour is not None
         self.dp = dp
         self.fractions = even_fractions(gc.GRID_DIVISIONS)
+
+    @property
+    def colour(self):
+        """The first colour, used for the labels and name."""
+        return self.colours[0] if self.colours else None
 
     @property
     def values(self):
@@ -411,9 +467,10 @@ class Axis:
 class Graph:
     def __init__(
         self, width=gc.WIDTH, height=gc.HEIGHT,
-        margin=gc.MARGIN, title="", box_background=gc.WHITE,
+        margin=gc.MARGIN, title="", box_background=gc.WHITE, smooth=False,
     ):
         self.title = title
+        self.smooth = smooth
         self.canvas = GraphCanvas(
             width, height, margin=margin, box_background=box_background
         )
@@ -471,12 +528,6 @@ class Graph:
         low, high = value_range
         axis = Axis(name, low, high, colour, dp)
         (self.lhs_axes if side == "lhs" else self.rhs_axes).append(axis)
-        # The axis nearest the graph box sets that edge's darker line.
-        graph_box = self.canvas.graph_box
-        if side == "lhs" and graph_box.left_line is None:
-            graph_box.left_line = axis.colour
-        elif side == "rhs" and graph_box.right_line is None:
-            graph_box.right_line = axis.colour
         return axis
 
     @property
@@ -500,23 +551,8 @@ class Graph:
         if colour is None:
             colour = gc.COLORS[len(self.traces) % len(gc.COLORS)]
         axis_object = self.axes[axis]
-        if axis_object.colour is None:
-            axis_object.colour = colour
-            graph_box = self.canvas.graph_box
-            if (
-                graph_box.left_line is None
-                and next(
-                    (a for a in self.lhs_axes if a.colour is not None), None
-                ) is axis_object
-            ):
-                graph_box.left_line = colour
-            elif (
-                graph_box.right_line is None
-                and next(
-                    (a for a in self.rhs_axes if a.colour is not None), None
-                ) is axis_object
-            ):
-                graph_box.right_line = colour
+        if not axis_object.explicit and colour not in axis_object.colours:
+            axis_object.colours.append(colour)
         self.traces.append((series, colour, axis_object))
         if name is not None:
             self.canvas.legend_entries.append((name, colour))
@@ -529,13 +565,21 @@ class Graph:
         time_range = self.time_range()
         self.resolve_divisions(time_range)
         legend_rows = self.legend_rows()
+        lhs_axes = [a for a in self.lhs_axes if a.colour is not None]
+        rhs_axes = [a for a in self.rhs_axes if a.colour is not None]
+        # Margin either side of the text, plus the axis line.
+        pad = 2 * canvas.margin + 1
         canvas.layout(
             title_height=gc.TEXT_HEIGHT if self.title else 0,
             x_height=gc.TEXT_HEIGHT,
-            lhs_widths=[a.width for a in self.lhs_axes if a.colour is not None],
-            rhs_widths=[a.width for a in self.rhs_axes if a.colour is not None],
+            lhs_widths=[a.width + pad for a in lhs_axes],
+            rhs_widths=[a.width + pad for a in rhs_axes],
             legend_rows=legend_rows,
         )
+        for axis, box in zip(lhs_axes, canvas.lhs_y_boxes):
+            box.right_line = axis.colours
+        for axis, box in zip(rhs_axes, canvas.rhs_y_boxes):
+            box.left_line = axis.colours
         canvas.fill_boxes()
         canvas.draw_grid()
         canvas.draw_box_lines()
@@ -615,11 +659,12 @@ class Graph:
     def draw_y_labels(self):
         lhs_axes = [axis for axis in self.lhs_axes if axis.colour is not None]
         rhs_axes = [axis for axis in self.rhs_axes if axis.colour is not None]
+        m = self.canvas.margin
         for axis, box in zip(lhs_axes, self.canvas.lhs_y_boxes):
-            self.draw_y_axis_labels(axis, box.right - 1, "e")
+            self.draw_y_axis_labels(axis, box.right - 1 - m, "e")
             self.draw_y_axis_name(axis, box, "lhs")
         for axis, box in zip(rhs_axes, self.canvas.rhs_y_boxes):
-            self.draw_y_axis_labels(axis, box.left, "w")
+            self.draw_y_axis_labels(axis, box.left + 1 + m, "w")
             self.draw_y_axis_name(axis, box, "rhs")
 
     def draw_y_axis_labels(self, axis, x, anchor):
@@ -639,9 +684,10 @@ class Graph:
         )
         center = self.canvas.grid_y_at((bottom + top) / 2)
         y = center - GraphCanvas.text_width(axis.name) // 2
+        m = self.canvas.margin
         x = (
-            box.right - gc.TEXT_HEIGHT + 1
-            if side == "lhs" else box.left
+            box.right - m - gc.TEXT_HEIGHT
+            if side == "lhs" else box.left + 1 + m
         )
         self.canvas.draw_vertical_text(x, y, axis.name, axis.colour)
 
@@ -657,7 +703,10 @@ class Graph:
             for t, v in series
         ]
         for (xa, ya), (xb, yb) in zip(points, points[1:]):
-            canvas.draw_line(xa, ya, xb, yb, colour, clip=canvas.graph_box)
+            canvas.draw_line(
+                xa, ya, xb, yb, colour, clip=canvas.graph_box,
+                smooth=self.smooth,
+            )
 
     def draw_title(self):
         if self.title:

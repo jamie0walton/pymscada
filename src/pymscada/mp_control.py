@@ -445,7 +445,8 @@ class MPAnalyser:
         limits = config['axes']
         image = self.kwargs.get('image', {})
         graph_options = {
-            key: image[key] for key in ('width', 'height') if key in image
+            key: image[key]
+            for key in ('width', 'height', 'smooth') if key in image
         }
         graph = Graph(
             title=title,
