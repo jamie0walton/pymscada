@@ -809,6 +809,44 @@ def test_gen_revenue(tmp_path):
     m.remove_result()
 
 
+def test_forecast(tmp_path):
+    """Forecast price band selects the G1 target."""
+    t0 = 1522494000
+    model = {
+        'name': 'test',
+        'actual_time': t0 + 1223,
+        'time_step': 1800,
+        'duration': 3600,
+        'logdir': str(tmp_path),
+        'model': {
+            'G1': {
+                'type': 'generator',
+                'time_series': TimeSeries({t0: 10.0}),
+                'state': FREE,
+                'ranges': [[0.0, 12.8]],
+                'PQ': PQ
+            },
+            'Forecast': {
+                'type': 'forecast',
+                'time_series': TimeSeries(
+                    {t0: 10.0, t0 + 1800: 1.0, t0 + 3600: 20.0}),
+                'thresholds': [5.0, 15.0],
+                'costs': [
+                    [['G1', 'E', 0.0, 1000]],
+                    ['G1', 'Average', 9.0, 100],
+                    ['G1', 'E', 12.0, 1000],
+                ]
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    found = [m.lp.results[f'G1__Power__{t}']
+             for t in (t0 + 1224, t0 + 1800, t0 + 3600)]
+    assert found == pytest.approx([9.0, 0.0, 12.0])
+    m.remove_result()
+
+
 def test_twogensemi(tmp_path):
     """MW output semi-continuous."""
     power1 = TimeSeries({1522494000: 5.2, 1522494300: 5.0})
@@ -2199,4 +2237,59 @@ def test_lake_bid_minflow_match(tmp_path):
                                  24.805, 24.0, 19.0, 14.0, 9.92, 9.92, 14.0,
                                  14.0], abs=0.001)
     assert m.lp.solutioncost == pytest.approx(6840126084.585081, abs=1)
+    m.remove_result()
+
+
+def test_accumulator_free_valve(tmp_path):
+    """Add is tied to history so an Accumulator target drives a free valve."""
+    flow = TimeSeries(8.0)
+    power = TimeSeries(8.0)
+    model = {
+        'name': 'test',
+        'actual_time': 1522494301,
+        'time_step': 600,
+        'duration': 3600,
+        'logdir': str(tmp_path),
+        'model': {
+            'Valve': {
+                'type': 'valve',
+                'time_series': flow,
+                'destination': 'Node',
+                'state': FREE,
+                'ramp_up': 100,
+                'costs': [[0.0, 20.0], [[0.0, 20.0]]]
+            },
+            'Node': {
+                'type': 'summing'
+            },
+            'Gen': {
+                'type': 'generator',
+                'time_series': power,
+                'source': 'Node',
+                'ranges': [[0.0, 20.0]],
+                'PQ': [[0.0, 0.0], [20.0, 20.0]]
+            },
+            'Total': {
+                'type': 'add',
+                'defaultname': 'power',
+                'elements': ['Gen']
+            },
+            'Energy': {
+                'type': 'accumulator',
+                'cost': 10000,
+                'element': 'Total',
+                'setpoint': 15.0
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    assert m.lp.results[f'Total__Power__{m.start_time}'] == \
+        pytest.approx(8.0, abs=0.001)
+    future = [m.lp.results[f'Valve__Flow__{t}'] for t in m.times
+              if t >= m.set_time]
+    assert max(future) > 12.0
+    acc = f'Energy__Acc__{m.times[-1]}'
+    assert m.lp.results[acc] == pytest.approx(0.0, abs=0.01)
+    assert m.lp.results[f'{acc}__Neg'] == pytest.approx(0.0, abs=0.01)
     m.remove_result()

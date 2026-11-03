@@ -244,6 +244,16 @@ class MPCRunner:
                     k = 'time_series'
                     v = self.tags[v].timeseries
                 elif k.endswith('_tag'):
+                    parts = k[:-4].split('_')
+                    idx = []
+                    while parts[-1].isdigit():
+                        idx.insert(0, int(parts.pop()))
+                    if idx:
+                        obj = m[node]['_'.join(parts)]
+                        for i in idx[:-1]:
+                            obj = obj[i]
+                        obj[idx[-1]] = self.tags[v].value
+                        continue
                     k = k[:-4]
                     v = self.tags[v].value
                 m[node][k] = v

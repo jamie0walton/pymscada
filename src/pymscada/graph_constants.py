@@ -130,6 +130,39 @@ COLORS = [
     (255, 130, 130),  # salmon
     (110, 150, 255),  # sky blue
 ]
+
+COLOR_7_BY_5 = [
+      # Blues
+    ["#8BC1F7", "#519DE9", "#06C", "#004B95", "#002F5D"],
+      # Greens
+    ["#BDE2B9", "#7CC674", "#4CB140", "#38812F", "#23511E"],
+      # Cyans
+    ["#A2D9D9", "#73C5C5", "#009596", "#005F60", "#003737"],
+      # Purples
+    ["#B2B0EA", "#8481DD", "#5752D1", "#3C3D99", "#2A265F"],
+      # Golds
+    ["#F9E0A2", "#F6D173", "#F4C145", "#F0AB00", "#C58C00"],
+      # Oranges
+    ["#F4B678", "#EF9234", "#EC7A08", "#C46100", "#8F4700"],
+      # Reds
+    ["#C9190B", "#A30000", "#7D1007", "#470000", "#2C0000"]
+]
+
+# Trace colours with similarities for traces on a common y-axis
+COLOR_6_BY_4 = [
+      # blues
+    ["#1A438A", "#275BB0", "#3474D1", "#4590E6"],
+      # reds
+    ["#91112B", "#AC2C42", "#C64E62", "#DF7487"],
+      # greens
+    ["#13592B", "#22773F", "#319655", "#42B56E"],
+      # purples
+    ["#512180", "#673499", "#8049B3", "#9B61CC"],
+      # oranges
+    ["#C46200", "#DC7A00", "#EE9514", "#FBB13C"],
+       # browns
+    ["#5C3A21", "#734B2E", "#8A5E3F", "#A37454"]
+]
 # Time interval units accepted by Graph.set_x_divisions, in seconds.
 TIME_UNITS = {
     "s": 1, "sec": 1, "secs": 1, "second": 1, "seconds": 1,

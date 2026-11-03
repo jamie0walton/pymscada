@@ -94,8 +94,9 @@ class HydraulicModel():
      - revenue      value of generation WRT time of day
      - profile      lake target WRT time of day
      - outage       mode changes for generators
-     - accumulator   integrates a source over time
+     - accumulator  integrates a source over time
      - end_state    final state of the model
+     - forecast     adds costs given a pre-known forecast time series
     """
 
     def __init__(self, config, timeout=30):
@@ -220,6 +221,8 @@ class HydraulicModel():
             self.model[name] = Accumulator(name=name, **e)
         elif e['type'] == 'end_state':
             self.model[name] = EndState(name=name, **e)
+        elif e['type'] == 'forecast':
+            self.model[name] = Forecast(name=name, **e)
         else:
             logging.critical(f"{name} type {e['type']} does not exist")
 
@@ -1472,13 +1475,12 @@ class Add(Constraint):
 
     def create_lp(self, m: HydraulicModel):
         for t in m.times:
-            if t < m.set_time:
-                continue
             elements = [
                 m.model[x].default_name(t) for x in self.elements
             ]
             m.lp.add_row(elements, -1.0, self.default_name(t), 'E', 0)
-            self.add_limit_costs(m, t)
+            if t >= m.set_time:
+                self.add_limit_costs(m, t)
 
 
 class Accumulator(Constraint):
@@ -1541,3 +1543,61 @@ class EndState(Constraint):
             m.lp.add_row(lhs, c1, -1.0, c2, eq, rhs)
             m.add_cost((cost, c1))
             m.add_cost((cost, c2))
+
+
+class Forecast(Constraint):
+    """
+    Price forecast selects soft targets by threshold band.
+
+    costs is one longer than thresholds. Each entry is an item or a list of
+    items [element, E | G | L | Average, target, cost]. Average targets the
+    time weighted mean over the intervals that selected the entry.
+    """
+
+    def __init__(self, **kwargs):
+        """Inherits from Constraint."""
+        self.name = ''
+        self.thresholds = []
+        super().__init__(**kwargs)
+        if self.time_series is None:
+            raise ValueError(f'{self.name} must have a price time_series.')
+        if self.thresholds != sorted(self.thresholds):
+            raise ValueError(f'{self.name} thresholds must be ascending.')
+        if len(self.costs) != len(self.thresholds) + 1:
+            raise ValueError(
+                f'{self.name} costs must be one longer than thresholds.')
+        self.items = [x if isinstance(x[0], list) else [x]
+                      for x in self.costs]
+
+    def validation_check(self, m: HydraulicModel):
+        for items in self.items:
+            for element, eq, target, cost in items:
+                if element not in m.model:
+                    raise ValueError(f'{self.name} {element} not in model.')
+                if eq not in ('E', 'G', 'L', 'Average'):
+                    raise ValueError(f'{self.name} invalid eq {eq}.')
+
+    def add_soft(self, m: HydraulicModel, t: int, lhs, eq, rhs, cost):
+        c1 = m.lp.get_unique_var(self.name, t)
+        c2 = m.lp.get_unique_var(self.name, t)
+        m.lp.add_row(lhs, c1, -1.0, c2, eq, rhs)
+        m.add_cost((cost, c1))
+        m.add_cost((cost, c2))
+
+    def create_lp(self, m: HydraulicModel):
+        averages = {}
+        for t, t_next in zip(m.times, m.times[1:] + [None]):
+            if t < m.set_time:
+                continue
+            index = bisect.bisect_right(self.thresholds,
+                                        self.time_series.get(t))
+            for k, (element, eq, target, cost) in enumerate(self.items[index]):
+                x = m.model[element].default_name(t)
+                if eq != 'Average':
+                    self.add_soft(m, t, x, eq, target, cost)
+                elif t_next is not None:
+                    avg = averages.setdefault((index, k), [target, cost, []])
+                    avg[2] += [(t_next - t) / 3600, x]
+        for target, cost, total in averages.values():
+            self.add_soft(m, m.times[-1], total, 'E',
+                          target * sum(total[0::2]), cost)
