@@ -1126,6 +1126,88 @@ def test_gensemi_changeofstate(tmp_path):
     m.remove_result()
 
 
+def test_gen_ramp_semi_transitions(tmp_path):
+    """Ramps of 6 MW/hour limit running changes, not a start-up or stop."""
+    prices = TimeSeries()
+    for t, p in zip([1522494301, 1522494600, 1522495200, 1522495800,
+                     1522496400, 1522497000, 1522497600, 1522498200,
+                     1522498800], [1, 2, 0, 0, 1, 3, 3, 1, 1]):
+        prices.set({t: p})
+    model = {
+        'name': 'test',
+        'actual_time': 1522494300,
+        'time_step': 600,
+        'duration': 8 * 600,
+        'logdir': str(tmp_path),
+        'model': {
+            'G1': {
+                'type': 'generator',
+                'time_series': TimeSeries(7.0),
+                'state': FREE,
+                'ranges': [[0.0], [6.8, 12.8]],
+                'ramp_up': 6.0,
+                'ramp_down': 6.0,
+                'PQ': PQ
+            },
+            'Target': {
+                'type': 'forecast',
+                'time_series': prices,
+                'thresholds': [0.5, 1.5, 2.5],
+                'costs': [['G1', 'E', 0.0, 10.0],
+                          ['G1', 'E', 7.0, 10.0],
+                          ['G1', 'E', 6.8, 10.0],
+                          ['G1', 'E', 12.0, 10.0]]
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    power = m.lp.resultsdict['G1']['Power']
+    future = [t for t in m.times if t >= m.set_time]
+    # on, min, off, off, start, ramp up to 12 (1 MW per step), ramp down
+    assert [power[t] for t in future] == pytest.approx(
+        [7.0, 6.8, 0.0, 0.0, 7.0, 8.0, 9.0, 8.0, 7.0])
+    m.remove_result()
+
+
+def test_gen_ramp_cost(tmp_path):
+    """ramp_cost makes the ramp soft, a larger target cost overrides it."""
+    prices = TimeSeries(3)
+    model = {
+        'name': 'test',
+        'actual_time': 1522494300,
+        'time_step': 600,
+        'duration': 2 * 600,
+        'logdir': str(tmp_path),
+        'model': {
+            'G1': {
+                'type': 'generator',
+                'time_series': TimeSeries(7.0),
+                'state': FREE,
+                'ranges': [[0.0], [6.8, 12.8]],
+                'ramp_up': 6.0,
+                'ramp_cost': 1.0,
+                'PQ': PQ
+            },
+            'Target': {
+                'type': 'forecast',
+                'time_series': prices,
+                'thresholds': [0.5, 1.5, 2.5],
+                'costs': [['G1', 'E', 0.0, 10.0],
+                          ['G1', 'E', 7.0, 10.0],
+                          ['G1', 'E', 6.8, 10.0],
+                          ['G1', 'E', 12.0, 10.0]]
+            }
+        }
+    }
+    m = HydraulicModel(model)
+    m.solve_lp()
+    power = m.lp.resultsdict['G1']['Power']
+    future = [t for t in m.times if t >= m.set_time]
+    assert [power[t] for t in future] == pytest.approx([12.0, 12.0, 12.0])
+    m.remove_result()
+
+
 def test_valveriverlake(tmp_path):
     """
     Check volume and flows.

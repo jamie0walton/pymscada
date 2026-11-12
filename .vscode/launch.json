@@ -196,7 +196,7 @@
             "cwd": "",
             "program":"src/pymscada/__main__.py",
             "args": ["mpanalyser", "--verbose",
-                "--config", "~/ms/yaml/mpanalyse.yaml"
+                "--config", "~/ms/yaml/mpanalyser.yaml"
             ],
             "console":"integratedTerminal",
             "justMyCode":true

@@ -775,6 +775,7 @@ class Valve(Constraint):
         self.flow = None
         self.ramp_up = None  # m3/s per hour
         self.ramp_down = None  # m3/s per hour
+        self.ramp_cost = None  # cost per m3/s over a ramp, None is hard
         super().__init__(**kwargs)
         if self.flow is None and self.time_series is None:
             raise ValueError(f'{self.name} must have a flow time_series.')
@@ -784,12 +785,20 @@ class Valve(Constraint):
 
     def add_ramps(self, m: HydraulicModel, t: int, t_prior: int):
         dt = (t - t_prior) / 3600
-        if self.ramp_up is not None:
-            m.lp.add_row(self.flow_name(t), -1.0, self.flow_name(t_prior),
-                         'L', self.ramp_up * dt)
-        if self.ramp_down is not None:
-            m.lp.add_row(self.flow_name(t_prior), -1.0, self.flow_name(t),
-                         'L', self.ramp_down * dt)
+        f, f_prior = self.flow_name(t), self.flow_name(t_prior)
+        ramps = (
+            ('Up', self.ramp_up, f, f_prior),
+            ('Down', self.ramp_down, f_prior, f),
+        )
+        for name, ramp, hi, lo in ramps:
+            if ramp is None:
+                continue
+            row = [hi, -1.0, lo]
+            if self.ramp_cost is not None:
+                slack = m.lp.get_unique_var(f'{self.name}_Ramp{name}', t)
+                row += [-1.0, slack]
+                m.add_cost((self.ramp_cost, slack))
+            m.lp.add_row(*row, 'L', ramp * dt)
 
     def create_lp(self, m: HydraulicModel):
         for ti, t in enumerate(m.times):
@@ -903,6 +912,9 @@ class Generator(Constraint):
         self.stop = False
         self.startlimit = []
         self.rangelimit = []
+        self.ramp_up = None  # MW per hour
+        self.ramp_down = None  # MW per hour
+        self.ramp_cost = None  # cost per MW over a ramp, None is a hard limit
         self.PQ = []
         super().__init__(**kwargs)
         if self.time_series is None:
@@ -913,13 +925,39 @@ class Generator(Constraint):
     def default_name(self, time):
         return super().power_name(time)
 
+    def add_ramps(self, m: HydraulicModel, t: int, t_prior: int):
+        dt = (t - t_prior) / 3600
+        p, p_prior = self.power_name(t), self.power_name(t_prior)
+        semi = len(self.ranges) == 2 and len(self.ranges[0]) == 1
+        pmax = self.ranges[-1][1] if semi else 0.0
+        ramps = (
+            ('Up', self.ramp_up, p, p_prior, self.running_bv_name(t_prior)),
+            ('Down', self.ramp_down, p_prior, p, self.running_bv_name(t)),
+        )
+        for name, ramp, hi, lo, bv in ramps:
+            if ramp is None:
+                continue
+            row = [hi, -1.0, lo]
+            rhs = ramp * dt
+            if semi:
+                row += [pmax - ramp * dt, bv]
+                rhs = pmax
+            if self.ramp_cost is not None:
+                slack = m.lp.get_unique_var(f'{self.name}_Ramp{name}', t)
+                row += [-1.0, slack]
+                m.add_cost((self.ramp_cost, slack))
+            m.lp.add_row(*row, 'L', rhs)
+
     def create_lp(self, m: HydraulicModel):
         if self.time_series is None:
             raise ValueError(f'{self.name} must have a power time_series.')
-        for t in m.times:
+        for ti, t in enumerate(m.times):
             power = self.time_series.get(t)
             self.add_ranges(m, t)
             power = self.range_conform(power)
+            if t >= m.set_time and self.state == FREE:
+                t_prior = m.start_time if t == m.set_time else m.times[ti - 1]
+                self.add_ramps(m, t, t_prior)
             if t < m.set_time:
                 m.lp.add_row(self.power_name(t), 'E', power)
             elif self.state == OFF:

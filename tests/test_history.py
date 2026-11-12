@@ -35,25 +35,26 @@ REP_VALUES = [0.01, 1.01, 2.01,
 
 
 @pytest.fixture(scope='session')
-def t0():
+def history_path(tmp_path_factory):
+    return tmp_path_factory.mktemp('history')
+
+
+@pytest.fixture(scope='session')
+def t0(history_path):
     """Make test files in the test_assets folder."""
-    for df in Path('tests/test_assets').glob('hist_tag_0_*'):
-        df.unlink()
-    tag_0 = TagHistory('hist_tag_0', int, 'tests/test_assets')
+    tag_0 = TagHistory('hist_tag_0', int, str(history_path))
     for time_us, value in zip(TIMES, VALUES):
         tag_0.append(time_us, value)
         if time_us in [14, 25, 49]:
             tag_0.flush()
-    Path('tests/test_assets/hist_tag_0_10_2.dat').touch()
+    (history_path / 'hist_tag_0_10_2.dat').touch()
     return tag_0
 
 
 @pytest.fixture(scope='session')
-def t1():
+def t1(history_path):
     """Make test files in the test_assets folder."""
-    for df in Path('tests/test_assets').glob('hist_tag_1_*'):
-        df.unlink()
-    tag_1 = TagHistory('hist_tag_1', float, 'tests/test_assets')
+    tag_1 = TagHistory('hist_tag_1', float, str(history_path))
     for time_us, value in zip(REP_TIMES, REP_VALUES):
         tag_1.append(time_us, value)
     i = 0
@@ -95,13 +96,12 @@ def test_bad_init(tmp_path: Path):
         TagHistory('history_missing_path', float, str(tmp_path / 'missing'))
 
 
-def test_right_files(t0: TagHistory):
+def test_right_files(t0: TagHistory, history_path: Path):
     """Check tag_0 and tag_0_10 return different files."""
-    t0_files = get_tag_hist_files(Path('tests/test_assets'), 'hist_tag_0')
+    t0_files = get_tag_hist_files(history_path, 'hist_tag_0')
     t0_times = [x for x in sorted(t0_files.keys())]
     assert t0_times == [0, 15, 26]
-    t0_10_files = get_tag_hist_files(Path('tests/test_assets'),
-                                     'hist_tag_0_10')
+    t0_10_files = get_tag_hist_files(history_path, 'hist_tag_0_10')
     t0_10_times = [x for x in sorted(t0_10_files.keys())]
     assert t0_10_times == [2]
 
@@ -163,9 +163,9 @@ async def test_read_ranges_forecast(t1: TagHistory):
 
 
 @pytest.mark.asyncio()
-async def test_write_history():
+async def test_write_history(history_path: Path):
     """Check the file rolls at 1MB and on flush."""
-    t1 = TagHistory('tag_1', float, 'tests/test_assets')
+    t1 = TagHistory('tag_1', float, str(history_path))
     ts = 1000000
     for i in range(65 * 1024):
         if i == 65656:
@@ -173,21 +173,21 @@ async def test_write_history():
         t1.append(ts + i, math.sin(2 * math.pi * i / 50))
     t1.flush()
     files = [
-        ('tests/test_assets/tag_1_1000000.dat', 1050496),
-        ('tests/test_assets/tag_1_1065656.dat', 14464)
+        (history_path / 'tag_1_1000000.dat', 1050496),
+        (history_path / 'tag_1_1065656.dat', 14464)
     ]
     try:
         for file, size in files:
-            assert Path(file).stat().st_size == size
+            assert file.stat().st_size == size
     finally:
         for file, _ in files:
-            Path(file).unlink(missing_ok=True)
+            file.unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio()
-async def test_deadband_write_history():
+async def test_deadband_write_history(history_path: Path):
     """Check that small changes are filtered with deadband."""
-    t1 = TagHistory('tag_1', float, 'tests/test_assets', min=-0.99, max=0.99,
+    t1 = TagHistory('tag_1', float, str(history_path), min=-0.99, max=0.99,
                     deadband=0.5)
     ts = 1000000
     for i in range(65 * 1024):
@@ -196,15 +196,15 @@ async def test_deadband_write_history():
         t1.append(ts + i, math.sin(2 * math.pi * i / 50))
     t1.flush()
     files = [
-        ('tests/test_assets/tag_1_1000000.dat', 210096),
-        ('tests/test_assets/tag_1_1065656.dat', 2896)
+        (history_path / 'tag_1_1000000.dat', 210096),
+        (history_path / 'tag_1_1065656.dat', 2896)
     ]
     try:
         for file, size in files:
-            assert Path(file).stat().st_size == size
+            assert file.stat().st_size == size
     finally:
         for file, _ in files:
-            Path(file).unlink(missing_ok=True)
+            file.unlink(missing_ok=True)
 
 
 READ_TESTS = [
@@ -227,10 +227,10 @@ READ_TESTS = [
 ]
 
 
-def test_read_rta_cb(t0: TagHistory):
+def test_read_rta_cb(t0: TagHistory, history_path: Path):
     """Test the RTA request data."""
     BUS_ID = 999
-    history = History(path='tests/test_assets',
+    history = History(path=str(history_path),
                       tag_info={'hist_tag_0': {'type': 'int'}})
     history_tag = Tag('__history__', bytes)
     hist_tag_0 = Tag('hist_tag_0', int)
